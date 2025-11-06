@@ -5,8 +5,8 @@ Msci Project under Tim Evans. Imperial College Centre for Complexity Science.
  indicators such as citation counts, which can obscure how knowledge actually accumulates. This
  Repo houses code examining two complementary approaches to analyzing citation networks represented as
  directed acyclic graphs (DAGs). The first approach, which includes main path analysis and
- criticality-based methods, traces technological progress over time by exploiting the mathemati
-cal properties of DAGs. The second focuses on centrality measures that quantify the importance
+ criticality-based methods, traces technological progress over time by exploiting the mathematical
+ properties of DAGs. The second focuses on centrality measures that quantify the importance
  of individual nodes based on their structural position. Despite their potential, systematic evalu
 ations of centrality measures tailored to DAGs remain limited, with relevant research dispersed
  across ecology, social science, and bibliometrics. This research aims to establish a foundation for future
