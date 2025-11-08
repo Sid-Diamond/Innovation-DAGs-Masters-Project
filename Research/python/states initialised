@@ -1,0 +1,77 @@
+from scipy.stats import lognorm
+import numpy as np
+from collections import deque
+
+class InitialisePercGrid:
+    
+    def __init__(self, height, width, mu, sigma):
+        self.height = height
+        self.width = width
+        self.mu = mu
+        self.sigma = sigma
+        
+        self.q_grid = self.create_q_grid()
+        self.state_grid = self.create_state_grid()
+        self.contigous_check= self.contigous_check()
+
+    def create_q_grid(self):
+        q_grid =[]
+        for i in range(self.height-1):
+            qij = lognorm.rvs(s=self.sigma, loc=0, scale=np.exp(self.mu), size=self.width, random_state=None)
+            q_grid.append(list(qij))
+        
+        q_grid.append([0]*self.width)
+        return q_grid
+    
+    def create_state_grid(self):
+        state_grid =[]
+        for i in range(self.height):
+            row =[]
+            for j in range(self.width):
+                if self.q_grid[i][j] <= 0:
+                    row.append(1)
+                else:
+                    row.append(0) 
+            
+            state_grid.append(row)
+        
+        return state_grid
+    
+    def contigous_check(self):
+        bfs_visited =[]
+        for i in range(self.height):
+            row =[]
+            for j in range(self.width):
+                row.append(False)
+            bfs_visited.append(row)
+        # bfs_visited = [[False] * self.width for j in range(self.height)]
+        #is an identical way to write the above
+        
+        queue = deque() #double edged queue. supports o(1) time for removing from front and back simultaneously
+
+        for j in range(self.width):
+            if self.state_grid[self.height-1][j] ==1: #if the bottom state row is 1
+                queue.append((self.height-1, j)) #add the (0,j) coordinates to queue
+                bfs_visited[self.height-1][j] = True #mark as visited
+                self.state_grid[self.height-1][j] = 2
+
+        while queue:
+            i, j = queue.popleft()
+
+            for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]: 
+                ni, nj = i + di, j + dj
+
+                if 0 <= ni < self.height and 0 <= nj < self.width:
+                    if not bfs_visited[ni][nj] and self.state_grid[ni][nj] ==1:
+                        bfs_visited[ni][nj] = True
+                        self.state_grid[ni][nj] = 2 
+                        queue.apppend((ni,nj))
+
+
+if __name__ == "__main__":
+    perc_grid = InitialisePercGrid(height = 5, width =5, mu=0, sigma=0.25)
+    
+    for row in perc_grid.q_grid:
+        print(row)
+
+    print(perc_grid.state_grid)
