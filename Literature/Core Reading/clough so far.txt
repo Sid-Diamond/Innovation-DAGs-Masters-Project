@@ -1,0 +1,269 @@
+Definitions and Notation
+ G
+ V(G)
+ E(G)
+ A
+ Agraph, consisting of a set of vertices and a set of edges.
+ The vertex set of G.
+ The edge set of G.
+ The adjacency matrix of a graph.
+ RGG RandomGeometricGraph.
+ DAG DirectedAcyclicGraph.
+ P
+ C
+ ED
+ HD
+ Apartially ordered set, or poset.
+ Acausal set, or causet.
+ The binary relationship in a poset or causet, called ‘precedes’.
+ D-dimensional Euclidean space.
+ D-dimensional Hyperbolic space.
+ Md+1 (d+1)-dimensional Minkowski spacetime.
+ dSd+1
+ (d +1)-dimensional de-Sitter spacetime.
+ u 2
+ M Pseudo-inner product in Minkowski spacetime.
+ TR
+ TC
+ Transitive reduction.
+ Transitive closure.
+ MMD Myrheim-Meyerdimension.
+ MPSD Midpoint-scaling dimension.
+ MDS Multidimensionalscaling.
+ AUC Areaunderreceiver-operator curve.
+ 18
+Chapter 1
+ Introduction
+ The scientist is not a person who gives
+ the right answers, he’s one who asks
+ the right questions.
+ Claude Levi-Strauss
+ Physics is traditionally reductionist in its approach. Its goal is to describe the under
+lying nature of reality, and in attempting to do that scientists seek to find explanations
+ for the phenomena they observe in terms of something simpler. This ultimately leads
+ to descriptions in purely mathematical terms, with as little else left as possible. Exper
+iments must remove, or at least account for outside factors so that one process can be
+ observed and understood without others interfering. Any success in this task is a great
+ achievement. We’ve no right to expect that there are even underlying simple rules that
+ are possible to deduce from what we’re capable of observing. Nonetheless, most of
+ the history of physics has focussed on answering this question: ‘how can we deduce
+ simple rules from observing the complicated world?’
+ It is easy to forget though that even if we know the underlying simple mathem
+atical laws (we certainly do not know all of them yet, if they exist at all), the world
+ we observe is still complicated. This tension between the simple rules and the com
+plicated observations goes both ways. So a second question remains: ‘how does the
+ complicated world emerge from those simple laws?’
+ I think that second question is just as fundamental as the first. These complicated
+ 19
+20
+ CHAPTER1. INTRODUCTION
+ things are the ones we want to know about. Complex systems like the human brain,
+ the Internet, cities, or the global scientific process; these are all things that are worth
+ studying because they are important to how we live our lives, but to leave it at that is
+ to undersell them. Knowing how such complexity arises from simple rules is just as
+ interesting for its own sake as the underlying mathematics and fundamental physics
+ are.
+ There’s a sense in which the first question, that of deriving the simple laws, is al
+ways going to be easier to answer, since if the type of answer you’re looking for is
+ ‘simple’ then the space of possible answers is smaller than for ‘complicated’. In the
+ case of complex systems, and the understanding of their emergent properties, it’s not
+ even clear what the type of answer we’re seeking is. Maybe there will be elegant and
+ simple explanations that tell us how complex brain function emerges from simpler un
+derlying processes, and maybe there won’t be. We are probably still at the prior stage
+ of that scientific process, that of working out which observations are going to be use
+ful, and cataloguing the universalities and differences of various systems of interest.
+ Understandably then, widely applicable explanatory theories for complex systems can
+ be hard to find. This is nothing to be upset about though, in my opinion at least. These
+ exploratory steps in the dark, where we neither know what kind of things we are look
+ing for or what we might find can be the most exciting, even if the lack of overarching
+ conclusions can be frustrating.
+ Studying complex systems is an inherently interdisciplinary task because complex
+ity arises in so many different domains. Interdisciplinarity provides an opportunity
+ for progress because by drawing together techniques and tools from mathematical and
+ physical theories, and data from fields where those theories have not been previously
+ applied, we can make new observations and learn more about both the tools and the
+ data. This is the approach taken in the coming chapters. The data, as discussed later in
+ this chapter, is primarily from social systems of interaction between individual people,
+ in the form of communication and citation networks. The mathematical theory is that
+ of graphs, networks, spacetime geometry and causal sets.
+1.1. GRAPHS
+ 21
+ 1.1 Graphs
+ A variety of approaches have been developed in the study of complex systems, each
+ with their own history and nomenclature, overlapping to varying extents. Let us be
+gin by introducing the network approach to studying complex systems. The premise is
+ simple enough; consider a complex system as a network of interacting parts, and then
+ study the structure, or topology, of the pairwise 1 interactions between these smaller
+ simpler components. This structure is mathematically described as a graph, denoted G
+ which is a collection of vertices, or nodes, V, representing the small components, and a
+ collection of edges, or links, E, the pairwise relations, and so we write
+ G = VE
+ (1.1)
+ AsimpleexampleisshowninFigure1.1. Abusingnotationslightly,wewillalsodenote
+ the vertex set and edge set of G respectively by V(G) and E(G).
+ Figure 1.1: An example of a graph with 10 vertices and 16 edges. Although the graph here is
+ drawn in a particular way, with x and y coordinates assigned to each vertex, it is important to
+ note that this is simply for convenience in illustrating the graph. There is no special significance
+ to the way the graph is drawn (unless stated otherwise, as discussed in later chapters) and the
+ drawing does not change the mathematical structure of the graph which consists only of which
+ vertices are neighbours with which others.
+ 1Interactions of more than two components can be considered in generalisations of graphs such as
+ hypergraphs or simplicial complexes [214], but won’t be discussed here.
+22
+ CHAPTER1. INTRODUCTION
+ If a vertex v is in the graph, then v V. If there is an edge between vertices u
+ and v then the pair (uv) E, and we will call u and v neighbours. Graphs can be
+ undirected, meaning that each edge (uv) is an unordered pair, or directed, meaning
+ (uv) is ordered and so different from (vu). Here we will only be considering simple
+ graphs, which have at most one of each edge, and in which there are no self-loops,
+ meaning (uv) E = u=v uv V.
+ This structure can be specified in matrix form, by the graph’s adjacency matrix, A.
+ If G has N vertices, then A is an N N matrix. Labelling each vertex with a unique
+ index, i 
+iff (uv) 
+12 N , so that the index of vertex u is i(u), we then say that Ai(u) i(v) = 1
+ E and 0 otherwise. It immediately follows from this definition that in
+ undirected graphs A is symmetric, since then (uv) 
+E = (vu) Eandso
+ Ai(u) i(v) = Ai(v) i(u). Since we are not considering graphs with self loops the elements
+ on the diagonal of A are always 0.
+ There are many ways of assigning these indices as labels to the vertices of a graph,
+ and so many different adjacency matrices can represent the same graph. Furthermore,
+ two graphs can be different (by having different vertex sets) but still have the same
+ structure, if there is a correspondence between their edges and vertices. Two such
+ graphs are called isomorphic when this is the case. More formally, two graphs G and H
+ are isomorphic iff there is a bijection
+ f : V(G) V(H)
+ such that
+ (uv) E(G) 
+(f(u) f(v)) E(H) uv V(G)
+ (1.2)
+ (1.3)
+ This is to say that the vertices of G can be relabelled with the names of the vertices of
+ H in such a way that the relabelled graph has exactly the same edge set as H. The
+ focus of this thesis is on the structure of graphs and so if two graphs are isomorphic
+ then they are, for our purposes, effectively the same. Of course, any measurement of
+ graph structure, including those developed in later chapters, must be the same for two
+1.1. GRAPHS
+ 23
+ isomorphic graphs since the names of the vertices are irrelevant.
+ The mathematical study of graphs has a long history, with Euler’s work on the
+ bridges of K¨onigsberg widely regarded as founding the field [39]. Famously, by con
+sidering the graph representing the islands (vertices) and bridges (edges) of the city,
+ Euler demonstrated that it was not possible to make a journey crossing each bridge
+ exactly once.
+ Since these early beginnings, graph theory has grown enormously and is now a
+ well established mathematical field. It is used in topology, for example in Euler’s for
+mula relating the numbers of vertices, edges and faces on polyhedra [39]. Graphs
+ are used to describe molecular structure in Chemistry [21], particle interactions in
+ Quantum Field Theory [138], and are used in Quantum Information theory [117].
+ Graph theory has posed some of the most well known problems in mathematics
+ such as the famous ‘four colour problem’ [16], which asks whether a plane divided
+ into contiguousregionscanhavethoseregionscolouredsuchthatnoborderingregions
+ share a colour. This problem, first raised in the mid-19th century took more than 100
+ years and a controversial computer assisted proof to solve [96].
+ Computer scientists also commonly use graphs. Many useful data structures and
+ algorithms are described in graphical terms [120]. Graph problems appear often in the
+ study of computational complexity2 with many famous NP-complete problems posed
+ in the language of graph theory, such as the sub-graph isomorphism problem [195] or
+ the graph colouring problem [208]. Indeed, the problem of determining whether two
+ graphs are isomorphic to each other or not remains a very active question of current
+ study [18].
+ Graph theory allows us to answer questions about particular graphs and their
+ structure, but more is needed to describe complex systems. These complex networks
+ can be extremely large and so need to be described not just microscopically but also
+ statistically. We are not just interested in the graph that exactly represents the structure
+ of, for example, the Internet, even if such a thing can be found in a reasonable amount
+ 2Despite the similarities in their names, ‘complexity science’ and ‘computational complexity’ are dis
+tinct fields of study.
+24
+ CHAPTER1. INTRODUCTION
+ of time, or be said to exist at all. Rather we are interested in the kinds of graph that
+ the Internet is like. Physicists do not attempt to describe the position and motion of
+ every particle in a room to describe its properties, but instead describe them statistic
+ally and discuss useful observable properties of the particles (such as temperature and
+ pressure) in terms of these statistics. Network science takes the same approach to study
+ing these large graphs. We calculate statistical properties of their structure and choose
+ interesting and meaningful statistics to observe and measure in order to characterise
+ the system in question.
+ Thedevelopmentofrandomgraphtheoryandthestatistics of graphs by Erd¨os and
+ Renyi begins this advancement [38]. The model they introduce is extremely useful and
+ provides a good example for the introduction of the discussion of statistical properties
+ of graphs. An Erd¨os and Renyi (ER) random graph, GER(np) has n vertices, and each
+ of the n(n 1)
+ 2
+ possible edges is present with a constant probability p. The ER graph is
+ very useful as a simplest null model and if we know nothing about the structure of a
+ graph other than how many vertices and edges it has, an ER graph is a good place to
+ start. Exponential random graph (ERG) theory provides a rigorous method of defining
+ the ensemble of graphs with certain average properties or constraints that otherwise
+ maximises entropy [168]. The ER model can be thought of as the simplest ERG where
+ only the number of nodes and expected number of edges is specified.
+ However, for even moderately large n it would be neither practical nor helpful to
+ describe such a model by specifying the probability of each possible graph it could cre
+ate since there are so many [5]. Instead, we can describe it statistically. We can measure
+ graph observables, which are measurable properties of the graph, and characterise the
+ modelwiththeir statistics. Of course, there are many such observables one could think
+ up, and the difficulty lies in creating observables which are meaningful for the system
+ the graph represents. For example whether a graph has an odd or even number of
+ nodes might be something we can easily measure, but if the network in question is a
+ social network, knowing the parity of a person’s number of friends does not tell us
+ howpopular they are.
+1.1. GRAPHS
+ 25
+ Figure 1.2: Three ER graphs with n = 30 and p = 00300501. On the left, most pairs are
+ not connected by an edge, and those that are form small disconnected groups, with no cycles.
+ In the middle, we approach the critical probability, np = 1 for a giant connected component
+ of the graph, with connected vertices mainly forming one large component which contains a
+ cycle. On the right, we are well above the critical probability and all vertices are part of one
+ component which contains many cycles.
+ Let us consider some more useful graph observables. Remember, GER(np) is not
+ one particular graph but is a random variable that describes a whole ensemble of
+ graphs each with an associated probability, so these observables will have some as
+sociated probability distribution. The simplest observables we can consider are the
+ number of vertices, which we will denote as N(G) = V(G), and edges, E(G) = E(G)
+ in the graph, where 
+denotes the cardinality of a set. It is clear that N(GER(np)) = n
+ with probability 1. The number of edges, E follows a binomial distribution since each
+ of the possible edges is present independently with the same probability and so
+ E(GER(np)) Binomial n
+ 2 p
+ (1.4)
+ Let us define a path of length as a sequence of +1 vertices, v1 v2 v+1 V(G)
+ such that each of the pairs (v1 v2) (v2 v3) (v v+1) E(G). Such a path is a cycle if
+ the first and last vertex are the same, that is v1 = v+1. A vertex u is reachable from v if
+ there is somepathcontainingbothofthem, andaconnectedcomponentisasetofvertices
+ which are all mutually reachable. In a directed graph, paths must also respect the
+ direction of the edges. A strongly connected component is one in which the all vertices are
+ mutually reachable when accounting for the direction of edges, and a weakly connected
+26
+ CHAPTER1. INTRODUCTION
+ component is one in which all vertices are mutually reachable when edge direction is
+ not accounted for.
+ Auseful graph observable is the expected number of vertices in the largest (in the
+ sense of containing the most vertices) connected component of the graph. We can then
+ see in Figure 1.2 that the ER model displays a phase transition around a critical prob
+ability below which there is no large component (more precisely, the probability of a
+ componentcontaining a finite proportion of the vertices goes to 0 as n tends to infinity)
+ and above which such a component emerges.
+ The degree, k(u) of a vertex u in a network is the number of neighbours of u.
+ k(u) = e E : u e
+ (1.5)
+ This can be calculated from the graph’s adjacency matrix by summing across rows or
+ down columns. In undirected graphs, the symmetry of A means either one gives the
+ same result, but in directed graphs this is not the case. We will refer to the number of
+ edges in which a vertex is the first of the pair as its out-degree, kout and the other case as
+ its in-degree kin. Using the graph’s adjacency matrix we can define them as
+ kout(u) =
+ kin(u) =
+ Ai(u) j 
+j
+ j
+ Aj i(u) 
+(1.6a)
+ (1.6b)
+ The distribution of degrees in a network tells us about its structure. Regular graphs
+ are those in which all vertices have the same degree. In a typical ER graph the degree
+ distribution is binomial. Generally we will talk about a graph’s degrees in terms of
+ a probability distribution, p(k) describing the probability of a vertex having a degree
+ equal to k.

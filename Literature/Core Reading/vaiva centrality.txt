@@ -1,0 +1,1197 @@
+61
+ Nodes in a network are equivalent in terms of their internal structure: each node
+ represents the same type of entity (in the simplest type of networks). However, po
+sitional importance of nodes is far from equivalent: some nodes are in structurally
+ important (central) parts of a network, and some are positioned in peripheral ar
+eas. Centrality is a function that evaluates nodes positional importance with
+ respect to the topology of the rest of the network.
+ Centrality is one of the oldest, primary tools of network analysis. Bavelas
+ was rst to coin the term centrality , remarking in his experiments that central
+ity of a social network is related to group e ciency in problem solving [76]. The
+ relation between centrality and other group processes was thoroughly studied in
+ the following decades by sociologists [77; 74; 78], later adapted to other sciences.
+ Centrality has found endless applications and is used to study numerous social,
+ technological, transport, biological systems. To name just a few examples centrlaity is a useful tool to nd most relevant items in recommendation systems [79],
+ or to understand key participants in protein-protein interaction networks [80].
+ Centrality is also used in transportation networks, e.g. to understand tra c and
+ congestion [81; 82]. Furthermore, it seems to be linked to socioeconomic indica
+tors in air transport networks [83]. Centrality is also used to nd vulnerabilities
+ in di erent types of criminal organisations [84].
+ There is no strict de nition of centrality. When a node is called central, it
+ is assumed to be in a structurally important part of a network. However this
+ importance manifests di erently in di erent contexts. So it is not surprising that
+ centrality is also evaluated in various ways. Which centrality measure to use for
+ a given network then depends on what de nes an important region in a certain
+ network. One measure can be useful to evaluate importance in one network, but
+ it can have no meaning in another.
+ For instance, consider a citation network. Recall that an edge indicates a
+ citation and can only point from an older paper to a more recent one. In this
+ picture, out-degree gives a citation count of a node and in-degree is equal to the
+ length of paper s bibliography. In bibliometric studies, a count of papers citations
+ is considered an indicator of its success or impact [85]. Conversely, to use the
+ length of a bibliography would be a far more controversial quanti er of papers
+ signi cance. As the length of bibliography re ects on the amount of resources
+ used by the authors, it can vary vastly based on the research eld and the type
+ of paper (e.g. whether it is a letter or a review). So centrality re ecting upon
+ importance in one context may be less insightful in another.
+ An important feature of centrality that will be studied in this chapter is that
+ centrality creates an order of nodes. Centrality values of nodes are real numbers
+ which can be used to order nodes from the most central to the least central.
+ Generally, this order depends only on the topology of the network. DAGs are
+ 62
+unique in that one order of nodes is quintessentially a part of the network topology
+ itself (the topological order of nodes, see section 1.3.1).
+ As we will see, in many cases, centrality scores are correlated with the intrin
+sic topological order of nodes: old nodes are deemed to be indicated as central,
+ regardless of whether they are structurally peripheral or positioned in a core area.
+ So tension between the two types of node orders exists: in some cases, a node is
+ central because it is important, but other nodes are central because they are
+ old but not necessarily important.
+ We will begin this chapter with a review of relevant centrality literature and
+ will de ne centrality as a function with speci ed features. We will then create
+ axioms for a function to be a centrality measure for DAGs.
+ To understand the relation between the two orders of nodes in DAGs, we will
+ concentrate on a quintessential feature of centrality function, namely, the neigh
+bourhood inclusion preorder and its behaviour in directed networks. We
+ will also show that in DAGs there are some cases when neighbourhood inclusion
+ preorder need not exist, yet we can create a centrality order. It means that cen
+trality order re ects on topological order of nodes. Thus we demand a second
+ requirement for a useful DAG centrality measure, namely, that it also cannot be
+ trivially related to topological order.
+ To make use of centrality in DAGs, we will propose several methods. First,
+ we will discuss an information-theoretic measure based on similarity of partial
+ orders. Such tool may be used to understand whether a node, indicated as central,
+ is expected to be central given its index in the topological order. We will also look
+ into several variations of centrality, such as centrality based on the longest paths,
+ future and past light-cones.
+ 63
+4.2 Requirements for Centrality
+ Over the years, network centrality acquired many meanings and de nitions. To
+ make sense of this multitude of measures requires their classi cation and descrip
+tion of its key properties. In this section we will review work done in this area.
+ It is sensible to have many centrality measures, so that we would always have
+ at least one centrality measure which has a meaning in our network. However, an
+ ever-growing number of measures makes one sceptical about the need to contin
+uously improve centrality. Very early in the formation of the topic of network
+ centrality, Freeman pointed out that several measures are often only vaguely re
+lated to the intuitive ideas they purport to index, and many are so complex that
+ it is di cult or impossible to discover what, if anything, they are measuring [86].
+ Perhaps a formal de nition of centrality is needed. Sabidussi was rst to
+ formalise centrality by stating requirements for a function which takes an undi
+rected network as an argument [87]. He rst pointed out that the function should
+ be invariant under graph isomorphisms. Secondly, it should be monotonic under
+ graph modi cation: a vertex receiving a new incident edge (via operations called
+ edge addition and edge switching) can only become more central. Sabidussis
+ work was followed by Nieminen, who discussed similar axiomatisation for directed
+ graphs [88]. More recently, Boldi and Vigna [89] proposed axioms to characterise
+ the e ect of size, density and addition of an edge in a directed network. They fo
+cused on axiomatic validity of centralities applied to graphs composed of k-cliques
+ making their work speci c to such type of graph. Bandyopadhyay et al. worked
+ on universally applicable sets of axioms [90].
+ Most axiomatic approaches are limited to centrality applied for a speci c
+ network type and to date there seems to be only one key property that is an
+ uncontested assertion of what centrality is, the star property, put forward by
+ 64
+Freeman [86; 91]: a person located in the centre of a star is universally assumed
+ to be structurally more central than any other person in any other position in any
+ other network of similar size . A generalisation of the star property was proposed
+ by Schoch and Brandes [91] as an essential criterion of any centrality measure
+ neighbourhood inclusion preorder. It states that if the neighbourhood of
+ a node u includes that of v, u is dominated by v. The relation
+ u Nvindicates that N(u) N(v) v
+ and we say that u is dominated by v.
+ (4.1)
+ Neighbourhood inclusion preorder can be used to de ne centrality as a func
+tion acting on nodes in G in such a way that if the neighbourhood of a vertex v
+ dominates that of a vertex u, then v is at least as central as u. For our purposes,
+ we de ne centrality as a function C: C(Gu) R. The function must pre
+serve the neighbourhood inclusion preorder: if u N v, then C(u) C(v). We
+ will discuss the neighbourhood inclusion preorder in detail in section 4.5.1.
+ We expect centrality to behave in the following way. The centrality score of
+ a node increases if the distances between the node and the rest of the network
+ decrease. Furthermore, if a graph is not strongly connected (i.e. there is at least
+ one node which does not have a path to at least one other node), then the centrality
+ of a node increases with the number of reachable nodes. This is often considered
+ in centrality functions that do not increase monotonically with the number of
+ terms in a relevant sum (which, as will be discussed in the following section, is
+ a standard form a centrality function takes). For instance, closeness centrality is
+ equal to an inverse of a sum of paths from a node to the rest of a network. If a
+ node does not have a path to at least one other node, then the closeness centrality
+ of such node is equal to zero a result one may want to avoid. To go around this
+ issue, usually only distances to reachable nodes are accounted for. We call this
+ 65
+type of centrality shortest-path-based centrality.
+ 4.3 Some Standard Measures of Centrality
+ Since a large variety of centrality measures exists, a thorough review is left out of
+ this thesis. Here an emphasis is put on centralities that consider paths originating
+ or terminating at a node to evaluate its importance. Indeed, many centrality mea
+sures are based on either the shortest paths in the network or spreading processes,
+ such as di usion or broadcasting. An extensive review of a variety of centrality
+ measures can be found in [92]. Some traditional centrality measures are outlined
+ in Table 4.1. Note that these measures assume undirected, unweighted network
+ with one strongly connected component.
+ Often measures that are formulated for undirected networks can be used in
+ directed networks without changes. Furthermore, some centrality measures, such
+ as PageRank [94], demand directionality. What directionality of edges means is
+ that A= AT. Measures, given in Table 4.1 are then measures related to paths
+ which originate at a node, and, since the networks we are interested in are DAGs,
+ they point forward in time to nodes future. Let us call such measures future
+ centrality and denote them by C(future)1.
+ When centrality of a node is revealed through paths which end at that node,
+ we can reverse the direction in the de nitions, use dvu instead of duv to quan
+tify how central u is. In the space-time picture of DAGs, when duv is a path
+ directed to u s future, then dvu starts in the past of u. Let us call such central
+ity past centrality and denote such functions C(past). Instead of changing
+ duv to dvu in the formulation of centrality one can simply reverse the direction
+ 1Note that the de nition of PageRank in Table 4.1 is related to nodes successors, or nodes
+ it points to. This is opposite to the original de nition, used for search engine in Google. It is
+ due to our opposite convention. Originally, in a website network an edge (uv) indicates that a
+ website u is referenced in a website v.
+ 66
+Measure
+ Mathematical Formulation
+ for C(u)
+ Interpretation
+ Degree
+ v G 
+Aiujv
+ Closeness N 1
+ v G duv
+ Harmonic
+ closeness
+ Eigenvalue
+ 1
+ N 1 v G
+ 1C(u) = N
+ v G 
+Aiujv
+ C(v)
+ Katz
+ PageRank 1
+ l=1
+ v G 
+N 
++ v Nsuc(u) 
+C(v)
+ Betweenness vw G 
+uvw
+ vw
+ The number of adjacent edges. Re
+lated to nodes activity in the net
+work.
+ The inverse of the mean distance to
+ other nodes. Which individuals can
+ inuence the entire network most
+ quickly.
+ 1
+ duv
+ l
+ The harmonic mean of the inverse
+ distances to other nodes.
+ Nodes centrality is its summed
+ connections to others, weighted by
+ their centralities [93]. 
+1 here is
+ the largest eigenvalue of A.
+ [Al]iujv
+ k(in)(v)
+ Nodes centrality depends on all
+ paths, but the shorter the paths to
+ other nodes, the larger C(u) (0 <
+ < 1
+ 1
+ ).
+ Important websites are pointed to
+ more often by other important web
+sites.
+ The number of times a node
+ appears on paths between other
+ nodes. Recall that u
+ vw is the num
+ber of shortest paths from v to w
+ that pass through u. High between
+ness nodes act as bridges.
+ Table 4.1: A few examples of centrality measures for an undirected, unweighted
+ network with one connected component.
+ of edges and calculate centrality of a reversed graph Grev = (VErev), where
+ Erev = (vu)(uv) E . Similarly, if centrality of a node depends on both, its
+ future and its past sets, the scores of past centrality and future centrality may be
+ joined into a global total centrality score. For example, one can de ne it as
+ C(total)(u) = C(past)(u) + C(future)(u).
+ It is worth highlighting that both closeness centrality and harmonic closeness
+ centrality should be slightly modi ed to be useful in DAGs, which are always
+ 67
+weakly connected networks2. Both functions are supposed to give a mean value
+ of the length of paths originating or ending at a node, which holds true only
+ when a network is strongly connected [95]. When it is weakly connected, we
+ can normalise future closeness centrality with F(u) instead of N 1 and future
+ harmonic closeness centrality with 1 ( F(u)) instead of 1 (N 1) (refer to Table
+ 4.1 for the de nitions of these measures). This is a convention we will use in this
+ chapter.
+ Without the loss of generality, in this chapter we will also concentrate on
+ future centrality unless otherwise stated. Any of our arguments can be
+ translated to past centrality as we simply need to change from G to Grev.
+ Future centrality will be denoted C(future); C(future) : C(future)(Gu) 
+past centrality is de ned as C(past) : C(past)(Grev u) 
+0.5
+ a
+ b
+ c
+ d e
+ g
+ f
+ 0.3
+ b
+ 0.11
+ a
+ 0.4
+ c
+ 0.6
+ d e
+ 0.2
+ 0.15
+ g
+ f
+ Calculate centrality
+ R.
+ Importance
+ e
+ a
+ c
+ b
+ f
+ g
+ d
+ Rank (order) based on
+ centrality
+ R. Similarly,
+ Figure 4.1: An illustration of how centrality measure can be used to obtain an
+ order of nodes a centrality order. On the left, there is no notion of an order
+ (rank) in the network. Centrality of nodes (in this example, eigenvalue centrality)
+ provides scores for each node, as shown in the middle gure. These scores are
+ used to order nodes from the most central, e in this case, to the least central, d
+ in this case, see the gure on the right.
+ It would be cumbersome to analyse all existing centrality measures, so in
+ the further analysis, we will limit ourselves to the seven measures outlined in
+ 2In a (strongly) connected graph, every node has a path to every other node. A directed
+ network is called weakly connected if replacing all its directed edges by undirected edges the
+ result is a strongly connected undirected graph.
+ 68
+Table 4.1. As mentioned earlier, most centrality measures are derivatives of these
+ fundamental centrality measures. The extent to which our results apply to
+ other centrality measures is a task left for future studies.
+ It will be useful to consider centrality as a function that creates a preorder:
+ nodes of a network are (partially) ordered given a centrality function. We will call
+ this order a centrality order. See Fig. 4.1 for an illustration of how eigenvalue
+ centrality measure can impose an order of nodes in a directed network.
+ 4.4 DAGs and Standard Measures of Centrality
+ Centrality provides many interesting insights about nodes in our DAGs. A cen
+tral paper in terms of an out-degree in a citation network may be considered an
+ important paper in a research eld [85]. A central species in terms of degree
+ in a food web is an actively participating species and changes to the abundances
+ of such species directly a ect many other species [96]. A central package in
+ a network which represents software package dependencies is a software package
+ which is a prerequisite to many other software packages.
+ Centrality in directed acyclic graphs is not a new topic. A large contribution
+ to the study of centrality in DAGs comes from bibliometric studies of citation
+ networks. In a citation network, nodes out-degree (the number of times a node is
+ cited) is a well-known indicator of its impact [85]. What type of impact citation
+ count indicates exactly is not entirely clear. For instance, Leydesdor et al. argued
+ that citation is a composite indicator: short-term citations can be considered as
+ currency at the research front, whereas long-term citations can contribute to the
+ codi cation of knowledge claims into concept symbols [97]. Recently, degree in
+ citation networks was also used as a predictor of scienti c awards winners [98].
+ Degree is not the only centrality measure used in DAGs. With several excep
+69
+tions, one can use almost any centrality measure. One particular counter-example
+ is eigenvalue centrality. Here centrality of a node is given by the corresponding
+ eigenvalue of the adjacency matrix. As the adjacency matrix of any DAG is upper
+triangular, it is also a nilpotent matrix with no non-zero eigenvalues, so all nodes
+ are given centrality of zero.
+ Some centrality measures, such as PageRank, are used o-the-shelf to study
+ citation networks [99; 100]. However, quite often some adaptions of centrality
+ measures also take place. These changes account for the bias created by the
+ arrow of time. It is well-known that old nodes are more likely to be indicated
+ as central. Some measures that account for this e ect include time-rescaled
+ PageRank [101; 102], VoteRank [103].
+ TR (see section 1.3.1) and its e ect on citation count was also studied [71].
+ reduced degree is the degree of a node after transitive edges [31] are removed
+ from the network. The so-called reduced citation count may be related to the
+ topic diversity of a publication [71].
+ Whencentrality measures account for the age bias they are treating symp
+toms rather than healing the disease . Here the disease is that the topological
+ order, an inevitable element of DAGs, creates the older is more central e ect. In
+ the following sections we will try to uncover the relation between the topological
+ order on the centrality order. We will also address potential treatments which can
+ help reveal truly central nodes.
+ 4.4.1 Centrality Axioms for DAGs
+ To understand the mechanisms of centrality we will begin by formulating axioms
+ for a function to be called a centrality measure. Based on work on general cen
+trality axioms, here we list an adapted, DAG-speci c axiom list.
+ 70
+1. Isomorphic property. If graphs GH are isomorphic graphs, centrality
+ scores are equal. Isomorphic graphs are such that contain the same number
+ of nodes and edges. Furthermore, there is a function f which maps each
+ node v of the rst graph to a node f(v) in a second graph in such a way,
+ that if (uv) EG, (f(u) f(v)) EH. We say that this function is a
+ structure-preserving bijection. Then centrality of a node v G should be
+ equal to f(v) in H: C(Gv) = C(Hf(v)) v G.
+ 2. Locality. Future centrality of a node v depends only on the connections to
+ its future:
+ C(future)(Gv) = C((VE) v)
+ (4.2)
+ = C((F(v) v (uw)uw E if uw F(v) v v))
+ An equivalent axiom for C(past) is constructed by replacing G with Grev.
+ Similarly, total centrality of v must only depend on the union of nodes
+ future and past. This axiom necessitates that centrality of a node must
+ depend on paths related to it but should not be perturbed by any change
+ in the part of a network, that is not connected to the node.
+ 3. Isolated minima. Centrality of a node v is zero if v is isolated, that is,
+ (uw) 
+E where u = v or w = v uw V. If future (past) of a
+ node v is an empty set, its future (past) centrality, respectively, is mini
+mal: C(future)(Gv) = min(C(G)) if F(v) = (similarly if P(v) = ). Of
+ course, we can be less strict and ask only for a minimal centrality, rather
+ than its value to be zero.
+ 4. Edge monotonicity. For a network G = (VE), vu V, (uv) E, adding
+ an edge (uv) increases C(past)(v) and C(future)(u). This axiom requires that
+ the larger the number of connections a node has, the more central it is.
+ 71
+5. Impact range. A centrality measure is long-range if a local perturbation
+ has a non-diminishing e ect at large distances. Consider two graphs, G :
+ (uv V;v u;(uv) E) and G :(V;E (uv) ). Suppose further that
+ z y F(u); z y. Then centrality measure is considered long-range if
+ C(G z) C(Gz)<C(G y) C(Gy)
+ (4.3)
+ If the reverse is true, centrality is short-range. Note that centrality measure
+ can be either short-range or long-range, so this axiom should be looked at
+ as a classifying axiom.
+ We can use DAG centrality axioms for a systematic analysis of centrality
+ measures: if a centrality function does not admit at least one of the axioms, we
+ would say that it cannot be a centrality function. For instance, these axioms
+ would show that closeness centrality, as de ned in Table 4.1, is not a measure of
+ centrality in DAGs, whereas the modi ed version, which was described in section
+ 4.4, would be a valid centrality measure.
+ 4.5 Centrality and Topological Order
+ Let us now turn our attention to the relation between order, created using cen
+trality, and the topological order. We will do so via the study of the ephemeral
+ element of centrality the neighbourhood inclusion preorder. We will discuss in
+ detail what it is, and how it acts in directed networks. Lastly, we will show how
+ the centrality order is dictated by the topological order of nodes. We will often
+ discuss a nodes index (de ned in section 1.3.1) as an indicator of its position in
+ the topological order. Recall that the index is de ned as a nodes position in the
+ topological order. We will use the convention that the index begins at the oldest
+ node.
+ 72
+4.5.1 Directed Neighbourhood Inclusion Preorder
+ Neighbourhood inclusion, introduced in section 4.3, states that if we have a pair
+ of nodes for which the neighbourhood inclusion preorder exists, the centrality
+ function should order nodes such that the one with the larger neighbourhood has
+ a larger centrality score, regardless of the choice of a centrality measure.
+ Schoch and Brandes discussed the neighbourhood inclusion in terms of an
+ undirected, strongly connected network [91]. In DAGs we have three neighbour
+hoods to consider, namely, Nsuc(u)Npre(u)N(u) for each u G. Intuitively, if a
+ centrality score is based on nodes future, we should consider Nsuc(u), rather than
+ its Npre(u) set, as the latter has little to do with nodes centrality score. In a DAG
+ no paths that start at a node ever return to it, so centrality of u only depends on
+ its successors, successors of those successors and so on (as is also required by the
+ axiom 2 from section 4.4.1). If in an undirected network u is a neighbour of v as
+ much as v is a neighbour of u, in directed networks, nodes predecessors are not
+ equivalent to nodes successors and this asymmetry needs to be accounted for.
+ Let us consider all possible two-neighbour con gurations and how the replace
+ment of N by either Nsuc or Npre in (4.1) relates to an expected centrality order.
+ The node con gurations are the following: u v, u Nsuc(v) (which also includes
+ the case u F(v)), u Npre(v) (which also includes the case u P(v)). Let us
+ also assume shortest-path-based future centrality. These node con gurations are
+ given in Table 4.2.
+ In the case when u v ( rst and second rows in Table 4.2), neither u is a
+ successor of v nor u is a predecessor of v, we can only have Nsuc(u) Nsuc(v)
+ or Nsuc(v) Nsuc(u). A node with a dominant open neighbourhood is that of a
+ larger centrality. Thus the neighbourhood inclusion preorder works as expected.
+ Similarly, in the cases shown in rows three and four, centrality orders are also
+ validated correctly by the inclusion preorder of successors.
+ 73
+Note there is a special case, given in the last row of the table, when the
+ original neighbourhood inclusion preorder is inconclusive. The issue created by the
+ directionality of edges is related to the size of neighbourhoods. In the last row of
+ the table we have two valid neighbourhood inclusions: w
+ Nsuc[v] 
+C(future)(u) 
+uwv (Nsuc(u) 
+C(future)(v), which allows C(future)(v) > C(future)(u)), but
+ also uw = uw (Nsuc(v) = Nsuc[u] 
+C(future)(v) = C(future)(u), which
+ forbids C(future)(v) > C(future)(u)). Of course, we could simply choose C(future)(v) =
+ C(future)(u), or choose not to compare the neighbourhoods of two nodes. However
+ in simple cases of out-degree centrality and Katz centrality C(future)(u) is always
+ smaller than C(future)(v) in such two-node con guration.
+ To avoid the confusion, we may add a second requirement for the directed
+ neighbourhood inclusion preorder, namely that a node on the right-hand
+side of the (4.1) must be that of the larger open neighbourhood. Such choice
+ removes the ambiguity in the case shown in the fth row of Table 4.2, as we then
+ consider the following neighbourhood inclusion condition: Nsuc(u) Nsuc[v] but
+ not reverse. Here node u can be less central, as is the case for out-degree centrality,
+ or as central as v, which is the case in harmonic closeness centrality.
+ Each centrality measure is di erent and the orders created by various central
+ities will di er. However what directed neighbourhood inclusion preorder requires
+ is that nodes, for which a given neighbourhood preorder exists, are ordered with
+ respect to the neighbourhood inclusion preorder in the centrality order.
+ 4.5.2 Centrality without Neighbourhood Inclusion Preorder
+ We know that if neighbourhood inclusion preorder exists for two nodes, then
+ centrality must respect the preorder for these nodes. However, in DAGs the notion
+ of neighbourhoods of uv are not always needed to compare their centrality. This
+ information is already encoded in the topological order.
+ 74
+Node
+ con guration
+ Centrality
+ order
+ (vu) E
+ Neighbourhood
+ inclusion
+ Neighbourhood size
+ u v
+ u
+ C(u) = C(v)
+ C(u) C(v)
+ Nsuc(u) = Nsuc(v) Nsuc(u)= Nsuc(v)
+ Nsuc(u) Nsuc[v]
+ v
+ Nsuc(u)< Nsuc(v)
+ u
+ C(u) C(v)
+ Nsuc[u] Nsuc(v)
+ v
+ Nsuc(u)> Nsuc(v)
+ u
+ u
+ v
+ C(u) C(v)
+ w
+ C(u) C(v)
+ Nsuc(u) Nsuc[v] Nsuc(u)< Nsuc(v)
+ Nsuc(u) Nsuc[v],
+ but also
+ Nsuc(v) = Nsuc[u], so
+ both, C(u) C(v)
+ and C(u) = C(v) are
+ allowed.
+ v
+ Nsuc(u)< Nsuc(v)
+ Table 4.2: Examples of two-neighbour con gurations, expected centrality order,
+ and neighbourhood inclusion preorder. The case in the last row shows that the
+ original neighbourhood inclusion preorder gives an unclear result about the cen
+trality order of the two nodes uv. If we consider the sizes of neighbourhoods in
+ addition to the neighbourhood inclusion preorder, we are able to determine the
+ centrality relation correctly.
+ 75
+First letus considerdegree. It canbecalculatedusingadjacencymatrix,
+ whichisanupper-triangularmatrixforaDAG.Intermsoftheadjacencymatrix,
+ wewritetheout-degreeofanodeas
+ k(out)(u)=
+ v G
+ Aiujv
+ =
+ v N(suc)
+ Aiujv
+ =
+ v>u
+ Aiujv
+ The lastequalityusesA whichisequivalenttoA,orderedinsuchawaythat
+ Aiujv
+ =0 iu<jv. Sothecloseriu isto0,thelargertherangeofpossibleindices
+ jv. Sok(out)(u)islikelytobelargerifuisanodewithasmall index.
+ Asanotherexample,Katzcentrality,de nedas
+ C(future)
+ K (u)=
+ l=1 v V
+ l[Al]iujv
+ (4.4)
+ takes intoaccount all paths originatingat anode. In terms of its neighbour
+ w Nsuc(u)wehavethat
+ C(future)
+ K (u) =
+ l=1 v F[w]
+ +
+ v V w
+ l[Al]iujv
+ (4.5)
+ l=1v F[w]
+ Aiukw
+ l 1[Al 1]kwjv
+ +
+ l=1v V w
+ l[Al]iujv
+ + C(future)
+ K (w)+
+ l=1v V w
+ l[Al]iujv
+ resulting inC(future)
+ K (u)>C(future)
+ K (w) if >0andC(future)
+ K (w) isgreater than
+ ( + l=1 v V w
+ l[Al]iujv
+ ) (1 ).Moreso, if >1,C(future)
+ K (u) isalways
+ greaterthanC(future)
+ K (w).
+ Inharmonicclosenesscentralityofuintermsof itsneighbourscentrality
+ 76
+gives the following inequality:
+ C(future)
+ HC (u) = 1
+ 1
+ duv F(u) v F(u)
+ 1
+ F(u) v GF(w)
+ 1
+ F(u) v GF(w)
+ (4.6)
+ 1
+ duv 
++
+ v F(w)
+ 1
+ duv 
+1
+ dwv +1
+ v F(w)
+ F(u) C(future)
+ HC (w)
+ 1
+ d2wv + dwv
+ + F(w)
+ because the shortest paths from u to v F(w) may or may not pass w itself.
+ C(future)
+ HC (u) can be larger or smaller than C(future)
+ HC (w) and the values of centrality
+ are not entirely predetermined by the relative positions of the two nodes. In
+ future harmonic closeness centrality, we need to evaluate the successors inclusion
+ preorder in order to nd out which of the two nodes is more central.
+ In this section we showed that in some cases, such as for Katz centrality
+ measure, the directed neighbourhood inclusion preorder need not exist to order
+ two neighbouring nodes based on their centrality scores. It suggests the relation
+ between the order of centrality and the topological order of a DAG. However, it is
+ worth pointing out that similar arguments derived for other centrality measures
+ from Table 4.1 do not show obvious relation between the topological order of
+ nodes and the centrality order. In light of this, the following section will consider
+ correlations of centrality and topological order and will reveal the relationship
+ between the two orders numerically.
+ 4.5.3 Centrality Correlations in DAGs
+ It is well-known that centrality measures are inherently correlated [104; 105; 106].
+ Amongst other analyses of centrality correlations, such work was also done in
+ DAGs, in the context of food webs [107]. Typically, Pearson or Spearman correla
+tion coe cients are used to evaluate similarity of centrality values, obtained using
+ 77
+various centrality measures on the same network. Here we will study correlations
+ between centrality measures from Table 4.1 as observed in some networks from
+ Table 1.1 and in random networks from section 1.3.3.
+ Fig. 4.2 shows that centrality measures divide into several similarity classes:
+ past centrality measures, future centrality measures, and centralities, related to
+ both futures and pasts of nodes. Past centralities, such as past harmonic closeness,
+ in-degree, in-PageRank are correlated. Likewise, future centralities form a block of
+ similar measures. Two measures based on both in- and out-going paths are degree
+ and betweenness centrality. These measures also seem to be positively correlated.
+ We see that node index is positively correlated with past centrality measures
+ and negatively correlated with future centrality measures. These correlations are
+ expected: as the arrow of time is in the same direction as the increasing index,
+ older nodes have larger out-degrees. As the index of a node increases, its out
+degree and future set decrease, while in-degree and past set increase.
+ This correlation analysis is a proof that topological order and centrality order
+ are correlated in a wide range of DAGs. Future centrality of an old node is larger
+ than that of a recent one, as the former has a larger future light-cone than the
+ latter. However we also discovered that in some networks the correlations between
+ indices are stronger than in others, indicating that the e ect of the topological
+ order on centrality order is not equally strong in all networks.
+ 4.5.4 Mutual Information Between Centrality and Topo
+logical Order
+ If we expect the observed centrality score of a node to be strongly inuenced by its
+ position in the topological order, we may want to quantify this inuence, as it may
+ di er from node to node. In order to separate topological order and the centrality
+ order, we can think in terms of comparing ranks. How much topological order
+ 78
+Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness 1.00
+ 0.75
+ 0.50
+ 0.25
+ 0.00
+ 0.25
+ 0.50
+ 0.75
+ 1.00
+ (a)hep-ph.
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness 1.00
+ 0.75
+ 0.50
+ 0.25
+ 0.00
+ 0.25
+ 0.50
+ 0.75
+ 1.00
+ (b)hep-th.
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness 1.00
+ 0.75
+ 0.50
+ 0.25
+ 0.00
+ 0.25
+ 0.50
+ 0.75
+ 1.00
+ (c)Floridabay.
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness 1.00
+ 0.75
+ 0.50
+ 0.25
+ 0.00
+ 0.25
+ 0.50
+ 0.75
+ 1.00
+ (d)astro.
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness 1.00
+ 0.75
+ 0.50
+ 0.25
+ 0.00
+ 0.25
+ 0.50
+ 0.75
+ 1.00
+ (e)Price,N=1000m=3p=075.
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness
+ Index
+ In-degree
+ In-PageRank
+ SP-In-Katz
+ SP-In-closeness
+ SP-In-h.closeness
+ Out-degree
+ Out-PageRank
+ SP-Out-Katz
+ SP-Out-closeness
+ SP-Out-h.closeness
+ Degree
+ SP-Betweenness 1.00
+ 0.75
+ 0.50
+ 0.25
+ 0.00
+ 0.25
+ 0.50
+ 0.75
+ 1.00
+ (f)RandomDAG,N=1000,p=01.
+ Figure4.2:Correlationsofclassicalcentralitymeasuresinvariousnetworks.The
+ pre x in indicates that centrality is basedonpaths that terminate at each
+ node; out indicatesthatpaths, thatoriginateateachnodewereused. These
+ areC(past) andC(future) inourconvention. InFig.4.2eandFig.4.2fmeanvalues
+ ofcorrelationcoe cient,obtainedfrom10randomnetworksareshown.
+ 79
+reordering is required to recover the centrality order? Statistical tests of rank
+ comparison, such as Kendalls [108], would be appropriate, however these tests
+ are limited to comparison of total orders, whereas we have partial orders.
+ Instead, we will consider mutual information between posets: if they are
+ equal, the mutual information between them will be maximal and we can say
+ that centrality order does not provide any new information about our nodes. We
+ will take the approach proposed in [109] to compare our two partial orders: one,
+ obtained from centrality and second, the intrinsic order of the DAG. To illustrate
+ this idea we will employ a running example of out-degree centrality in the network,
+ generated using the Price model with N = 5000m = 5p = 0625.
+ First, we build a DAG with nodes of the original network and edges which
+ represent the partial order of centrality. We will say that if C(Gu) > C(Gv),
+ then (uv) EC, where EC is a set of edges in the new DAG. Whenever we
+ have a tie in centrality values, we do not connect the two nodes they form an
+ antichain (see 1.3.1 for de nition). Note that in this centrality graph the directed
+ neighbourhood inclusion preorder exists for all pairs (u v 
+F(u) ). Let us
+ denote the network as G and the centrality graph as GC. Having obtained GC we
+ can compare it to G for future centrality and Grev for past centrality3. Thus we
+ compare the closed future set of a node in GC, FC[u], to the closed future set of
+ a node in the original G or Grev, FT[u]4.
+ As in the original paper, we formulate the joint distribution between two
+ random variables based on the sizes of the set intersections. More speci cally, we
+ use two indicator variables iC(u) and iT(u), associated with each candidate in GC
+ 3In the original paper these sets are called down sets and a down set of a node contains all
+ of its descendants.
+ 4Although previously, we used the notation of F[u] to note the future set of u, but for the
+ clarity of this section we will use the subscript T in order to accentuate the topological order
+ from centrality order. Furthermore, note that we need to look at the future set FT[u] de ned
+ on G when considering future centrality and FT[u] de ned on Grev when the past centrality is
+ considered.
+ 80
+andGasfollows.BychoosingacandidatevfromVatrandomwerequire
+ iC(u)=
+ 1 ifv FC[u]
+ 0 otherwise,
+ (4.7)
+ foranodeincentralityDAGGCand
+ iT(u)=
+ 1 ifv FT[u]
+ 0 otherwise,
+ (4.8)
+ intheoriginalDAGG. The jointprobabilitydistributions for the statusof a
+ randomlychosennodevgivena xednodeuis
+ P(iC(u) = 1 iT(u)=1)= FC[u]\FT[u]
+ G (4.9)
+ P(iC(u) = 1 iT(u)=0)= FC[u]
+ G
+ FC[u]\FT[u]
+ G
+ P(iC(u) = 0 iT(u)=1)= FT[u]
+ G
+ FC[u]\FT[u]
+ G
+ P(iC(u)=0 iT(u)=0) = 1 FC[u]
+ G
+ FT[u]
+ G + FC[u]\FT[u]
+ G
+ andthemarginalsare
+ P(iC(u)=1) = FC[u]
+ G P(iT(u)=1)= FT[u]
+ G (4.10)
+ P(iC(u)=0) = 1 FC[u]
+ G P(iT(u)=0)=1 FT[u]
+ G
+ Giventheseprobabilitieswecanconstructvariousinformation-theoreticmeasures
+ thatwillquantifythesimilarityofourtwoDAGs. Letus rstde neentropyof
+ eachof thetwoorderings. For instance, foranodeuinacentralitygraph, its
+ 81
+entropyisde nedas
+ HC(u)=
+ 1
+ iC(u)=0
+ P(iC(u))log(P(iC(u))) (4.11)
+ andsimilarlyintermsof iT(u) foranodeuinthetopologicalordering.Wewill
+ bemeasuringentropy inbits, sothe logarithmhasabaseof 2. Byde nition,
+ entropyismaximalwhentheamountof disorder ismaximal. Inourcontext,
+ thelargestdisorderhappenswhenanodedominatesonehalfofallnodes,asthen
+ P(iC(u))=1 2,1 P(iC(u))=1 2. Itfollowsthattheprobabilitytorandomly
+ drawanodewhichudoesnotdominateisequaltotheprobabilitytodrawanode
+ whichudominates.
+ Forourexemplarynetwork,weseethe largestentropyinbothHT andHC
+ when FT N=1 2and FC N=1 2, seeFig.4.3. The lackofdatapointsat
+ highvaluesof FT Nandlowvaluesof FC Nre ectsonthenetworkmodel:
+ therearefewnodesthathaveadescendantsetthatconstituteslargenumbersof
+ totalnodes. Forcentralityorder,wehavemanynodeswithlowdegree(power
+ lawdegreedistribution),somostnodesdonothavelargefuturesetsFC.
+ 0.0 0.2 0.4 0.6 0.8 1.0 |FC|/N
+ 0.0
+ 0.2
+ 0.4
+ 0.6
+ 0.8
+ 1.0
+ HC
+ (a)Entropyof futuresetsinG
+ 0.0 0.2 0.4 0.6 0.8 1.0 |FT|/N
+ 0.0
+ 0.2
+ 0.4
+ 0.6
+ 0.8
+ 1.0
+ HT
+ (b)Entropyof futuresetsinGC
+ Figure4.3: Entropyof futuresets fornodes intherunningexampleof thePrice
+ model. Fig. 4.3ashowsentropybasedonafuturesetsofnodes inG,Fig. 4.3b
+ showsentropybasedonfuturesetsofnodesinGC.
+ 82
+Wecannowde netheconditionalentropyHCT(u)ofanodeu,whichtells
+ howmuch informationabout nodes centralitycanbe explainedby its index.
+ Conditionalentropyofanodeuisde nedas
+ HCT(u)=
+ 1
+ iC(u)=0
+ 1
+ iT(u)=0
+ P(iC(u) iT(u))logP(iC(u) iT(u))
+ P(iT(u)) (4.12)
+ andquanti estheamountof informationneededtodescribetheoutcomeof the
+ randomvariableiC(u)giventhatthevalueof iT(u)isknown.
+ Sothe fraction(HC(u) HCT(u))HC(u)givestheamountof information
+ oncentralitythatcanbeextractedfromthetopologicalorder.Whenthisfraction
+ is large,wecanexpectthecentralityordertobeverysimilartothetopological
+ order.Whenthisfractionissmall,topologicalorderisnotveryusefulforgauging
+ informationaboutcentrality.
+ 0.4 0.5 0.6 0.7 0.8 0.9 1.0 |FC|/N
+ 0.0
+ 0.2
+ 0.4
+ 0.6
+ 0.8
+ 1.0
+ (HC HC|T)/HC
+ 0
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ (a)Outdegree.
+ 0.0 0.2 0.4 0.6 0.8 1.0 |FC|/N
+ 0.0
+ 0.2
+ 0.4
+ 0.6
+ 0.8
+ 1.0
+ (HC HC|T)/HC
+ 0
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ (b)Randomintegercentrality.
+ Figure4.4:Mutualinformationbetweencentralityorderandthetopologicalorder
+ forout-degreecentralityinFig.4.4aandforcentralitygivenatrandominrange
+ from0 to100 for nodes in the running example of thePricemodel network.
+ Mutualinformationbetweencentralityorderandtopologicalorder,obtainedfrom
+ out-degreecentralityis largefornodeswhichhave largedegrees. Thesearealso
+ nodesthatareold,becauseof thecumulativeadvantagenatureof thenetwork.
+ Mutual information is close tonegligiblebetweenrandomcentralityorder and
+ topologicalorder.Colour indicatesthelogarithmofout-degreeofanode.
+ Fig.4.4showstheratio(HC(u) HCT(u))HC(u)asafunctionof thesize
+ ofnodesfutureset inGC, inwhichcolour indicatespaperscitationcount.Here
+ 83
+all high degree nodes, as expected, are on the right sides of both gures, as they
+ are dominating the majority of other nodes in the centrality order. However, the
+ wide range of (HC(u) HCT(u)) HC(u) for those nodes is large, indicating, that
+ in the Price model, old nodes (large future sets FT) are also important nodes and
+ age can explain centrality. In comparison, if we allocate a random number as the
+ centrality value of each node, the mutual information between this randomised
+ centrality and topological orders is negligibly small.
+ Information-theoretic analysis could be useful to evaluate how much informa
+tion about a nodes apparent importance can be explained by its position in the
+ topological order. The possible avenues with this approach are many and we did
+ not exhaust all possibilities. For instance, we could use the ratio of HC(u) HCT(u)
+ HC(u)
+ to evaluate the condence level for the centrality value we have. Alternatively,
+ we could weigh the obtained centralities with the ratio of the entropies HC HT.
+ Lastly, we could analyse the temporal patterns of the conditional entropy for a
+ single node to understand its peak importance periods.
+ 4.6 Other DAG Centralities
+ In the previous section of this chapter, we have studied the shortest-path-based
+ centrality behaviour in DAGs. Let us now turn our attention to potential new
+ candidates of well-behaved DAG-speci c centrality measures. We have learnt that
+ good centrality measures should order nodes in a way, respecting the neighbour
+hood inclusion preorder, and provide information about the importance of nodes,
+ not necessarily present in the topological order.
+ 84
+4.6.1 Centrality Based on the Longest Paths
+ The longest paths may be a more natural choice for geodesics , as discussed in
+ Chapter 2. This fact gives us motivation to test whether the longest-path-based
+ centrality measures provide useful insights about centrality of nodes in DAGs.
+ However, to make this unconventional choice, we need to convince ourselves the
+ change of paths produces a measure which calculates centrality. More speci cally,
+ we want a measure which satis es DAG centrality axioms (thus is centrality), ad
+heres to the directed neighbourhood inclusion preorder, and provides information,
+ not attainable from the topological order.
+ Let us rst consider adaptions of the measures we studied previously. For
+ instance, closeness centrality based on the longest paths is de ned as
+ C(future)
+ C
+ where dLP
+ LP(u) = F(u)
+ v G 
+dLP
+ uv
+ (4.13)
+ uv is the length of the longest path from u to v. We can similarly replace
+ the shortest path with the longest path between nodes in a harmonic closeness
+ centrality and betweenness centrality. In Katz centrality, 
+> 1 indicates that
+ longer paths are preferred over shorter paths. To adapt degree, we may want to
+ consider transitive reduction (TR). Edges which remain in the network after TR
+ are edges which participate in at least one longest path between some two nodes.
+ Let us have a look at the behaviour of these new centrality measures to see
+ whether the longest-path-based centrality is related to topological order in the
+ network. Let us also denote these centrality measures with a superscript LP .
+ For Katz centrality, as was shown in (4.5), when > 1, centrality of an
+ older node is always larger than that of its successor. Thus CLP
+ K will be strongly
+ a ected by the topological order of nodes and will likely be very similar to the
+ shortest-path-based Katz centrality.
+ 85
+Harmonic longest-path-based closeness centrality of a node u is related to
+ centrality of its future neighbour v in a similar way as was shown in (4.6), however
+ now the inequality is reversed, as the longest path dLP
+ uv where v F(w) is at least
+ equal to dLP
+ wv +1 but can be longer (making CLP
+ HC(u) smaller). So centrality of u,
+ again, can be lesser or greater than centrality of its successors w.
+ It is also not clear whether we prefer longer longest paths over shorter in
+ centrality measures, such as closeness. If longer paths are preferred over shorter,
+ the longest path centrality is likely to be strongly related to topological order of
+ nodes. To see this, consider a simple future centrality, de ned as
+ C(future)LP(u) =
+ 1
+ F(u) v F(u)
+ dLP
+ uv 
+(4.14)
+ Intuitively, it calculates the average length of the longest paths, originating at
+ u. We can show that in terms of w Nsuc(u), C(future)LP(u) C(future)LP(w),
+ because the longest path from u to v F(w) will be via w or will be even longer:
+ C(future)LP(u) 
+1
+ F(u) v F(u)F(w)
+ dLP
+ 1
+ F(u) v F(u)F(w)
+ dLP
+ uv + 1
+ F(u) v F(w)
+ (dLP
+ uv + F(v)
+ wv +1)
+ F(u) (C(future)LP(w) + 1)
+ (4.15)
+ So there are some analytic indications that the longest-path-based centrality
+ is inuenced by the topological order, similarly as the shortest-path-based central
+ity is. Furthermore, correlation analysis in Fig. 4.5 shows a clear relation between
+ the shortest-path-based centrality measures and their longest-path-based counter
+parts. The longest-path-based centrality measures are also correlated with node
+ indices, but this relation is likely to vary, depending on the network topology. In
+ order to make use of centrality without topological order, simply replacing one
+ 86
+Index
+ LP-In-closeness
+ LP-In-h.closeness
+ LP-In-Katz
+ LP-Out-closeness
+ LP-Out-h.closeness
+ LP-Out-Katz
+ Index
+ Degree
+ In-degree
+ SP-In-closeness
+ SP-In-h.closeness
+ SP-In-Katz
+ Out-degree
+ SP-Out-closeness
+ SP-Out-h.closeness
+ SP-Out-Katz
+ (a) Random DAG, N=500, p=0.1.
+ Index
+ LP-In-closeness
+ LP-In-h.closeness
+ LP-In-Katz
+ LP-Out-closeness
+ LP-Out-h.closeness
+ LP-Out-Katz
+ 1.0
+ 0.5
+ 0.0
+ 0.5
+ 1.0
+ Index
+ Degree
+ In-degree
+ SP-In-closeness
+ SP-In-h.closeness
+ SP-In-Katz
+ Out-degree
+ SP-Out-closeness
+ SP-Out-h.closeness
+ SP-Out-Katz
+ (b) Florida bay.
+ 1.0
+ 0.5
+ 0.0
+ 0.5
+ 1.0
+ Figure 4.5: SpearmanR correlations between the shortest path ( SP) and the
+ longest path (LP)-based centrality measures in random networks, generated
+ using random DAG model, N = 500p = 01 in Fig. 4.5a and in Florida bay
+ food web network in Fig. 4.5b. Figures show several separate groups of centrality
+ measures. One consists of in- centrality measures, another consists of out-
+ centrality measures. The corresponding shortest path centrality and the longest
+ path centrality measures seem to be very similar.
+ type of path with another is not su cient.
+ 4.6.2 Centrality Using Future and Past Sets
+ Other features of nodes in DAGs are also worth considering for use in centrality.
+ For instance, we can use the future (past) set and height (depth) of a node to
+ de ne centrality in the following form:
+ C(future)(u) = F(u) h(u) C(past)(u) = P(u) d(u)
+ (4.16)
+ Here h(u) and d(u) are, respectively, the height and the depth of a node u. Such
+ centrality measures satisfy our directed neighbourhood inclusion preorder require
+ment: for two nodes at the same height, depth, centrality depends only on their
+ light-cone volumes F(u) or P(u). For nodes uv(uv) E, C(future)(v) is at least
+ 87
+(h(u) + 1)( F(u) 1) but can be larger. Node u would be less central than v if
+ all its neighbours are neighbours of v, but if some of them are not successors of
+ v, u s centrality can be larger.
+ Alternative DAG centralities could be based on a network after transitive
+ reduction. Transitively reduced degree would satisfy directed neighbourhood in
+clusion preorder, as whenever (uv) E in the graph after transitive reduction, we
+ have Nsuc(u) = v . TR degree would also not be correlated with nodes index.
+ 4.7 Discussions
+ Centrality as any other important concept is polysemous. Although much e ort
+ has been put in nding the answer to a question of which centrality is appropriate
+ in this situation? , not much work has been done for answering is centrality
+ appropriate in this situation? .
+ The aim of this chapter was to challenge the concept of centrality in ordered
+ networks. We hope to have convinced the reader that centrality and the order
+ of directed acyclic graphs are intertwined. We have shown this by analysing
+ centrality axioms, the neighbourhood inclusion preorder and correlations between
+ centrality measures and the topological order.
+ Once the inter-connectedness between the two node orderings was revealed,
+ we embarked on a search for a measure of centrality, not inuenced by the topo
+logical ordering of nodes. We did it in a twofold way. First, in section 4.5.4
+ we suggested evaluating the mutual information between two partial orders, one
+ based on the topological ordering of nodes, and other, based on centrality. If a
+ node is more central than would be expected from its position in the topological
+ order, the lack of mutual information between the orders would signify its impor
+tance. Secondly, in section 4.6 we looked at unconventional centrality measures
+ 88
+that could potentially replace the traditional centrality measures. We concluded
+ that centrality based on longest paths would also be related to the topological
+ ordering of nodes.

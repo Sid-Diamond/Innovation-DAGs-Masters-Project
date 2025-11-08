@@ -1,0 +1,19 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.widgets import Slider, Button
+import random
+
+class PercolationModel:
+    def __init__(self, width=100,height=100):
+        self.width=width
+        self.height=height
+        self.num_coluns=width
+
+        self.chance_possible_q = 50
+        self.search_radius_m = 2
+        self.search_effort_e = 1
+        self.max_ticks = 1000
+
+        
+

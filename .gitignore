@@ -1,0 +1,37 @@
+# Initialize the repo
+git init
+
+# Connect it to your existing GitHub repo
+git remote add origin https://github.com/Sid-Diamond/Innovation-DAGs-Masters-Project.git
+
+# Check what branch you're on (probably 'master' by default on Windows)
+git branch
+```
+
+Before we commit anything, let's **create that .gitignore file** so you don't accidentally push stuff you don't want:
+
+Create a file called `.gitignore` in your project root with:
+```
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+venv/
+
+# NetLogo
+*.tmp
+
+# OS/Editor files
+.DS_Store
+Thumbs.db
+*.swp
+~$*
+
+# Large data files (add specific patterns if needed)
+*.zip
+*.tar.gz
+
+# PDFs from references (check copyright first)
+# references/*.pdf  # Uncomment if you want to exclude reference PDFs

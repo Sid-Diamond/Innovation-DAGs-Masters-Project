@@ -1,0 +1,221 @@
+\documentclass[12pt]{article}
+\usepackage{geometry}
+\geometry{a4paper, margin=2cm}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{caption}
+\captionsetup{labelfont=bf, skip=5pt}
+
+% Add these lines for proper paragraph spacing
+\usepackage{parskip}
+\setlength{\parskip}{1em}  % Space between paragraphs
+\setlength{\parindent}{0pt}  % No indentation for paragraphs
+
+\begin{document}
+
+% Title Page
+% Title Page
+\begin{titlepage}
+    \centering
+
+\includegraphics[width=0.4\textwidth]{Imperial_College_London_new_logo.png}\\[2cm]
+    
+    \vfill
+    
+    {\huge\bfseries Innovation Pathways and Centrality Measures for Directed Acyclic Graphs: A Literature Review}\\[1cm]
+    
+    {\Large Sid Diamond}\\[0.5cm]
+    
+    {\large 06/10/2025}
+    
+    \vfill
+    
+    \begin{tabular}{rl}
+        \textbf{Supervisor:} & Tim Evans \\
+        \textbf{Assessor:} & Kim Christensen \\
+        \textbf{Project Code:} & UNIV-Evans-2 \\
+        \textbf{Word Count:} & 2384 \\
+    \end{tabular}
+    
+    \vspace{1cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+\noindent Identifying the technologies that drive innovation often depends on expert judgment or narrow indicators such as citation counts, which can obscure how knowledge actually accumulates. This review examines two complementary approaches to analyzing citation networks represented as directed acyclic graphs (DAGs). The first approach, which includes main path analysis and criticality-based methods, traces technological progress over time by exploiting the mathematical properties of DAGs. The second focuses on centrality measures that quantify the importance of individual nodes based on their structural position. Despite their potential, systematic evaluations of centrality measures tailored to DAGs remain limited, with relevant research dispersed across ecology, social science, and bibliometrics. This review establishes a foundation for future literature assessing how these methods perform in temporally ordered networks, which in turn can inform the development of more rigorous ways to identify influential research contributions.
+
+\section*{Introduction}
+\addcontentsline{toc}{section}{Introduction}
+
+Research suggests that scholars gravitate toward familiar topics, despite evidence that combining conventional foundations with unusual research combinations yields the highest likelihood of high-impact discoveries, and in turn, innovations \cite{science_of_science}. Understanding how knowledge accumulates is therefore fundamental to optimizing an empirically suboptimal innovation process, constrained by many factors, including the above example of individual-career risk-aversion. With the expansion of global citation databases and the adoption of data-driven methods from network science and computational modelling, it has become increasingly feasible to analyse the structure and evolution of science quantitatively using citation networks \cite{science_of_science} (see Figure 1). Each scientific output, whether an academic paper, patent, or clinical trial, records in its bibliography the prior work upon which it builds \cite{ho2024}. Linking these references forms a citation network, where each document is represented as a node (often referred to as a vertex) and each citation from a newer to an older document is represented as a directed edge pointing backward in time.
+
+In ideal form (after resolving temporal inconsistencies in real data) citations reference only earlier work, creating no feedback cycles due to this temporal constraint. This topological property makes citation networks directed acyclic graphs (DAGs), which have useful properties for analysing innovation. Unlike cyclic graphs where paths can loop indefinitely, the longest path between any two connected nodes in a DAG is always finite and well-defined, tracing a clear chronological chain of influence \cite{vasiliauskaite2020}. This enables path analysis methods to identify critical innovation trajectories, impossible in cyclic graphs. This distinction between directed cyclic and directed acyclic graphs (DAG) is shown clearly in Figure 1.  
+
+Two fundamental questions emerge when analysing innovation through citation networks: Which paths trace major technological trajectories, and which individual nodes play the most influential roles?
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Figure_1.1.png}
+        \captionsetup{labelformat=empty}
+        \caption{(a)}
+        \label{fig:1a}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=1.05\textwidth]{Figure_1.2.b.png}
+        \captionsetup{labelformat=empty}
+        \caption{(b)}
+        \label{fig:1b}
+    \end{minipage}
+    
+    \vspace{0.5cm}
+    \renewcommand{\thefigure}{1}
+    \caption{\textit{(a) A citation network that is as a directed graph. Each numbered circle corresponds to a scientific publication. An arrow from paper X to paper Y indicates that X cites Y. Vertices 4 and 5, connected by reciprocal edges (shown in red), form a directed cycle. The existence of this cycle means the longest path is undefined, as one can traverse the cycle repeatedly to create arbitrarily long paths. (b) A citation network with no cycles which is a  directed acyclic graph (DAG). The absence of cycles allows for well-defined longest paths. In this example, there are two longest paths: (1,2,3,4,6) and (1,2,5,4,6), each of length 4 (containing 4 edges).}}
+    \label{fig:1}
+\end{figure}
+
+This review establishes foundations for analysing citation networks as directed acyclic graphs. Following the mathematical background in Section 1, Section 2 examines methods for identifying innovation pathways in DAGs. Section 3 reviews centrality measures (standard metrics for quantifying node importance) and examines challenges adapting them to DAGs, where temporal ordering constraints differ fundamentally from the undirected networks on which most centrality theory is developed.
+
+\section*{Section 1: Mathematical Background}
+\addcontentsline{toc}{section}{Mathematical Background}
+
+A graph $G = (V, E)$ consists of a vertex set $V$ and an edge set $E$ \cite{clough2017}. It should be stated throughout this review, ``graph'' and ``network'' are used somewhat interchangeably with``graph'' referring to the mathematical object and ``network'' to its real-world instantiation. In directed graphs, edges are ordered pairs; $(u,v) \neq (v,u)$. In directed graphs, edges are ordered pairs; $(u,v) \neq (v,u)$. In undirected graphs, edges are unordered; $(u,v) = (v,u)$. A simple graph contains no self-loops, that is, for all $(u,v) \in E$, $u \neq v$ and at most one edge between any pair of vertices.
+
+If vertices $u, v \in V$ are connected by an edge, they are called neighbours or adjacent vertices. The neighbourhood of a vertex $v \in V$ is $N(v) = \{u \in V : \{u,v\} \in E\}$, the set of all vertices adjacent to $v$. The closed neighbourhood is $N[v] = N(v) \cup \{v\}$ \cite{schoch2016}.
+
+Graph structure is encoded in a so-called adjacency matrix $A$, where $N = |V|$. Labelling each vertex with a unique index $i(u) \in \{1, 2, \ldots, N\}$, the matrix entries are defined as:
+\begin{equation}
+A_{i(u),i(v)} = 
+\begin{cases}
+1 & \text{if } (u,v) \in E \\
+0 & \text{otherwise}
+\end{cases}
+\end{equation}
+giving $A \in \{0,1\}^{N \times N}$ for unweighted graphs. Weighted graphs use real-valued adjacency matrices not constrained to binary values.
+
+For vertex $u$, in-degree and out-degree are defined as:
+\begin{equation}
+k_{\text{in}}(u) = \sum_j A_{ji}, \quad k_{\text{out}}(u) = \sum_j A_{ij}
+\end{equation}
+\label{eq:degrees}
+
+In citation networks, in-degree equals citation count \cite{coscia2021}, which measures the number of times a publication has been cited and is widely used as an indicator of importance \cite{garfield1973}. We will return this notion of quantifying a particular publication's importance in Section 3. 
+
+A walk of length $\ell$ is a sequence $(v_0, v_1, \ldots, v_\ell)$ where consecutive vertices satisfy $(v_i, v_{i+1}) \in E$. The shortest path distance $d(u,v)$ is length of the most direct route between nodes and is fundamental to many centrality measures (Section 3). Shortest paths can be computed via various algorithms, with Dijkstra's algorithm commonly used for single-source problems and Floyd-Warshall for all-pairs problems \cite{coscia2021}. Unlike general directed graphs where longest paths may be undefined due to cycles, longest paths in DAGs are always well-defined and finite \cite{clough2017}.
+
+\section*{Section 2: Innovation Pathways for DAGs}
+\addcontentsline{toc}
+{section}{Innovation Pathways for DAGs}
+While citation count (in-degree) provides a simple popularity metric, it fails to reveal how knowledge flows through time to produce innovation. Path-finding methods address this by tracing trajectories through citation networks to identify sequences of discoveries leading to technological outcomes. This section examines two approaches: main path analysis \cite{liu2019} and a criticality-based method \cite{ho2024}.
+
+Main Path Analysis (MPA), proposed by Hummon and Doreian (1989), maps knowledge flows by attempting to identify the most significant citation chains connecting foundational research to eventual applications \cite{hummon1989}. The method follows a two-step procedure: first, assign each citation link a ``traversal weight'' quantifying its importance to overall knowledge flow; second, search along highest-weight links to construct the ``main path''.
+
+Traversal weight quantifies how frequently a citation link participates in knowledge flows through the network. Hummon and Doreian (1989) \cite{hummon1989} introduced three schemes: search path link count (SPLC), search path node pair (SPNP), and node pair projection count (NPPC). Batagelj (2003) later proposed search path count (SPC) alongside efficient algorithms for large-scale analysis \cite{batagelj2003}. NPPC requires $O(N^2)$ computation time, making it impractical for networks with thousands of nodes \cite{batagelj2003}. This review therefore focuses on the three remaining schemes which differ in how they count paths:
+
+\begin{itemize}
+\item \textbf{SPC (Search Path Count)}: counts how many times a link is traversed across all paths from sources to sinks.
+\item \textbf{SPLC (Search Path Link Count)}: like SPC but also counts paths originating from intermediate nodes to sinks.
+\item \textbf{SPNP (Search Path Node Pair)}: counts paths from all ancestors (including intermediates) to all descendants.
+\end{itemize}
+
+Unlike SPC, which treats intermediate documents as passive conduits, SPLC recognizes that intermediate papers actively generate knowledge rather than merely relaying existing ideas, whilst SPNP overcompensates by treating intermediates as comprehensive knowledge repositories \cite{liu2019}.
+
+Before expressing citation data as a DAG, we must address edges that create cycles. Temporal inconsistencies arise when patents cite papers published after their submission or when preprints are updated post-publication. These dating errors create forward-pointing citations and feedback loops where documents appear to cite each other cyclically (A$\rightarrow$B$\rightarrow$A), as demonstrated in Figure 2.
+
+\renewcommand{\thefigure}{2}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\textwidth]{Figure 2.pdf}
+    \vspace{-0.6cm}
+    \caption{\textit{Methods for resolving cycles in citation networks. Time flows backwards from right to left, with citations pointing backward to earlier publications.}}
+    \label{fig:cycles}
+\end{figure}
+
+Liu et al \cite{liu2019} recommend three solutions for these feedback loops: delete one link in the cycle, add preprints to create an acyclic structure, or group cyclic documents into a ``family'' node.
+
+Traditional MPA \cite{liu2019} identifies a single dominant citation path through a network. Extensions such as the ``network of main paths'' approach allow for more holistic analysis by merging multiple local or global main paths \cite{verspagen2007}. However, Ho et al \cite{ho2024} present a fundamentally different approach to calculating path importance, establishing a mathematical link between technological evolution and complex networks by identifying innovation bottlenecks. Drawing from critical path method principles \cite{badiru2013}, they apply the equivalence that the longest network path (in dependencies) represents the shortest possible completion time, as this path cannot be parallelized.
+
+The study represents innovation networks as multilayer directed acyclic graphs (DAGs), where nodes represent publications, patents, clinical trials, or regulatory approvals \cite{ho2024}. Starting from a regulatory approval as the source node, they quantify each document's proximity to these critical paths using three measures:
+\begin{equation}
+\text{Height: } h(v) = \max \{\text{distance from source to } v\}
+\end{equation}
+\begin{equation}
+\text{Depth: } d(v) = \max \{\text{distance from } v \text{ to any sink}\}
+\end{equation}
+\begin{equation}
+\text{Criticality: } c(v) = h_{\text{max}} - h(v) - d(v)
+\end{equation}
+where $h_{\text{max}}$ is the height of the DAG. When $c(v) = 0$, node $v$ lies on a longest path from source to sink, indicating it is on the critical dependency chain. Nodes with $c(v) > 0$ lie on paths $c$ steps shorter than the longest path. An illustration of a criticality calculation for a given node is given in Figure 3. The authors argue that examining near-critical nodes (small $c$ values) is essential because it captures innovations that may have been parallelizable or non-rate-limiting, preventing the false rejection of important innovations that single-path methods might miss.
+
+
+\renewcommand{\thefigure}{3}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Figure_3.png}
+    \vspace{0.5cm}
+    \caption{\textit{The same DAG as in Figure 1(b) used here to illustrate the height, depth, and criticality of a chosen vertex, in this case, vertex 5. The height (indicated with the red edge) is the number of edges in the longest path from the source to the chosen vertex; in this case, it is the singular edge $(1,5)$, therefore giving vertex 5 a height of 1. The depth (indicated with the blue edges) is the number of edges in the longest path from the chosen vertex to the sink node, therefore giving vertex 5 a depth of 2. $h_{\text{max}}$, the height of the DAG, is the longest path in the DAG and in this case is 4 (as stated explicitly in Figure 1(b)). Using Equation~(5), we therefore see that vertex 5 has a criticality of 1.}}
+    \label{fig:criticality}
+\end{figure}
+
+The theoretical basis for using longest paths to identify bottlenecks draws on the finding that in DAGs embedded in Lorentzian spacetime geometry, longest paths approximate the geodesics---the routes of least resistance for information flow \cite{clough2017_embedding}.
+
+The paper validates this approach using the Moderna Spikevax mRNA vaccine network. Documents on longest paths ($c=0$) included known critical developments. Documents cited in expert literature reviews \cite{dolgin2021, xu2020} had significantly lower criticality (median $c=0.033$) than uncited documents (median $c=0.169$). A Kolmogorov--Smirnov test confirmed these distributions were significantly different ($p \ll 0.0001$), demonstrating that the criticality measures for this network correlated with expert assessments of important contributions in the innovation path of the vaccine\cite{ho2024}.
+
+\section*{Section 3: Centrality Measures for DAGs}
+\addcontentsline{toc}
+{section}{Centrality Measures for DAGs}
+
+While path methods identify innovation trajectories through citation networks \cite{liu2019, ho2024}, complementary approaches quantify individual node importance. Centrality measures rank vertices by structural position or influence \cite{coscia2021}. The simplest metric, citation count (equivalent to in-degree \cite{coscia2021}), has fundamental limitations that have long been recognized. Garfield \cite{garfield1973} argued that citation frequency measures research activity and communication, not inherent significance, and is valid ``only as a starting point in a qualitative appraisal.'' Network scientists have since developed multiple centrality indices, each capturing different notions of importance.
+
+\textbf{Degree centrality} $c_D(v) = |N(v)|$ counts citations received \cite{nieminen1974}, but captures only immediate connections, missing indirect influence. As discussed above and now formalized, below we highlight other well-known centrality measures \cite{landherr2010}:
+
+\textbf{Closeness centrality} measures average distance to all nodes:
+\begin{equation}
+c_C(v) = \left(\sum_{t \in V} \text{dist}(v,t)\right)^{-1}
+\end{equation}
+where $\text{dist}(v,t)$ is the shortest path distance between nodes $v$ and $t$ \cite{beauchamp1965, sabidussi1966}. In citation networks, high closeness indicates proximity to foundational work that influenced many subsequent developments.
+
+
+\textbf{Betweenness centrality} identifies ``gatekeepers'' controlling knowledge flows between research communities:
+\begin{equation}
+c_B(v) = \sum_{s,t \in V} \frac{\sigma_{st}(v)}{\sigma_{st}}
+\end{equation}
+where $\sigma_{st}$ is the number of shortest paths between $s$ and $t$, and $\sigma_{st}(v)$ counts those passing through $v$ \cite{freeman1977}.
+
+\textbf{Eigenvector centrality} implements recursive importance, being cited by influential papers counts more:
+\begin{equation}
+c_E(v) = \frac{1}{\lambda} \sum_{w \in N(v)} c_E(w)
+\end{equation}
+where $N(v)$ is the set of neighbors of $v$ (nodes that cite $v$ in a citation network), $c_E(w)$ is the eigenvector centrality of neighbor $w$, and $\lambda$ is the largest eigenvalue of the adjacency matrix \cite{bonacich2001}.
+
+The wide variety of centrality measures invokes the need for a unifying theoretical framework. Schoch \& Brandes \cite{schoch2016} propose neighbourhood inclusion as a defining criterion for centrality, formalizing the intuition that if an actor has the same (and possibly more) ties, it can never be less central. They prove that standard centrality indices preserve the neighbourhood-inclusion pre-order, where vertex $u$ is dominated by $v$ if all of $u$'s neighbours are also neighbours of $v$ (denoted $N(u) \subseteq N[v]$) \cite{schoch2016}.
+
+The well-known centrality measures discussed above are typically defined for undirected, unweighted networks with a single connected component. This raises the question: how do these measures apply to DAGs, where edge directionality fundamentally alters the notion of how these indices are defined?
+
+One approach to measuring centrality in DAGs is to adapt Google's PageRank algorithm \cite{brin1998}. Chen et al. \cite{chen2007} applied this adaptation to the Physical Review journal's citation network (353,268 papers, 1893-2003), arguing citation count alone misses influential papers. A paper's PageRank depends on both who cites it and how many references those citing papers have, being cited by influential papers with few references contributes more. Their findings showed that PageRank successfully identifies ``gems'': papers considered seminal in the field yet with fewer citations than anticipated.
+
+Furthermore, centrality measures have been studied in directed acyclic graphs representing food webs. Jordán et al. [2007] \cite{jordan2007} compared 13 centrality indices in food webs, inherently DAGs due to unidirectional trophic energy flow, finding degree and closeness centrality highly correlated, while betweenness and information centrality better captured importance when edge weights (representing flow magnitudes) were considered.
+
+Finally, we conclude this section by noting that coherent study of centrality measures specifically designed for DAGs remains limited, with relevant work scattered across domains such as ecology and social science. A systematic evaluation of how centrality measures perform in DAG citation networks represents an important literature gap to be explored.
+
+\section*{Conclusion}
+\addcontentsline{toc}
+{section}{Conclusion}
+
+To conclude, understanding which technologies to combine and what science must be discovered to create innovations often relies on expert consensus or popularity metrics, obscuring how intellectual efforts accumulate into technological progress \cite{ho2024}. This review has examined path-finding methods and centrality measures as complementary approaches for analyzing innovation dynamics in citation networks. Main path analysis and criticality-based methods provide tools for tracing technological trajectories that in some studies have shown correspondence with expert assessments \cite{liu2019, ho2024}, while centrality measures offer frameworks for quantifying node importance \cite{landherr2010}. However, systematic study of centrality measures specifically designed for DAGs remains scattered across disparate domains \cite{chen2007},\cite{jordan2007}. The foundations reviewed here motivate two research directions: testing path-finding methods using numerical models of innovation processes, and evaluating how standard centrality measures perform when adapted to temporally ordered networks. Progress on these questions could inform more evidence-based approaches to identifying and supporting transformative research.
+
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references}
+\end{document}

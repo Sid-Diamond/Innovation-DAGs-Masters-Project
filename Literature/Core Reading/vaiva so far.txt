@@ -1,0 +1,350 @@
+Introduction
+ Some parts of this chapter are based on work presented in:
+ Understanding Complexity via Network Theory: a Gentle Introduction,
+ V. V., F. E. Rosas,
+ arxiv.org/abs/2004.14845 (2020).
+ V. V. contributed to sections 13 6.
+ 1.1 Complexity
+ Many real-world systems are interconnected. A collection of closeby particles, a
+ group of friends or nancial stocks are seemingly very di erent things. Interactions
+ between particles are governed by physical laws, which may not necessarily apply
+ to interactions between people. We can know every physiological detail about the
+ human body and it will not su ce to understand social interactions between two
+ people. Learning about every single particle within the neuron will not be enough
+ to explain how billions of neurons form a conscious brain. All of these complex
+ systems are intractable using reductionists approaches. Complexity science aims
+ 10
+to explain such patterns of complex interactions.
+ A complex system embodies a certain amount of hierarchy and interactions
+ happen between and among its subsystems [1]. Furthermore, these interactions
+ exhibit law-like and causal regularities, various kinds of symmetry, order, and pe
+riodic behaviour [2]. What distinguishes a complex system from a complicated
+ system is non-linearity of interactions between its constituents. The aggregate
+ of them exhibits properties, called emergent, that are not attainable by summa
+tion [3].
+ An example of a non-complex system is a watch, which, with many screws,
+ gears, springs, is a complicated device. We may even say that its emergent be
+haviour is its time-keeping ability. However, we can understand the mechanisms
+ underlying clocks architecture completely, if we take it apart. Thus although
+ complicated, clocks are not complex [3]. In a complex system, top-down as well
+ as bottom-up e ects can be observed. For instance, the structure of the World
+ Wide Web (WWW) is dependent on the individuals, contributing to creation and
+ linkage of websites. On the other hand, the navigation within the WWW by a
+ single individual is inevitably dependent on the structural features of the WWW
+ itself.
+ 1.2 Networks
+ Networks are a useful tool to model a wide variety of complex systems. A network
+ is an abstraction of a system that depicts interdependencies within it. Just as a
+ map neglects aspects of the territory in order to focus on particular features of
+ interest, a network takes away most of the richness of individual sub-units of
+ the system and only retains the structure of their interdependencies. Networks
+ allow us to study the collective properties of these dependencies. Additionally,
+ 11
+as seemingly unrelated systems might have similar networks of interdependencies,
+ networks sometimes allow us to establish non-trivial relationships between systems
+ that share similar dependency structures.
+ In the following sections of this chapter we review the main technical de ni
+tions, used throughout the thesis. The notation, introduced here or elsewhere is
+ also summarised in the glossary at the end of the thesis.
+ 1.2.1 Basic De nitions
+ The interacting entities in a network are referred to as nodes (or vertices), and
+ an interaction between two nodes is indicated by an edge. So in the simplest
+ form, a network consists of a set of nodes with a set of edges between them [4, p.
+ 1, 109]. We de ne a network (also called a graph) as a pair G, consisting of a set of
+ nodes V and edges E: G = (VE). The set V consists of all nodes: V = uvw
+ and the size of this set is equal to the number of nodes in the network, N. The
+ set E consists of all edges among nodes in V and its size is equal to the number
+ of edges in the network, E.
+ The type of network just described is the most simple. Nodes in this net
+work have no internal structure, and in this sense are identical. For instance, a
+ network can be used to model relationships between people. An edge in a friend
+ship network of people indicates that some two people, represented as nodes, are
+ friends [4, p. 37]. In this network, all people are assumed to be identical: they
+ have no individual personality, status, ethnicity.
+ If we want to incorporate more information, we can equip a network with
+ richer structure. For instance, a node can be assigned a type. When there are
+ two types of nodes in the network, and an edge only connects nodes of di erent
+ type, a network is called bipartite, see [4, p. 123]. Such networks are useful
+ to model a liations: a person belonging to a group, a company, a team. An
+ 12
+example of a bipartite network is a share-holder network where an edge connects
+ a company and a person, if the person invested in the company [5]. Bipartite
+ networks can be generalised to multipartite networks. A multilayer network on
+ the other hand allows for multiple layers, as well as inter-layer connections [6].
+ Extra information can be added not only to nodes, but also to edges. Signi cance,
+ strength of interaction can be represented with weighted edges, such a network
+ is called a weighted network. In signed networks, a link can have a positive or a
+ negative value. This type of network is useful to model polarised relationships,
+ e.g. like and hate in social setting [7]. Lastly, edges can be equipped with
+ orientation to obtain directed networks.
+ Examples of networks are numerous. To name a few signi cant ones, net
+works are useful to model social interactions (for example, see [8; 9; 10] and
+ references therein), migration patterns, technological networks (such as the in
+ternet [11] and the World Wide Web [12]), biological systems (e.g. brain net
+works [13; 14; 15], protein-protein interactions [16]). In section 1.3.3 we will
+ discuss examples of real world systems, that can be modelled as directed acyclic
+ graphs networks that are studied in this thesis.
+ Network theory is built upon a rich mathematical foundation of graph theory
+ and statistical mechanics. To access the mathematical machinery, we de ne a
+ network as a quantitative entity. Although many representations are possible, in
+ this thesis we will always use an adjacency matrix, A. In the simplest case
+ this is a square N N matrix that represents edge connectivity of a network with
+ N nodes. For an undirected network each entry in the adjacency matrix is
+ Aiujv 
+= Ajviu 
+= e if (uv) E
+ Aiujv 
+= 0 otherwise.
+ (1.1)
+ Here e is the weight of the edge (uv) and iu jv are indexes of nodes uv, respec
+13
+1
+ u v w j k m n
+ u 0 1 1 0 1 0 0
+ v 0 0 0 0 0 0 0
+ w 0 0 0 0 0 1 0
+ j 0 0 0 0 1 0 0
+ k 0 0 0 0 0 0 1
+ m 0 0 0 0 0 0 1
+ n 0 0 0 0 0 0 0
+ u
+ w
+ v
+ k
+ m
+ j
+ n
+ Figure 1.1: An example of a directed network on the right and its adjacency
+ matrix on the left. There are N = 7 nodes in the network, E = 8 edges. Node u
+ has an out-degree k(out)(u) = 3.
+ tively. If the network is directed, this matrix is not symmetric, and if an ordered
+ pair (uv) E, Aiujv 
+= e, but Ajviu 
+= 0 if (vu) E. An example of a directed
+ network and its adjacency matrix is given in Fig. 1.1. Most often we will consider
+ unweighted networks, unless otherwise stated. Having a mathematical representa
+tion of a network, we can de ne various characteristics of individual nodes, edges,
+ as well as the network as a whole. For instance, degree of a node is the number
+ of edges that are attached to that node: k(u) = v G 
+Aiujv
+ . When the network is
+ directed, two types of degrees can be distinguished: degree, based on edges point
+ing to the node (in-degree, k(in)), and degree based on edges pointing outwards,
+ k(out). For instance, in Fig. 1.1, k(in)(u) = 0, k(out)(u) = 3. We can calculate the
+ degrees of nodes directly from the adjacency matrix:
+ k(in)(u) = 
+Ajviu
+ v G
+ k(out)(u) = 
+v G
+ Aiujv
+ (1.2)
+ When two nodes are connected with an edge, we call them each others neigh
+bours. A set of all neighbours of u is called the neighbourhood N of u.
+ In directed networks, N can be divided into a set of nodes that have an edge
+ pointing to u, predecessors Npre: Npre(u) = v V(vu) E , and those
+ that are pointed to from u, successors Nsuc: Nsuc(u) = v V(uv) E :
+ 14
+N =Nsuc Npre. Those nodes which have no successors k(out) = 0 will be called
+ sinks, and those that have no predecessors will be sources.
+ 1.2.2 Paths
+ Networks become truly useful when there is a need to understand collective be
+haviour of the system via its large- or meso-scale organisations. To understand
+ such behaviours we study indirect, long-range interactions between nodes that
+ operate via paths, walks, cycles. A walk is de ned as a sequence of vertices,
+ such that there is an edge from each vertex to the next vertex in the sequence.
+ A number of walks can be calculated from the adjacency matrix. For instance,
+ in an undirected network, for uv V, [Ak]iujv 
+is the number of walks of length
+ k between the nodes [4, p. 136]. In a walk, the sequence of traversed nodes need
+ not be unique.
+ A walk, in which each node of the sequence of occurs at most once, is called
+ a path. Formally, a path from u0 to uL, L(u0 uL) = u0 uL is a sequence
+ of nodes, such that (ui ui+1) E i 
+0L 1 . We will often look at the
+ length of a path between two nodes, which is one less than the number of nodes
+ in the path set, L in the above de nition. We will most often assume the shortest
+ path distance between two nodes and denote the length of a path between uv as
+ duv. In section 4.6 we will also consider the longest path distance between nodes.
+ There we will call the length of the shortest path dSP
+ uv , the length of the longest
+ path dLP
+ uv . We will also discuss the number of shortest paths between nodes,
+ denoted as uv. The number of those paths that pass by a node w is w
+ uv.
+ In all but one type of network there are at least two distinguishable paths
+ between at least one pair of nodes. If for all pairs of nodes there is at most one
+ path connecting them, such network is a tree. The notion of a tree can be
+ generalised to directed networks. An arborescence is a network that has one
+ 15
+source node, called a root, and all paths from the root to any other node are
+ unique. When multiple source nodes exist, the network is a directed tree [17].
+ (a) An arborescence.
+ u
+ q
+ v
+ w
+ (c) A DAG. An edge (vw) created a
+ cycle, which allowed in DAGs, uvwq.
+ (b) A directed tree.
+ u
+ q
+ v
+ w
+ (d) A directed cyclic network. Edges
+ (vw) (wu) created a cycle, which is
+ forbidden in DAGs, uvwq.
+ Figure 1.2: Di erence between an arborescence, a directed tree, a directed acyclic
+ graph and a directed network. Flipping the direction of a red edge produces a
+ second source node in the arborescence of (a), resulting in a directed tree in (b).
+ In both, arborescence and a directed tree, there is at most one path between
+ any pair of nodes. Addition of an edge (vw) in (c) or edges (wv) (vu) in (d)
+ produce cycles, composed of nodes uvwq, so these networks are not directed
+ trees, nor arborescences. A cycle uvwq in (d) is a feedback cycle which is
+ forbidden in DAGs.
+ Formally, when there is more than one path between a pair of nodes, a
+ network has a cycle. A cycle is a special type of subgraph G. Generally G is a
+ pair of nodes V
+ V and edges E= (uv) Euv V . Asubgraph is a cycle
+ if k(u) = 2 u V. If the cycle is directed, we must have k(out)(u)+k(in)(u) = 2
+ u V. Di erences between an arborescence, a directed tree, a DAG, and a
+ simple directed network are illustrated in Fig. 1.2.
+ 16
+Various insights about networks can be acquired from the statistics of di er
+ent types of paths. The shortest path between the two nodes (interchangeably
+ called a geodesic e.g. in [18],[4, p. 139]) is a path with smallest possible number of
+ edges. A classic example of the use of the shortest path statistics is for assessing
+ positional importance of nodes. Here we refer to measures of centrality which will
+ be discussed in great detail in Chapter 4. Furthermore, shortest paths are also
+ used to nd optimal routes [19].
+ To study dynamical processes on networks one can employ various stochastic
+ methods, for example random walk techniques. Random walks are often used
+ to model various types of di usion, and there has been intense research on the
+ impact of network architecture on the dynamics of random walks. The niteness
+ of a network, along with its irregular structure can make di usion on networks
+ very di erent from di usion on regular or innite lattices. Thus the statistics and
+ dynamical properties of a random walk can reveal information about the structure
+ of a network [20].
+ 1.3 Directed Acyclic Graphs
+ The main focus of this thesis is on a special type of directed network, in which all
+ walks are paths, and none of the paths start and nish at the same node. We will
+ call such network a directed acyclic graph (DAG). Although this is standard
+ nomenclature, the name is misleading: if edge direction is ignored, cycles in DAGs
+ do exist. So most formally, DAGs are networks in which there are no feedback
+ cycles: walks that, following the edge direction, would start and nish at the same
+ node. See Fig. 1.2(c) for an example of a cycle, allowed in DAGs, and Fig. 1.2(d)
+ for an illustration of a feedback cycle, forbidden in DAGs.
+ Directed acyclic structure occurs in systems with underlying characteristic
+ 17
+constraint, which orders nodes and governs the direction of edges [21]. So if in
+ the standard network analysis an edge indicates the presence of a relationship,
+ interaction, or similarity between the two connected nodes, in DAGs an edge also
+ indicates the hierarchical relation, causality, or order of the pair of vertices.
+ Perhaps the most signi cant example of DAGs is that of networks ordered in
+ time1. For instance, a citation graph [23] is a network in which both edges and
+ nodes respect temporal order. In citation networks nodes are publications and an
+ edge indicates a citation of one publication by another. In this thesis we will use
+ the convention of edges pointing forward in time: an edge starts from a referenced
+ paper and points to a referencing paper. In a citation network, an edge not only
+ marks a reference but also indicates the temporal order of papers: a paper can
+ only reference older papers that have been published already. We can say that in
+ part, the temporal structure can be recovered from the topological structure of
+ the network (where we do not necessarily know the real ages of nodes).
+ Another example of a DAG is a food web. This network depicts prey-predator
+ relationships between species in an ecosystem. Usually food webs are constructed
+ by considering the ow of energy or mass between compartments (species) within
+ the system [24]: there is an edge from u to v if v consumes energy from u, often
+ meaning that species v eats species u.
+ In practice there are often bad links which are in the wrong direction,
+ from a newer document to an older document in a citation network or cyclic
+ energy ows in a food web (e.g. cannibalism). In citation networks, this is because
+ documents are published in di erent versions and the text available may not
+ have been created at the time associated with the document in the data set.
+ 1Note that these are not temporal networks. In a temporal network, time at which edges
+ appear is relevant for dynamical processes of the system [22]. An example of a system that can
+ be modelled as a temporal network is email communication between people where a sent message
+ from one person (node) to another is represented as a directed edge. In these networks time
+ does not govern the directionality of edges, so time is not a characteristic constraint ordering
+ the edges.
+ 18
+For instance, a revised version of an arXiv paper carries the same index as the
+ rst version. A journal article has several associated dates: rst submitted, date
+ accepted, published online, formal publication date and so forth. Such bad links
+ can introduce cycles and these must be mitigated. One can simply drop the links
+ that do not respect the agreed order of time, or go against the order imposed by
+ trophic layers. More sophisticated approaches also exist to remove the acyclicity
+breaking edges, for example see [25; 26].
+ Networks can also represent a hierarchical structure. For example, within
+ software, many packages, programmes, algorithms can depend on other pieces of
+ software. For the whole package to run smoothly, one must ensure that there are
+ no cyclic dependencies. E.g. in python programming language, pandas library is
+ built upon numpy library. We may say numpy precedes pandas in the hierarchy
+ of software dependencies. For python to run smoothly, pandas cannot be a pre
+requisite of numpy, so software package dependencies are another example of a
+ DAG.
+ Another DAG closely related to computer package dependency network is a
+ task scheduling network [27]. Here tasks are ordered: one task must necessarily
+ be executed before beginning another (to make co ee, beans are ground before
+ being put in a co ee brewer). All of these examples are DAGs as there exists
+ inherent causality within the system. Indeed, causal networks (Bayesian networks
+ which are always directed acyclic graphs) are structures that represent conditional
+ dependencies between entities within the system [28, Chapter 2].
+ 1.3.1 Basic DAG Properties
+ The lack of cycles in a DAG leads to many special properties that distinguish this
+ network type. Every DAG is linked to a partial order on its set of nodes. That
+ is, DAG is related to a partially ordered set poset of nodes V in which nodes
+ 19
+are ordered via reachability criterion. We say that an element a in a partially
+ ordered set precedes another element b if these elements are related in the order
+ and a comes before b. We write a b, with relation 
+satisfying the following
+ requirements for all pairs of elements, ordered in the set [29, p. 1-2]:
+ Re exivity: a a,
+ Antisymmetry: if a b and b a, then a = b,
+ Transitivity: if a 
+b and b c, then a c.
+ In a DAG, we can say that whenever there is a path L(uv), u v. This
+ relation between the mathematical entity of a poset and any DAG means that we
+ can exploit the mathematical machinery of ordered set theory to study our DAGs.
+ In the following chapters we will often do so.
+ On the other hand, DAGs are di erent from posets. In network representa
+tion, a partially ordered set is a transitively complete DAG, meaning that
+ if L(uv), then (uv) E. Transitive closure [30] is a process of injecting
+ edges in a network, such that whenever there is a path between two nodes, there
+ is also an edge between them. So a partially ordered set related to a DAG can be
+ obtained by performing transitive closure.
+ Each directed acyclic graph can relate to at most one poset, however one
+ poset is related to a collection of DAGs. DAGs, which have the same forms of
+ transitively reduced network and transitively complete network, share the same
+ partially ordered set. transitive reduction (TR) is a process of removing
+ those edges from a DAG, which are not essential to maintain the connectivity
+ within a network [31]. That is, if for an edge (uv) there is another, longer
+ path which connects these two nodes, the edge (uv) is not essential and can be
+ reduced .
+ 20
+We can also order nodes linearly, that is, nd a topological order of
+ nodes, i.e. put them in a sequence such that u comes before v if u v [32]. Such
+ topological order always exists, however it is not unique. If there are two nodes,
+ which do not have a path connecting them, either node can be put forward in the
+ topological order. Such a set of nodes for which there are no paths between any of
+ the nodes is known as an antichain. We will say that if u v and v u, u v.
+ An antichain will be denoted A, A = uv V if u v . Conversely, a chain is a
+ generalisation of a path, that is, if u v, then uv form a chain. In this thesis, to
+ order nodes we will most often use the information about the inherent constraint
+ of the system. An example of a constraint is time in citation networks, so the
+ index of a node in topological order will correspond to its publication date: rst
+ is the oldest paper, followed by the second oldest and so on. When there is no
+ sensible metadata, we will use a topological_sort function of networkx library
+ in python to sort the nodes. The algorithm is based on the description in [33,
+ Chapter 7]. We will say that i is an index of a node u if it is in the ith place in
+ the linear topological order.
+ Another important feature of DAGs is that there is always a well-de ned
+ longest path between any two connected nodes. We will denote the longest path
+ as LLP and its length L. Furthermore, we can use the longest path to de ne
+ height and depth of each node. The height of a node u, h(u) is de ned as
+ the longest path distance from any source node to u; the depth of u, d(u) is the
+ longest path distance from the node to any sink node.
+ It is also important to note that adjacency matrices of DAGs are always
+ upper-triangular, which are nilpotent matrices that have all eigenvalues equal to
+ zero. As will be discussed in Chapter 4, this feature has important e ects on
+ measuring centrality in DAGs.

@@ -1,0 +1,2101 @@
+ So far we just described graph representations. We haven’t actually
+ done anything with them. Here, we start probing their properties, to
+ say things about their nodes, edges, and structures. In this chapter
+ we deal with the simplest possible statistics of a node: its degree.
+ This is such a basic concept that I actually already mentioned it
+ multiple times without defining it. It’s hard not to, when talking
+ about networks.
+ The intuition behind the degree is easy to understand in a social
+ network. What is the simplest way for you to know how well you’re
+ doing in a society? Well, you could look around you, see the friends
+ you have, and count them. This is the degree. I’ve got my decent
+ couple of hundreds Facebook friends, like almost everyone else.
+ But some people are superstars, and count the number of their
+ acquaintances in the thousands. How many people does Brad Pitt
+ know? Probably a couple orders of magnitude more than me. Those
+ are the kinds of differences you can quantify by calculating the
+ degree of all nodes in your network.
+ 2
+ 2
+ 2
+ The degree of a node is simply the number of edges incident
+ to it1, as Figure 9.1 shows. Or the number of its connections. Or
+given some assumption that I’ll break later on– the number of its
+ neighbors. It is the first, most fundamental measure of structural im
+portance of a node. A node of high degree ought to be an important
+ node in the network. If it were to disappear, many nodes would lose
+ Figure 9.1: A network where
+ I labeled each node with its
+ degree.
+ 3
+ 1
+ 1 Reinhard Diestel. Graph theory. Springer
+ Publishing Company, Incorporated,
+ 2018
+degree 135
+ a connection.
+ The degree is a property of a node. Let’s call kv the degree of node
+ v. We can aggregate the degrees of all nodes in a network to get a
+ “global” information about its connectivity. The most common way to
+ do it is by calculating the average degree of a network. This would
+ be ¯ k = ∑
+ kv/|V|, however it’s much simpler to remember that
+ v∈V
+ ¯
+ k = 2|E|/|V|. The average degree of a network is twice the number
+ of edges divided by the number of nodes. Why twice? Because each
+ edge increases by one the degree of the two nodes it connects.
+ In a social network, this is how many friends people have on
+ average. What would that number be in your opinion? If we have
+ a social network including two billion people, what’s the average
+ degree? It turns our that this number is usually ridiculously lower
+ than one would expect, because– as we’ll see in Section 12.1– real
+ networks are sparse2.
+ We call a node with zero degree, a person without friends, an
+ isolated node, or a singleton. A node with degree one is a “leaf”
+ node: this term comes from hierarchies, where nodes at the bottom– the leaves of the tree– can only have one incoming connection
+ without outgoing ones. The sum of all degrees is 2|E|, which implies
+ that any graph can only have an even number of nodes with odd
+ degree3– otherwise the sum of degrees would be odd and thus it
+ cannot be two times something.
+ 2
+ 2
+ 2
+ 3
+ (a)
+ 1
+ [3, 2, 2, 2, 1]
+ (b)
+ Adegree sequence is the list of degrees of all nodes in the net
+work4,5. Typically, we sort the nodes in descending degree, so you
+ always start with the node with maximum degree and you go down
+ until you reach the node with the lowest degree. Figure 9.2 shows an
+ example.
+ Note that not all lists of integers are valid degree sequences. Some
+ lists cannot generate a valid graph. The easiest case to grasp is if
+ they contain an odd number of odd numbers. As we just saw, the
+ degree sequence must sum to an even number (2|E|), thus a sequence
+ summing to an odd number cannot describe a simple undirected
+ graph6. We call all valid sequences “graphic”. We’ll see that there are
+ other, more subtle, requirements for a graphic sequence.
+ 2 Anna D Broido and Aaron Clauset.
+ Scale-free networks are rare. Nature
+ communications, 10(1):1017, 2019
+ 3 Leonhard Euler. Solutio problematis ad
+ geometriam situs pertinentis. Commen
+tarii academiae scientiarum Petropolitanae,
+ pages 128–140, 1741
+ Figure 9.2: A graph and its
+ degree sequence.
+ 4 Michael Molloy and Bruce Reed.
+ The size of the giant component of a
+ random graph with a given degree
+ sequence. Combinatorics, probability and
+ computing, 7(3):295–305, 1998
+ 5 Béla Bollobás, Oliver Riordan, Joel
+ Spencer, and Gábor Tusnády. The degree
+ sequence of a scale-free random graph
+ process. Random Structures & Algorithms,
+ 18(3):279–290, 2001
+ 6 Gerard Sierksma and Han Hoogeveen.
+ Seven criteria for integer sequences
+ being graphic. Journal of Graph theory, 15
+ (2):223–231, 1991
+136 the atlas for the aspiring network scientist
+ 9.1 Degree Variants
+ Of course, the degree definition I just gave only makes sense in the
+ world of undirected, unweighted, unipartite, monolayer networks.
+ We had two whole chapters detailing when such a simple model
+ doesn’t work in complex real scenarios. We need to extend the
+ definition of degree to take into account all different graph models
+ we might have to deal with.
+ Directed
+ As we saw in Section 6.2, edges can have a direction, meaning that
+ the edge going from u to v doesn’t necessarily point back from v to
+ u. Such is life. In directed graphs you can keep counting the degree
+ as simply the number of connections of a node, but there is a more
+ helpful way to think about it. You might want to distinguish the
+ people who send a lot of connections– but don’t necessarily see
+ them reciprocated–, and those who are the target of a lot of friends
+ requests– whether they accept them or not.
+ 1
+ 1
+ 1
+ 2
+ 0
+ (a)
+ 0
+ 2
+ 1
+ 2
+ (b)
+ 0
+ So we split the concept in two parts, helpfully named in-degree
+ and out-degree7,8. As one can expect, the in-degree is the number of
+ incoming connections. If we represent a directed edge as an arrow,
+ the in-degree is the number of arrow heads attached to your node.
+ See Figure 9.3(a) for a helpful representation. The out-degree is the
+ number of outgoing connections, the number of arrow tails attached
+ to your node. I show the out-degree of the nodes in my example in
+ Figure 9.3(b).
+ Adirected graph’s degree sequence is now a list of tuples. The
+ f
+ irst element of the tuple tells you the indegree, while the second
+ Figure 9.3: (a) A network where
+ I labeled each node with its
+ in-degree. (b) A network where
+ I labeled each node with its
+ out-degree.
+ 7 Frank Harary, Robert Zane Norman,
+ and Dorwin Cartwright. Structural
+ models: An introduction to the theory of
+ directed graphs. Wiley, 1965
+ 8 Jørgen Bang-Jensen and Gregory Z
+ Gutin. Digraphs: theory, algorithms and
+ applications. Springer Science & Business
+ Media, 2008
+element tells you the outdegree. Or you can have two sequences, but
+ degree 137
+ you need to make sure that the nth positions of the two sequences re
+fer to the same node. If the two sequences are the same, meaning that
+ every node has the same in- and out-degree, we have a “balanced”
+ graph.
+ Weighted
+ Most of the time, people do not change the definition of degree when
+ dealing with weighted networks. Many network scientists like how
+ the standard definition works in weighted graphs, and keep it that
+ way. The degree is simply the number of connections a node has.
+ 3
+ 8
+ 4
+ 5
+ 10
+ 1 2
+ 3
+ 3
+ 3
+ Other people don’t9. In the case of weighted networks, one might
+ be interested in the total weight incident into a node. We would call
+ such quantity the “weighted degree” or “node strength”10. Node
+ strengths are key concepts in investigating propagating failures on
+ networks (Section 22.3) and in some network backboning techniques
+ (Section 27.5).
+ Node strengths work exactly how you would expect them to do: to
+ get v’s weighted degree you sum the weights of all the edges incident
+ to v. Figure 9.4 shows an example. The advantage of this definition
+ is that it reduces to the classical degree definition if your network is
+ unweighted– that is to say that all of G’s edge weights are equal to
+ one.
+ By separating the unweighted count of connections (degree) from
+ the weighted sum of connections (weighted degree), we capture two
+ distinct notions of connectivity. One can have a node with enormous
+ strength but low degree– a core router on the internet with few high
+bandwidth connections– and a “peripheral” router on your street
+which has a large number of low-bandwidth connections.
+ The reasons to do so are many. For instance, if you’re looking a
+ road graph, each edge represents a trait of road. It might be weighted
+ with the number of cars passing through it per unit of time. Nodes,
+ in this case, are road intersections. A weighted degree will tell you
+ how many cars per unit of time want to clear that particular intersec
+Figure 9.4: A weighted network
+ where I labeled each edge with
+ its weight and each node with
+ its weighted degree.
+ 9 Alain Barrat, Marc Barthelemy, Ro
+mualdo Pastor-Satorras, and Alessandro
+ Vespignani. The architecture of complex
+ weighted networks. Proceedings of the
+ national academy of sciences, 101(11):
+ 3747–3752, 2004a
+ 10 Tore Opsahl, Filip Agneessens, and
+ John Skvoretz. Node centrality in
+ weighted networks: Generalizing
+ degree and shortest paths. Social
+ networks, 32(3):245–251, 2010
+138 the atlas for the aspiring network scientist
+ tion. If the number is too high, you might be in trouble!
+ Bipartite
+ The bipartite case doesn’t need too much treatment: the degree is
+ still the number of connections of a node. It doesn’t matter much
+ that for V1 nodes it is gained exclusively via connections to V2 nodes
+ and viceversa. However, there’s a little change when one uses a
+ matrix representation that it’s worthwhile to point out. Assuming
+ A as a binary adjacency matrix (not stochastic), in the regular case
+ the degree is the sum of the rows: the sum of first row tells you the
+ degree of the first node, and so on.
+ (a) A
+ (b) AT
+ In a bipartite network that will only tell you the degree of the V1
+ nodes. You won’t know anything about the V2 nodes if you only look
+ at row sums. You can fix the problem in two, equivalent, ways. You
+ can either looking at the column sums, or you can look at the row
+ sums of AT, the transpose of A. AT’s rows are A’s columns and vice
+ versa, so the equivalence between these two approaches should be
+ self-evident– if it isn’t, try to play with Figure 9.5.
+ Just like directed graphs, also bipartite graphs have two degree
+ sequences, one for V1 nodes and the other for V2 nodes. They both
+ sum to the same value: |E|, implying that, in this case, you can have
+ an odd number of odd degree nodes in each node type11.
+ Multigraph
+ When I introduced the degree I said that it can be the number of a
+ node’s connections or the number of its neighbors. These two were
+ assumed to be interchangeable, because each edge in a simple graph
+ will bring you to a distinct neighbor. Say that ku is u’s degree, and
+ Nu the set of its neighbors. In a simple graph, ku = |Nu|– assuming
+ there are no self-loops or, if there are, that Nu can contain u itself.
+ That is not the case in a multigraph. Since we allow parallel edges,
+ you can follow two distinct connections and end up in the same
+ neighbor. So we need to solve this ambiguity. The way I saw most
+ commonly accepted is to keep the degree (ku) as the number of
+ Figure 9.5: Calculating the
+ degree of a bipartite network
+ via its adjacency matrix A and
+ its transpose AT. The first V1
+ node has degree equal to two
+ (the sum of the first row is two).
+ The first V2 node has degree
+ equal to one, which you can
+ calculate either by summing
+ the first column of A, or by
+ summing the first row of AT.
+ 11 Armen S Asratian, Tristan MJ Denley,
+ and Roland Häggkvist. Bipartite
+ graphs and their applications, volume 131.
+ Cambridge University Press, 1998
+degree 139
+ connections of a node. The number of neighbors of a node (|Nu|) will
+ be just that: the number of neighbors. So, in a multigraph ku ̸ = |Nu|
+ or, to be more precise, ku ≥ |Nu|.
+ Multilayer
+ The multilayer case is possibly the most complex of them all. At first,
+ it doesn’t look too bad. The degree is still the number of connections
+ a node has. Then you realize that there are some connections you
+ shouldn’t count. For instance, no one– that I know of– counts the
+ interlayer coupling connections as part of the degree. It’s easy to
+ see why: these are not connections that lead you to a neighbor in a
+ proper sense. They lead you to... a different version of yourself.
+ Even if we want to ignore this quirk, counting these connections
+ won’t really give you meaningful information. If you have a one
+to-one multilayer network in which all nodes are part of all layers,
+ they are all going to have the same number of inter-layer couplings.
+ Sometimes, this number can be quite high. If you have five layers
+ and you connect all identities of the same actor across layers, you
+ effectively have a clique (see Section 12.3) of inter-layer couplings.
+ If you count those as part of the degree, this actor would have a
+ degree starting from ten– as I show in Figure 9.6–, which would
+ be unreasonable. You could have fewer inter-layer coupling using
+ different coupling strategies, but that wouldn’t change the substance.
+ Since each layer is a network on its own, it is natural to want to
+ have a measure telling us the degree of a node in a particular layer.
+ So an actor can have many degrees: one per layer, and a general one,
+ which we can define as the sum of each layer’s degree. However,
+ things can get complicated with a many-to-many mapping. In that
+ case, the actor can “own” more than one node in a layer. Each node
+ has its own degree, but how much do they contribute to the actor’s
+ degree? The answer might vary, depending on what you’re interested
+ in calculating.
+ One can also combine layers to do all sorts of interesting stuff.
+ I’m going to give you some examples from a paper of mine12, with
+ the caveat that the space of actual possibilities is much vaster than
+ this13,14. What follows is also very related to the multilayer concept
+ Figure 9.6: Should we really say
+ that the degree of this isolated
+ node is ten just because there
+ are five layers in the network
+ and we couple them with each
+ other? Eight out of ten cats say
+ “no”.
+ 12 Michele Berlingerio, Michele Coscia,
+ Fosca Giannotti, Anna Monreale, and
+ Dino Pedreschi. Multidimensional
+ networks: foundations of structural
+ analysis. WWW, 16(5-6):567–593, 2013a
+ 13 Manlio De Domenico, Albert Solé
+Ribalta, Emanuele Cozzo, Mikko Kivelä,
+ Yamir Moreno, Mason A Porter, Sergio
+ Gómez, and Alex Arenas. Mathematical
+ formulation of multilayer networks.
+ Physical Review X, 3(4):041022, 2013
+ 14 Federico Battiston, Vincenzo Nicosia,
+ and Vito Latora. Structural measures for
+ multiplex networks. Physical Review E,
+ 89(3):032804, 2014
+140 the atlas for the aspiring network scientist
+ u
+ of “versatility”: the ability of a node to be a relevant central node in
+ different layers15,16,17.
+ Consider Figure 9.7. Let’s call u the bottom node, the one with two
+ orange edges, a blue and a purple one. We can see that its degree
+ is four (four edges), and its neighbor set is of size three: u has three
+ neighbors, |Nu| = 3.
+ Now, we can count the size of the neighbor set per layer too, or
+ Nu,l. In the orange layer u has two neighbors (|Nu,l| = 2), in the blue
+ and purple one it has only one (|Nu,l| = 1). There is a difference
+ between the neighbors in the orange layer and the ones in the other
+ layers. If u wants to communicate with them, it has to use the orange
+ layer: there is no alternative. On the other hand, if the blue layer
+ were to disappear, u could still use the purple one, and vice versa.
+ This observation is at the basis of the definition of the “exclusive
+ neighbor” set, or NXOR. Given a node u and a layer l, the NXOR
+ contains those neighbors of u that can be reached exclusively via l. If
+ there is an alternative path, those neighbors are not part of NXOR
+ |NXOR
+ u,l
+ | = 2, if l is the orange layer, but |NXOR
+ u,l
+ | = 0in the other two
+ cases. So the exclusive neighbor gives us a rather intuitive measure:
+ how many neighbors would u lose if layer l were to disappear?
+ We can use Nu,l and NXOR
+ u,l
+ to establish some generalized degree
+ definitions, establishing the importance of l for u. For instance, the
+ Layer Relevance of l for u is the fraction of u’s neighbors that u can
+ reach through l, or |Nu,l|/|Nu|. In Figure 9.7 that’s 2/3 for the orange
+ layer, and 1/3 for both the blue and the purple layers. The exclusive
+ variant of Layer Relevance is the fraction of u’s neighbors that u can
+ reach through l and l alone: |NXOR
+ u,l
+ |/|Nu|. In Figure 9.7 that’s still
+ 2/3 for the orange layer, but it turns to zero for both the blue and the
+ purple layers.
+ We can also have a normalized version of Layer Relevance such
+ that it always sums to one for all nodes. In this version, for every
+ pair of connected nodes (u,v), each layer in which this connection
+ appears does not contribute one to the sum, but 1/|Lu,v|, where
+ |Lu,v| is the number of layers in which u and v are neighbors of each
+ Figure 9.7: A multigraph rep
+resentation of a multilayer net
+work with one-to-one mapping,
+ where the edge color encodes
+ layer in which it appears.
+ 15 Manlio De Domenico, Albert Solé
+Ribalta, Elisa Omodei, Sergio Gómez,
+ and Alex Arenas. Ranking in inter
+connected multilayer networks reveals
+ versatile nodes. Nature communications, 6:
+ 6868, 2015d
+ 16 Manlio De Domenico, Albert Solé
+Ribalta, Sergio Gómez, and Alex
+ Arenas. Navigability of interconnected
+ networks under random failures.
+ Proceedings of the National Academy of
+ Sciences, 111(23):8351–8356, 2014
+ 17 Federico Battiston, Vincenzo Nicosia,
+ and Vito Latora. Efficient exploration
+ of multiplex networks. New Journal of
+ Physics, 18(4):043035, 2016
+ u,l
+ u,l
+ . So
+degree 141
+ other. In my example, the normalized Layer Relevance of the orange
+ dimension for u is still 2/3, but it turns to 1/6 for the blue and the
+ purple one, because they have to share the remaining 1/3 of u’s
+ neighbors.
+ Hyper
+ As one might expect, allowing edges to connect an arbitrary number
+ of nodes– rather than just two– does unspeakable things to your
+ intuition of the degree. We can still keep our usual definition: the
+ degree in a hypergraph is the number of hyperedges to which a node
+ belongs– or: the number of its hyper-connections18,19. However, if
+ you take any step further, all hell breaks loose. The number of neigh
+bors has no relationship whatsoever with the number of connections:
+ with a single hyperedge you can connect a node with the entirety of
+ the network. Also the average degree is something tricky to calculate.
+ Forget about ¯ k = 2|E|/|V|: if a single hyperedge can connect the
+ entire network, then |E| = 1, but ¯ k = |V|.
+ Things are a bit less crazy for uniform hypergraphs– where we
+ force hyperedges to always have the same number of nodes. Which
+ might explain why they’re a much more popular thing to study,
+ rather than arbitrary hypergraphs. I’ll deal with the generalization of
+ the degree for simplicial complexes in Section 34.1, because it opens
+ possibilities much more vast than the space I can allow them to have
+ here.
+ 9.2 Degree Distributions
+ The degree of a node only gives you information about that node.
+ The average degree of a network gives you information about the
+ whole structure, but it’s only a single bit of data. There are many
+ ways for a network to have the same average degree. It turns out that
+ looking at the whole degree distribution can shed light on surprising
+ properties of the network itself. Since degree distributions can be so
+ important, generating and looking at them is a second nature for a
+ network scientist. As a consequence, there are a lot of standardized
+ procedures you want to follow, to avoid confusing your reader by
+ breaking them.
+ Let’s break down all the components of a good degree distribution
+ plot. First, the basics. What’s a degree distribution? At its most
+ simple, it is just a degree scatter plot: the number of nodes with a
+ particular degree. The degree should be on the x axis and the number
+ of nodes on the y axis, just as I do in Figure 9.8. Commonly, one
+ would normalize the y axis by dividing its values by the number of
+ 18 Paul Erd˝os and Miklós Simonovits. Su
+persaturated graphs and hypergraphs.
+ Combinatorica, 3(2):181–192, 1983
+ 19 Alain Bretto. Hypergraph theory: An
+ introduction. Mathematical Engineering.
+ Cham: Springer, 2013
+142 the atlas for the aspiring network scientist
+ # Nodes
+ Degree
+ 1
+ 3
+ 2
+ 2
+ nodes in the network. At this point, the y axis is the probability of
+ a node to have a degree equal to k, not simply the node count. That
+ makes it easier to compare two networks with a different node count.
+ Figure 9.9(a) shows you the degree distribution of protein-protein
+ interaction for the Saccharomyces Cerevisiae, the beer bug. An inter
+esting pattern is that there are lots of nodes with few interactions,
+ and few nodes with many. As a consequence, we end up with all our
+ datapoints concentrated in the same part of the plot, and it’s difficult
+ to appreciate both the low- and the high-degree structure. These
+ degree patterns are more evident and easy to see when represented
+ on a log-log scale, as Figure 9.9(b) shows, which stretches out the
+ low-degree area while compressing the high-degree one.
+ 0.5
+ 0.45
+ 0.4
+ 0.35
+ 0.3
+ p(k)
+ 0.25
+ 0.2
+ 0.15
+ 0.1
+ 0.05
+ 0
+ 1
+ 0
+ 10 20 30 40 50 60 70 80 90 100
+ k
+ (a)
+ 0.1
+ p(k)
+ 0.01
+ 0.001
+ 1
+ (b)
+ So, we just discovered that this protein-protein interaction network
+ has something peculiar. The baseline assumption would be that
+ nodes connect at random. If that were the case, we would expect the
+ degree to distribute normally, in a nice bell-shape– see Chapter 16.
+ But Figure 9.9(b) is not what a normal distribution looks like. The
+ vast majority of nodes have a very low degree, and a few giant hubs
+ have a degree much larger than average. Is this common?
+ Yes it is. Most real world networks would show such a broad
+ distribution: email exchanges20, synapses in the brain21, internal cell
+ interactions22. Take a look at the degree distribution zoo in Figure
+ 9.10. To put it simply: in most networks we have many orders of
+ Figure 9.8: The degree scatter
+ plot (left) of the graph on the
+ right.
+ 2
+ 10
+ k
+ 100
+ Figure 9.9: The degree distri
+bution of the protein-protein
+ interaction network. The distri
+butions are the same, but in (a)
+ we have a linear scale for the x
+ and y axes, which is replaced in
+ (b) by a log-log scale.
+ 20 Holger Ebel, Lutz-Ingo Mielsch, and
+ Stefan Bornholdt. Scale-free topology of
+ e-mail networks. Physical review E, 66(3):
+ 035103, 2002
+ 21 Victor M Eguiluz, Dante R Chialvo,
+ Guillermo A Cecchi, Marwan Baliki,
+ and A Vania Apkarian. Scale-free brain
+ functional networks. Physical review
+ letters, 94(1):018102, 2005
+ 22 Reka Albert. Scale-free networks in
+ cell biology. Journal of cell science, 118(21):
+ 4947–4957, 2005
+100
+ 100
+ degree 143
+ 10-1
+ p(k)
+ 10-2
+ 10-3
+ 10-4
+ 100
+ 10-1
+ p(k)
+ 10-2
+ 10-3
+ 10-4
+ 1
+ 1
+ 10
+ k
+ (a)
+ 100
+ 1000
+ 10
+ 100
+ k
+ (c)
+ 1000
+ 10-1
+ p(k)
+ 10-2
+ 10-3
+ 10-4
+ 100
+ 100
+ 101
+ (b)
+ 102
+ k
+ 103
+ 104
+ 10-1
+ 10-2
+ p(k)
+ 10-3
+ 10-4
+ 100
+ 101
+ 102
+ k
+ (d)
+ 103
+ 104
+ magnitude between the minimum and the maximum degree (x axis),
+ and between the most and least popular degree value (y axis). This is
+ not what scientists initially expected. And when things are not as we
+ expected, we all get excited and start wonder why.
+ Before exploring these questions we need to finish our deep dive
+ into how to generate and visualize a proper degree distribution. The
+ disadvantages of the degree scatter plots is that they’re a bit messy.
+ The physicists in the audience would want a true functional form.
+ But one cannot do that if we have such a broad scatter, especially for
+ high degree values: the wide range of degree values carried only by a
+ node in the network generate what we call a fat tail (Section 3.1).
+ There are two ways to do it. The first is to perform a power
+binning of your x axis23. Rather than drawing a point for each
+ distinct degree value you have in your network, you can lump to
+gether values into larger bins. Using equally-sized bins– with the
+ same increment for the entire space– doesn’t work very well: for low
+ degree values you’re putting together very populated bins, while
+ for high degree values usually the distribution is so dispersed that
+ you aren’t actually grouping together anything. See Figure 9.11(b)
+ for an example. In Figure 9.11(b) we completely lost the head of the
+ distribution– the low degree values are all lumped together– and,
+ while less prominent, the fat tail is still there.
+ That’s why you do power binning. You start with a small bin size,
+ usually equal to 1. Then each bin becomes progressively larger, by a
+ constant multiplicative factor. At first, the bins are still small. But, as
+ you progress, the bins start to be large enough to group a significant
+ Figure 9.10: The degree dis
+tributions of many real-world
+ networks: (a) coauthorship in
+ scientific publication [Leskovec
+ et al., 2007b]; (b) coappearance
+ of characters in the same comic
+ book [Alberich et al., 2002]; (c)
+ interactions of trust between
+ PGP users [Boguñá et al., 2004];
+ (d) connections through the
+ Slashdot platform [Leskovec
+ et al., 2009].
+ 23 Staša Milojevi´c. Power law distribu
+tions in information science: Making the
+ case for logarithmic binning. Journal
+ of the American Society for Information
+ Science and Technology, 61(12):2417–2425,
+ 2010
+144 the atlas for the aspiring network scientist
+ 100
+ 10-1
+ p(k)
+ 10-2
+ 10-3
+ 10-4
+ portion of your space24. A good power bin choice can make the plot
+ clearer, as the one in Figure 9.11(c). In Figure 9.11(c) we saved the
+ head of the distribution and further reduced the fat tail.
+ One can do better than Figure 9.11(c), that’s why in network
+ papers you rarely see power-binned distributions. An issue of power
+binning is that it forces you to make a choice: to determine the bin
+ size function. Having a choice is a double-edged sword: it opens you
+ to the possibility of tricking yourself into seeing a pattern that is not
+ there.
+ The most common way to visualize degrees is by drawing cumula
+tive distributions (CDF), or– to be more aligned with the convention
+ you’ll see everywhere– the complement of a cumulative distribution
+ (CCDF). We can transform a degree histogram into a CCDF by chang
+ing the meaning of the y-axis. Rather than being the probability of
+ f
+ inding a node of degree equal to k, in a CCDF this is the probability
+ of finding a node of degree k or higher. This is not a scattergram any
+ more, but a function, which helps us when we need to fit it. Figure
+ 9.12 shows an example, where we go from a degree histogram to its
+ equivalent CCDF.
+ # Nodes
+ p(k>=x)
+ Degree
+ We can see the relationship of our protein-protein network more
+ clearly in Figure 9.13. It appears that, in log-log space, the relation
+ship between degree and the number of nodes with a given degree
+ is fixed. This relationship can be approximated with a straight line– at least asymptotically: in Figure 9.13(b) you can see that the head
+ 103
+ 103
+ 102
+ p(k)
+ 101
+ 102
+ p(k)
+ 101
+ 1
+ 10
+ 100
+ k
+ (a) Regular scatter.
+ 1000
+ 100
+ 100
+ 101
+ 102
+ k
+ (b) Equal size binning.
+ x
+ 103
+ 100
+ 100
+ 101
+ 102
+ k
+ (c) Powerbinning.
+ 103
+ Figure 9.11: The degree dis
+tribution of the PGP trust
+ network.
+ 24 An example of power binning,
+ starting with size 1 and increas
+ing the bin size by 10% at each
+ step: [1,2,3,5,6,8,9,11,14,...,
+ 1410,1552,1709,1881,2070,2278,...]
+ Figure 9.12: The degree scatter
+ plot (left) and its corresponding
+ complement of the cumulative
+ distribution (CCDF).
+ 1
+ 1
+ degree 145
+ 0.1
+ p(k)
+ 0.01
+ 0.001
+ 1
+ 10
+ k
+ (a)
+ 100
+ 0.1
+ p(k>=x)
+ 0.01
+ 0.001
+ 1
+ 10
+ x
+ (b)
+ 100
+ doesn’t really fit. Is this a coincidence, or does it have meaning? To
+ answer this question we need to enter in the wonderful world of
+ power-law degree distributions and scale free networks.
+ 9.3 Power Laws and Scale Free Networks
+ In statistics, a power law is a functional relationship between two
+ quantities, where a relative change in one quantity results in a pro
+portional relative change in the other quantity. The relation is inde
+pendent of the initial size of those quantities: one quantity varies as a
+ power of another. I show what I mean in Figure 9.14: each time you
+ move on the x-axis by a specific increment, you also always move on
+ the y-axis by a fixed function of that x increment, no matter where
+ you are in the distribution (head, tail, or middle).
+ 1
+ 0.1
+ p(k>=x)
+ 0.01
+ 0.001
+ 1
+ 10
+ x
+ 100
+ You can find power laws in nature in many places: the frequencies
+ of words in written texts, the distribution of earthquake intensities,
+ etc... To grasp the concept you need a visual example, and my fa
+vorite is moon craters25. You can see in Figure 9.15 there are a lot of
+ tiny craters caused by small debris and a huge one. This is fractal
+ self-similarity: if the moon were an infinite plane, you could zoom
+ in and out the picture and the size distributions would be the same.
+ This is the scale invariance I’m talking about: no matter the zoom, the
+ Figure 9.13: The degree distri
+bution of the protein-protein
+ interaction network. The distri
+butions are the same and are
+ both in log-log scale, but in (a)
+ we have the degree histogram,
+ and in (b) we show the CCDF
+ version (with the best fit in
+ blue).
+ Figure 9.14: An example of
+ power law, showing how the
+ red line always goes down by
+ the same proportion as its right
+ movement, no matter if we look
+ a head, middle or tail.
+ 25 Mark EJ Newman. Power laws,
+ pareto distributions and zipf’s law.
+ Contemporary physics, 46(5):323–351,
+ 2005b
+146 the atlas for the aspiring network scientist
+ picture looks the same– obviously in reality it doesn’t, because the
+ moon isn’t an infinite plane, and you cannot zoom in infinitely many
+ times (in fact, whether finite systems can actually generate power
+ laws is a controversial topic26).
+ This applies to networks too! There are many studies showing
+ how some networks possess this sort of self-similar structure at differ
+ent scales27,28– i.e. they are fractals. This is not necessarily the same
+ thing as looking at the degree distribution29– although classifying
+ a network as “scale free” by looking at its degree distribution is a
+ common operation in the literature and it is also the stance I’ll adopt
+ from now on in the book.
+ In Figure 9.16, I show the usual CCDF of the protein-protein
+ network: there we see that 50% of the nodes have a degree of 2 or
+ more. This means that 50% of the nodes have degree equal to one. A
+ formula you’ll see everywhere links the probability of a node having
+ degree k to k to the power of a constant α. Mathematically speaking,
+ the scale free network master equation is:
+ p(k) ∼ k−α.
+ In this formula, we call α the scaling factor. Its value is important,
+ because it determines many properties of the distribution. In general,
+ 1
+ 0.1
+ p(k>=x)
+ 0.01
+ 0.001
+ 1
+ 10
+ x
+ 100
+ Figure 9.15: The distribution
+ of crater sizes in the moon is
+ an example of quasi-power
+ law, with many tiny ones and
+ a huge one spanning the entire
+ picture. If the moon were an
+ ideal infinite plane and we
+ could zoom in indefinitely, the
+ picture we would get would be
+ equivalent to the original one,
+ i.e. the scale at which we’re
+ observing the moon would not
+ influence the observation result.
+ 26 Michael PH Stumpf and Mason A
+ Porter. Critical truths about power laws.
+ Science, 335(6069):665–666, 2012
+ 27 Chaoming Song, Shlomo Havlin, and
+ Hernan A Makse. Self-similarity of
+ complex networks. Nature, 433(7024):
+ 392–395, 2005
+ 28 M Angeles Serrano, Dmitri Krioukov,
+ and Marián Boguná. Self-similarity of
+ complex networks and hidden metric
+ spaces. Physical review letters, 100(7):
+ 078701, 2008
+ 29 Jin Seop Kim, Kwang-Il Goh, Byung
+nam Kahng, and Doochul Kim. Frac
+tality and self-similarity in scale-free
+ networks. New Journal of Physics, 9(6):177,
+ 2007
+ Figure 9.16: An example of
+ power law in a CCDF. The ver
+tical gray bar shows that the
+ point in the distribution is asso
+ciated with degree equal to two.
+ The horizontal gray bar shows
+ that this degree correspond
+ to a probability of around 0.5.
+ This means that half of the net
+work has a degree equal to or
+ greater than two. Or, in other
+ words, that the other half of the
+ network has degree equal to
+ one.
+degree 147
+ if a real world network has a power law degree distribution, α tends
+ to be low (α ∼ 2, and for a majority α < 3, although you can find
+ networks with higher αs). This is rather unfortunate, because it
+ means that the degree distribution has a well defined mean, but not
+ a well defined variance (Section 3.4). This implies that the average
+ degree has meaning, but it’s not very useful to do anything more
+ than a superficial description of the network.
+ 1
+ 0.1
+ p(k>=x)
+ 0.01
+ 0.001
+ α = 2
+ α = 3
+ 1
+ 10
+ 100
+ x
+ This is all well and good, but what does it mean exactly to have
+ α =2or α =3? Howdotwonetworks with these two different coeffi
+cients look like? I provide an example of their degree distributions in
+ Figure 9.17, and I show two very simple random networks with such
+ degree distributions in Figure 9.18– obviously, systems this small
+ are a very rough approximation. From Figure 9.17 you see that α
+ determines the slope of the degree distribution, with a steeper slope
+ for α = 3. This means that the hubs in α = 3 are “smaller”, they do
+ not have a ridiculously high degree.
+ Figure 9.18 confirms this: in Figure 9.18(a) you see that, for α = 2,
+ you have only one obvious hub that is head and shoulders above the
+ (a) α = 2
+ (b) α = 3
+ Figure 9.17: The CCDF degree
+ distributions of two random
+ networks with different α expo
+nents.
+ Figure 9.18: An example of two
+ networks with scale free degree
+ distributions, with different α
+ exponents.
+148 the atlas for the aspiring network scientist
+ rest, practically connected to the entire network. In Figure 9.18(b),
+ instead, you still have a clear winner catching your eye (in the top),
+ but it is much closer to the second best hub.
+ The average degree is heavily influenced by the outliers with
+ thousands of connections. For instance, in Figure 9.16 the average
+ degree is equal to three, meaning that around 70% of nodes are
+ below average. This is well illustrated by the stadium example: you
+ have a stadium with 79,999 individuals sampled at random from
+ the US population. If you calculate their average net worth you’ll
+ obtain a value– it’s difficult to be precise, but let’s say it’s around
+ $100,000. So their total net worth is ∼ 8 billion dollars. However,
+ the 80,000th person entering the stadium is our outlier hub: Jeff
+ Bezos. His net worth alone is 192 billion dollars30. The new average
+ is 200 billion divided by 80 thousand people: 2.5 million dollars. The
+ average shifted dramatically: 2.5 million is very different from 100
+ thousand. This is because net worth distributes broadly and thus
+ has a crazy variance, which causes tremendous shifts in the average.
+ This makes it incorrect to apply to this kind of distribution traditional
+ statistics that are based on variance and standard deviation– such as
+ regression analysis, as we’ll see in the next section.
+ 100
+ 100
+ 10-1
+ 10-1
+ p(k>=x)
+ 10-2
+ p(k>=x)
+ 10-2
+ 30 Bear with me, I know it has probably
+ doubled by the time you read this
+ paragraph.
+ 1
+ 0.1
+ p(k>=x)
+ 10-3
+ 10-4
+ 100
+ 100
+ 101
+ 102
+ x
+ 103
+ 10-1
+ 10-2
+ p(k>=x)
+ 10-3
+ 104
+ 10-3
+ 100
+ 100
+ 101
+ 102
+ x
+ 103
+ 104
+ 10-1
+ 10-2
+ p(k>=x)
+ 10-3
+ 10-4
+ 10-5
+ 100
+ 101
+ 102
+ 103
+ x
+ 104
+ 105
+ 10-4
+ 10-5
+ 10-6
+ 100
+ 101
+ 102
+ 103
+ x
+ 104
+ 105
+ 106
+ Early works have found power law degree distributions in many
+ networks, prompting the belief that scale free networks are ubiqui
+tous. In fact, this seems true. Figure 9.19 shows the CCDFs of many
+ networks: protein interactions, PGP, Slashdot, DBpedia concept
+ network, Gowalla, Internet autonomous system routers.
+ But we need to be aware of our tendency of seeing patterns when
+ 0.01
+ 0.001
+ 100
+ 1
+ 10
+ x
+ 100
+ 10-1
+ 10-2
+ p(k>=x)
+ 10-3
+ 10-4
+ 100
+ 101
+ 102
+ x
+ 103
+ 104
+ Figure 9.19: A showcase of
+ broad degree distributions from
+ the same networks used in
+ the examples in the previous
+ section.
+degree 149
+ they aren’t there– after all, as Feynman says, the easiest person you
+ can fool is yourself. So in the next section I’ll give you an arsenal to
+ defend yourself from your own eyes and brain.
+ 9.4 Testing Power Laws
+ 100
+ 10-1
+ 100
+ 10-1
+ PowerLaw
+ Lognormal
+ p(k>=x)
+ 10-2
+ 10-3
+ 10-4
+ ???
+ 1
+ 10
+ 100
+ x
+ (a)
+ 1000
+ 10-2
+ 10-3
+ p(k>=x)
+ 10-4
+ 10-5
+ 10-6
+ 100
+ 101
+ 102
+ 103
+ x
+ (b)
+ 104
+ 105
+ 106
+ Often, people will just assume that any degree distribution is a
+ power law, calling “power laws” things that are not even deceptively
+ looking like power laws. I’ve seen distributions as the one in Figure
+ 9.20(a) passing as power laws and that’s just... no. However, I don’t
+ want to pass as one perpetuating the myth that “everything that
+ looks like a straight line in a log-log space is a power law”. That is
+ equally wrong, even if more subtle and harder to catch.
+ Seeing the plot in Figure 9.20(b), you might be tempted to perform
+ a linear fit in the log-log space. This more or less looks like fitting the
+ logged values with a log(p(x)) = αlog(x)+ β. Transforming this back
+ into the real values, the slope α becomes the scaling factor, and β is
+ the intercept, in other words: log(p(x)) = αlog(x) + β is equivalent to
+ p(x) = 10βxα– assuming you logged to the power of ten.
+ Asmall aside: if you were to do this on the distributions from Fig
+ure 9.17, you would expect to recover α ∼ 2 and α ∼ 3, because I told
+ you I generated the degree distributions with those exponents. In
+stead, you will obtain α ∼ 1 and α ∼ 2, respectively. That is because,
+ in Figure 9.17, I showed you the CCDF of the degree distribution, not
+ the distribution itself. The CCDF of a power law is also a power law,
+ but with a different exponent31. If you’re doing the fit on the CCDF,
+ you have to remember to add one to your α to recover the actual
+ exponent of the degree distribution.
+ Back to parameter estimation. If you perform a simple linear
+ regression, you’ll get an unbelievably high R2 associated to a super
+significant p value. Well, of course: you’re fitting a straight line over a
+ straight-ish line. Does that mean you’re looking at a power law? Not
+ really.
+ Just because something looks like a straight line in a log-log plot,
+ Figure 9.20: (a) An example
+ of a CCDF that is most defi
+nitely NOT a power law, but
+ that a researcher with a lack of
+ proper training might be fooled
+ into thinking it is. (b) Fitting a
+ power law (blue) and a lognor
+mal (green) on data (red) can
+ yield extremely similar results.
+ 31 Heiko Bauke. Parameter estimation for
+ power-law distributions by maximum
+ likelihood methods. The European
+ Physical Journal B, 58(2):167–173, 2007
+150 the atlas for the aspiring network scientist
+ it doesn’t mean it’s a power law. You need a proper statistical test to
+ confirm your hypothesis. The reason is that other data generating
+ processes, such as the ones behind a lognormal distribution, can
+ generate plots that are almost indistinguishable from a power law.
+ Figure 9.20(b) shows an example. You cannot really tell which of the
+ two functions fits the data better.
+ What you need to do is to fit both functions and then estimate
+ the likelihood (Section 4.3) of each model to explain the observed
+ data32. This can be done with, for instance, the powerlaw package33,34– available for Python. However, be prepared for the fact that having
+ a significant difference between the power law and the lognormal
+ model is extremely hard.
+ In most practical scenarios, you’ll have to argue that your network
+ is a power law. How could you do it? Well, in complex networks
+ power law degree distributions can arise by many processes, but one
+ in particular has been observed time and time again: cumulative
+ advantage. Cumulative advantage in networks says that the more
+ connections a node has, the more likely it is that the new nodes will
+ connect to it. For instance, if you write a terrific paper which gathers
+ lots of citations this year, next year it will likely gain more citations
+ than the less successful papers35.
+ This is the same mechanism behind– for instance– Pareto distri
+butions and the 80/20 rule. Pareto says that 80% of the effects are
+ generated by 20% of the causes36. For instance, 20% of people control
+ 80% of the wealth. And, given that it takes money to make money,
+ they are likely to hold– or even grow– their share, given their abil
+ity to unlock better opportunities. In fact, the Pareto distribution is
+ a power law. Similar to this is Zipf’s Law, the observation that the
+ second most common word in the English language occurs half of the
+ time as the most common, the third most common a third of the time,
+ etc37,38,39. In practice, the nth word occurs 1/n as frequently as the
+ f
+ irst, or f(n) = n−1, which is a power law with α = 1.
+ This is opposed to the data generating process of a lognormal
+ distribution. To generate a lognormal distribution you simply have to
+ multiply many random and independent variables, each of which is
+ positive. A lognormal distribution arises if you multiply the results
+ of many ten-dice rolls. You can see that there is no cumulative advan
+tage here: scoring a six on one die doesn’t make a six more likely on
+ any other die– nor influences subsequent rolls.
+ So, to sum up, to test for a power law you have to do a few things.
+ First, make sure that your observations cannot be explained with an
+ exponential. Confusion between a power law and some other dis
+tribution such as an exponential is hard. If you think a distribution
+ might be an exponential, then it’s definitely not a power law. Second,
+ 32 Aaron Clauset, Cosma Rohilla Shalizi,
+ and Mark EJ Newman. Power-law
+ distributions in empirical data. SIAM
+ review, 51(4):661–703, 2009
+ 33 Jeff Alstott and Dietmar Plenz Bull
+more. powerlaw: a python package for
+ analysis of heavy-tailed distributions.
+ PloS one, 9(1), 2014
+ 34 https://github.com/jeffalstott/
+ powerlaw
+ 35 Derek de Solla Price. A general theory
+ of bibliometric and other cumulative
+ advantage processes. Journal of the
+ American society for Information science,
+ 27(5):292–306, 1976
+ 36 Vilfredo Pareto. Manuale di economia
+ politica con una introduzione alla scienza
+ sociale, volume 13. Società editrice
+ libraria, 1919
+ 37 Jean-Baptiste Estoup. Gammes
+ sténographiques: méthode et exercices
+ pour l’acquisition de la vitesse. Institut
+ sténographique, 1916
+ 38 Felix Auerbach. Das gesetz der
+ bevölkerungskonzentration. Petermanns
+ Geographische Mitteilungen, 59:74–76,
+ 1913
+ 39 GK Zipf. The psycho-biology of
+ language. 1935
+try to see if you can statistically prefer a power law model over a log
+degree 151
+ normal. In the likely event of you not being able to mathematically
+ do so, you should look at your data generating process. If you have
+ the suspicion that it could be due to random fluctuations, then you
+ might have a lognormal. Otherwise, if you can make a convincing
+ argument of non-random cumulative advantage, go for it.
+ There are a few more technicalities. Pure power laws in nature are– as I mentioned earlier– rare40. Your data might be affected by two
+ impurities. Your power law could be shifted41, or it could have an
+ exponential cutoff42. In a shifted power law, the function holds only
+ on the tail. In an exponential cutoff the power law holds only on the
+ head.
+ Shifted power laws have an initial regime where the power law
+ doesn’t hold. Formally, the power law function needs a slowly grow
+ing function on top that will be overwhelmed by the power law for
+ large values of k– as I show in Figure 9.21(a). So we modify our
+ master equation as: p(k) ∼ f(k)k−α, with f(k) being an arbitrary
+ but slowly growing. Slowly growing means that, for low values of
+ k it will overwhelm the k−α term, but for high values of k, the latter
+ would be almost unaffected. In power law fitting, this means to find
+ the kmin value of k such that, if k < kmin we don’t observe a power
+ law, but for k > kmin we do.
+ 100
+ 10-1
+ p(k>=x)
+ 10-2
+ 10-3
+ 10-4
+ 10-5
+ p(k) ~ f(k)k-α
+ 100
+ 101
+ 102
+ (a)
+ 103
+ x
+ 104
+ 105
+ 100
+ 10-1
+ 10-2
+ p(k>=x)
+ 10-3
+ 10-4
+ p(k) ~ k-αe-λk
+ 1
+ 10
+ 100
+ x
+ (b)
+ 1000
+ Shifted power laws practically mean that “Getting the first kmin
+ connections is easy”. If you go and sign up for Facebook, you gener
+ally already have a few people you know there. Thus we expect to
+ f
+ ind fewer nodes with degree 1, 2, or 3 than a pure power law would
+ predict. The main takeaway is that, in a shifted power law, we find
+ fewer nodes with low degrees than we expect in a power law.
+ Truncated power laws are typical of systems that are not big
+ enough to show a true scale free behavior. There simply aren’t
+ enough nodes for the hubs to connect to, or there’s a cost to new
+ connections that gets prohibitive beyond a certain point. This is
+ practically a power law excluding its tail, that’s why we call them
+ “truncated”. Mathematically speaking, this is equivalent to having an
+ 40 Whether this holds true also for
+ networks is the starting point of
+ a surprisingly hot debate, see for
+ instance [Broido and Clauset, 2019] and
+ [Voitalov et al., 2018].
+ 41 Gudlaugur Jóhannesson, Gunnlaugur
+ Björnsson, and Einar H Gudmundsson.
+ Afterglow light curves and broken
+ power laws: a statistical study. The
+ Astrophysical Journal Letters, 640(1):L5,
+ 2006
+ 42 Aaron Clauset, Cosma Rohilla Shalizi,
+ and Mark EJ Newman. Power-law
+ distributions in empirical data. SIAM
+ review, 51(4):661–703, 2009
+ Figure 9.21: (a) An example of
+ shifted power law. The area in
+ which the power law doesn’t
+ hold is shaded in blue. (b) An
+ example of truncated power
+ law: a power law with an ex
+ponential cutoff. The area in
+ which the power law doesn’t
+ hold is shaded in green.
+152 the atlas for the aspiring network scientist
+ exponential cutoff added to our master equation: p(k) ∼ kαe−λk. The
+ exponential function is dominated by the power law function for low
+ values of k, but it becomes dominant for high values of k. See Figure
+ 9.21(b) for an example.
+ Truncated power laws practically mean that “Getting the last
+ connections is hard”: the biggest superstar on Twitter has a lot of
+ followers, but relatively speaking they are not that many more as the
+ second biggest superstar on Twitter. Thus its degree is not as big as
+ we would expect. The main takeaway is that, in a truncated power
+ law, the hubs have lower degrees than we expect in a power law.
+ At the end of the day, it doesn’t matter too much if your network
+ has an exponential, lognormal or power law degree distribution. On
+ one thing the brotherhood of network scientists can agree: the vast
+ majority of networks have broad degree distributions, spanning mul
+tiple orders of magnitude. Most nodes have below-average degree
+ and hubs lie many standard deviations above the average. Even if
+ they are not power laws at all, that’s still pretty darn interesting.
+
+
+The degree (Chapter 9) is the most direct measure of importance of
+ a node in a network. The more connections a node has, the more
+ important it is. However, there are alternative ways to estimate
+ the importance of a node. Sometimes, it doesn’t matter how many
+ connections you have, but how many people someone can reach
+ by passing through you. Normally, the two are correlated– more
+ connections mean more possibilities– but that’s not always the case.
+ We explore these differences in this part of the book.
+ Before we start ranking nodes in Chapter 14 we need to lay down
+ some groundwork. A significant chunk of measures of node im
+portance are based on the concept of shortest paths, which is what
+ we’re exploring in this chapter. We start by defining how to explore a
+ graph and we build up from there.
+ 13.1 Graph Exploration
+ When we first encounter a graph, how do we know its topology and
+ properties? Humans can “see” and parse simple graphs, but how
+ does a computer do it? If we start from a node, how do we access
+ information about its connections, its neighbors, and the connections
+ among them? We need to perform a graph exploration– or graph
+ traversal. There are two main ways to do it: Depth First Search (DFS)
+ and Breadth First Search (BFS).
+ Depth & Breadth First
+ In Depth First Search (DFS), you start by picking a root node. Then
+ you put its neighbors in a Last-In-First-Out queue. You pick the last
+ neighbor you added (you “pop” the queue) and you perform the
+ same operation: you add its neighbors to the queue, making sure you
+ don’t add nodes you already explored. You continue until you have
+ explored all nodes in the graph. Figure 13.1(a) provides an example,
+192 the atlas for the aspiring network scientist
+ 1
+ 2
+ 3
+ 4
+ 1922
+ 12 27
+ 10
+ 13
+ 20 29
+ 9 24
+ 18
+ 11 21 30
+ 14 36
+ 5
+ 6
+ 7
+ 8 15
+ 16
+ 1725 31
+ (a) DFS
+ showing the exploration order. Since you’re using a Last-In-First-Out
+ queue, the very first neighbor of the root node will be the last node to
+ be explored– unless you encounter it again as the neighbor of some
+ other node down the exploration tree, of course.
+ Breadth First Search (BFS) is practically speaking the exact same
+ algorithm as DFS, with a tiny change. Rather than putting the neigh
+bors of the root node in a Last-In-First-Out queue, you put them into
+ a First-In-First-Out queue. This changes fundamentally the way you
+ explore the graph: you explore all neighbors of the root node before
+ passing to the first neighbor of the first neighbor of the root node.
+ Figure 13.1(b) provides an example, showing the exploration order.
+ DFS tends to make a gradient over followed paths until it back
+tracks because it explored the entire neighborhood– in the example
+ from Figure 13.1(a) it backtracks, for instance, from the eighth ex
+plored node back to the third explored node. BFS tends to make a
+ gradient from the origin node to the farthest nodes in the network.
+ Random Node/Edge Access
+ In day to day computing, you might find yourself exploring the
+ graph in two other ways. These are dependent on the way we store
+ graphs on a computer’s hard disk. We can call these two methods
+ random edge access and random node access.
+ Random edge access is when you read the file containing your
+ graph one line at a time, and each line contains an edge. We call this
+ type of graph storing format an “edge list”, because it’s a list of one
+ edge per line. In this case, you may or may not have sorted the edges
+ in a particular way, but the baseline assumption is that they’re in a
+ random order. See Figure 13.2(a) for an example.
+ Random node access is the same, but the file records, in each
+ line, the complete list of a node’s neighbors. We call this type of
+ 1
+ 2 4
+ 3 6
+ 5
+ 23
+ 26
+ 28
+ 32
+ 33 41 40
+ 7
+ 34
+ 14
+ 9
+ 8 11 10 13
+ 16
+ 15 20
+ 12
+ 19
+ 17 22
+ 18 21 23
+ 35
+ 37
+ 38
+ 39
+ 25
+ 24
+ 26
+ 2728
+ 29
+ 30
+ 31 34
+ 3233
+ (b) BFS
+ 36
+ 37
+ 35 41 40
+ 38
+ 39
+ Figure 13.1: Exploring a graph
+ by DFS and BFS. In both cases, I
+ label each node with the order
+ in which it gets explored. I use
+ the node color to encode the
+ same information, from light
+ (early explored) to dark (late
+ explored).
+shortest paths 193
+ Src Trg
+ 1
+ 2
+ 2
+ 5
+ 1
+ 4
+ 4
+ 3
+ 3
+ 5
+ (a) Edge list.
+ Node Neighbors
+ 1
+ 2, 3
+ 2
+ 5
+ 3
+ 4
+ 1, 4
+ 3, 4
+ 1, 5
+ 2, 5
+ (b) Adjacency list.
+ graph storing format an “adjacency list”, because it’s a list of the
+ adjacencies of one node per line. Also in this case, you may or may
+ not have sorted the nodes– and their neighbors– in a particular way,
+ but the baseline assumption is that they’re in a random order. See
+ Figure 13.2(b) for an example.
+ 13.2 Finding Shortest Paths
+ Recall that in Chapter 10 we have defined the length of a walk and of
+ a path as the number of edges one crosses to complete the walk/path.
+ The concept of length is crucial when we want to talk about optimal
+ity– which is to find the shortest (smallest length, fewest edges used)
+ path between nodes u and v.
+ The problem of exploring the graph via BFS or DFS is that they
+ are not optimal, they cannot find the “best” (shortest) way to go
+ from v to u. Well, they can, but only in very specific cases under very
+ specific assumptions. For instance, BFS finds shortest paths only for
+ undirected unweighted graphs. This can be useful, for instance, to
+ f
+ ind the shortest path out of a maze1,2,3. But we still need a better,
+ more general way.
+ To see why finding “best paths” is important, suppose you have
+ to deliver a letter to a person, as I show in Figure 13.3. If you know
+ them, no problem: you just give it to them. What if you don’t? You
+ might know one of their friends, and pass through them. Or you
+ might know that one of your friends knows one of theirs. But if
+ none of this is true, you have to know the shape of the entire social
+ network– the part in gray in the figure– and discover what’s the
+ least amount of people you have to bother to get your letter to the
+ recipient. This we call the “shortest path problem” in networks.
+ The formal specification of the shortest path problem is the follow
+ing. You’re given a start node v and a target node u. You have to find
+ the path going from v to u crossing the fewest possible number of
+ edges. Figure 13.4 provides a visualization of a shortest path between
+ two nodes. In fact, the figure highlights a feature of this problem: it
+ provides not one but two solutions. That is because, in unweighted
+ undirected graphs, it is quite common to find multiple shortest paths
+ Figure 13.2: Two different ways
+ to store graphs on disk.
+ 1 Shimon Even. Graph algorithms.
+ Cambridge University Press, 2011
+ 2 Edward F Moore. The shortest path
+ through a maze. In Proc. Int. Symp.
+ Switching Theory, 1959, pages 285–292,
+ 1959
+ 3 Konrad Zuse. Der Plankalkül. Num
+ber 63. Gesellschaft für Mathematik und
+ Datenverarbeitung, 1972
+194 the atlas for the aspiring network scientist
+ (a)
+ (b)
+ between a given origin-destination pair. In other words, the solution
+ to the shortest path problem is not necessarily unique.
+ This is for the case of undirected, unweighted networks. If you
+ have directed networks you obviously have to respect the edge direc
+tions– see Figure 13.5(a). If you have weighted networks, you might
+ want to minimize the weight (as in Figure 13.5(b)), assuming that the
+ edge weight represents its traversal cost. If your edge weights repre
+sent proximities rather than costs, for instance they are the capacity
+ of a trait of road as explained in Section 6.3, you’d do the opposite.
+ Howdowefindthe shortest path? Depending on the properties
+ (a)
+ 3
+ 2
+ 4
+ 1
+ 4
+ 4
+ 5
+ 3
+ 3
+ 2
+ 1
+ 2
+ 1
+ 2
+ 3
+ 1
+ (b)
+ Figure 13.3: A vignette rep
+resenting the problem of
+ delivering a letter through
+ acquaintances: how do you
+ know the best path is at the
+ top since you’re unaware of the
+ existence of the people in gray?
+ Figure 13.4: Finding the short
+est path– edges colored in
+ purple– between the start node
+ (in blue) and the target node (in
+ green). Note that (a) and (b) are
+ both valid shortest paths which
+ have the same length.
+ Figure 13.5: Finding the short
+est path– edges colored in
+ purple– between the start node
+ (in blue) and the target node (in
+ green). (a) Directed network. (b)
+ Weighted network, where edge
+ weights represent the cost of
+ traversal.
+shortest paths 195
+ 2
+ BFS Dijkstra* Dijkstra*
+ Floyd
+Warshall
+ Floyd
+Warshall
+ Floyd
+Warshall
+ of the graph (e.g. direct/undirected, weighted/unweighted), there
+ are different algorithms for finding shortest paths. We also need to
+ know if we just want to find a path from v to u (single-origin single
+destination shortest path), or from v to all other nodes (single-origin
+ shortest path), or between every single pair of nodes.
+ Figure 13.6 provides you with a quick reference on which algo
+rithm to use given each use case. For instance, as mentioned before, if
+ you have an undirected unweighted network and you are interested
+ in single-origin shortest paths, you can find them by performing a
+ simple BFS exploration.
+ If you still have a single-origin in mind but your network contains
+ directions and/or weights, you’ll probably use one of the many
+ f
+ lavors of the classical Dijkstra’s algorithm4. Dijkstra’s algorithm
+ works as follows. You start by your origin, which you mark as you
+ “current node”.
+ 1. You look at all the unvisited neighbors of the current node and
+ calculate their tentative distances through the current node.
+ 2. Compare this tentative distance to the current assigned value and
+ assign the smallest one.5
+ 3. When you are done considering all of the unvisited neighbors of
+ the current node, mark the current node as visited. You will never
+ check a visited node twice.
+ 4. If the current node, the one you’re marking as visited, is the
+ destination node, you can stop. Otherwise, you can continue by
+ selecting the unvisited node that is marked with the smallest
+ tentative distance, as your new current node. Then go back to step
+ 1.
+ I cannot include in the book the best visual representation of the
+ Figure 13.6: A quick refer
+ence of the most well known
+ algorithms used to solve spe
+cific shortest path problems.
+ Columns (from left to right):
+ simple, weighted, directed.
+ Rows (top to bottom): single
+origin, all pairs shortest path.
+ Dijkstra is marked with a star
+ because variants of the base
+ algorithm can outperform it in
+ special cases and they are used
+ in most real world scenarios.
+ 4 Edsger W Dijkstra. A note on two
+ problems in connexion with graphs.
+ Numerische mathematik, 1(1):269–271,
+ 1959
+ 5 For example, if the current node u is
+ at distance of 6 from the source, and
+ the edge connecting it with a neighbor
+ v has length 2, then the distance to v
+ through u is 6+2 = 8. If you previously
+ marked v with a distance greater than 8,
+ you will change it to 8. Otherwise you
+ will keep the current value.
+196 the atlas for the aspiring network scientist
+ Dijkstra algorithm I know, because it is an animated GIF6.
+ Faster variations of the Dijkstra algorithm7,8,9,10 use clever data
+ structures and a few optimizations– often under assumptions about
+ the edge weights– that are of no interest here.
+ The only other algorithm in the hall of fame of shortest path
+ algorithms we consider here is Floyd-Warshall11,12,13,14. That is
+ because it is the most used algorithm for the all-pairs shortest path
+ problem, when you’re not limiting yourself to a single origin and/or
+ a single destination– or to specific constraints on topology and/or
+ edge weights. The algorithm uses recursive programming which, to
+ this day, I still consider borderline magic.
+ Suppose you have a function sp(u,v,K) that calculates the shortest
+ path between u and v using only nodes in the set K. K is a special
+ set, it contains all nodes of the network with id equal to or lower
+ than K. Obviously, if K = 0, then it is an empty set. Then sp(u,v,0)
+ simply returns the weight of the edge between u and v– if they are
+ connected–, because we’re not using any node in the path:
+ sp(u,v,0) = Auv.
+ If K > 0 it means that we are adding a node as a possible member
+ of the shortest path. When we do it, either of two things can happen:
+ (i) adding the extra node allowed us to find a better (shorter) path, or
+ (ii) it didn’t. So:
+ sp(u,v,K) = min(sp(u,k,K) +sp(k,v,K), sp(u,v,K −1)).
+ 1
+ 1
+ 3
+ 2
+ 8
+ 3
+ 1
+ 1
+ 1
+ 4
+ 3
+ 6
+ 1
+ 8
+ 1
+ 3
+ 2
+ 4
+ 1
+ 3
+ 1
+ 2
+ 3 2
+ 2
+ 2
+ 2
+ 4
+ 4
+ 2
+ (a) Input
+ 3
+ (b) K = 0
+ 6
+ 4
+ 3
+ 1
+ 2
+ 2
+ (c) K = 2
+ Figure 13.7 shows an example run. Figure 13.7(a) is an hypothet
+ical input. At the first step, K = 0, we can only consider directly
+ connected origins and destinations, setting the edge weights as the
+ length– Figure 13.7(b). For K = 1 (not pictured) nothing happens:
+ 4
+ 6 https://upload.wikimedia.org/
+ wikipedia/commons/5/57/Dijkstra_
+ Animation.gif
+ 7 Robert B Dial. Algorithm 360: Shortest
+path forest with topological ordering
+ [h]. Communications of the ACM, 12(11):
+ 632–633, 1969
+ 8 Ravindra K Ahuja, Kurt Mehlhorn,
+ James Orlin, and Robert E Tarjan.
+ Faster algorithms for the shortest path
+ problem. Journal of the ACM (JACM), 37
+ (2):213–223, 1990
+ 9 Rajeev Raman. Recent results on the
+ single-source shortest paths problem.
+ ACMSIGACT News, 28(2):81–87, 1997
+ 10 Mikkel Thorup. On ram priority
+ queues. SIAM Journal on Computing, 30
+ (1):86–109, 2000
+ 11 Bernard Roy. Transitivité et connexité.
+ Comptes Rendus Hebdomadaires Des
+ Seances De L Academie Des Sciences, 249
+ (2):216–218, 1959
+ 12 Stephen Warshall. A theorem on
+ boolean matrices. Journal of the ACM
+ (JACM), 9(1):11–12, 1962
+ 13 Robert W Floyd. Algorithm 97:
+ shortest path. Communications of the
+ ACM, 5(6):345, 1962
+ 14 Bernard Roy, who actually discovered
+ the algorithm first, for mysterious
+ reasons gets no naming rights.
+ 1
+ 1
+ 3
+ 1
+ 2
+ 1 1 2
+ 1
+ 3
+ 2
+ (d) K = 3
+ 4
+ Figure 13.7: (a) The input for
+ the Floyd-Warshall algorithm.
+ (b-d) The temporary short
+est paths at each step of the
+ algorithm.
+shortest paths 197
+ node 4 cannot use node 1 to go anywhere, because their edge is very
+ costly, and nodes 2 and 3 have low cost connections to node 1, but
+ they are already directly connected by the minimum weight in the
+ network. For K = 2 (Figure 13.7(c)) we’re also allowed to use node 2
+ for our paths. Both node 1 and node 3 use it to get to node 4, given
+ that their direct connection to node 4 is costly. For K = 3 (Figure
+ 13.7(d)) we can also use node 3 in our paths. The path 1 → 3 → 2 is
+ the sum of two paths we already know from Figure 13.7(b): 1 → 3
+ an 3 →2. It costs less than 1 → 2, so we select it. To go from node 1
+ to node 4 we sum two paths we already know: 1 → 3 (from Figure
+ 13.7(b)) and 3 → 2 → 4 (from Figure 13.7(c)). We discover then that
+ the actual distance between the nodes 1 and 4 is four, rather than five– as we though in Figure 13.7(c)– or eight– as we though in Figure
+ 13.7(b).-1
+ 2
+ 1
+ (a)-1
+ 2
+ 2
+ 1
+ (b)-2
+ 2
+ 2
+ 1
+ 1
+ 2
+ (c)
+ Afinal word about negative weights. As presented earlier, there’s
+ no shame if your network contains them (see Section 6.3). However,
+ you need to be careful when computing shortest paths. The reason
+ is evident, as one can see from Figure 13.8(a). The problem with
+ negative weights is that we might think that it is trivial to find a
+ shortest path (in green in the figure), but by going back and forth
+ over a negative weight we can find an equivalent path. At that point,
+ we can be stuck in an infinite loop of shorter and shorter paths
+ without ever reaching the destination (in blue in the figure).
+ Directed networks can allow negative weights, because you’re not
+ allowed to follow the edge against its direction, as in Figure 13.8(b).
+ However, if there is a negative cycle– see Figure 13.8(c)– you are in
+ the same situation as before. A negative cycle is a cycle whose total
+ edge weight sum is lower than zero.
+ If you’re writing shortest path algorithms, you have to take care
+ of these situations. Usually, you have to explicitly say that you’re
+ looking for paths, not walks. In paths, you cannot re-use the same
+ edge twice (see Chapter 10), no matter how cool it would make your
+ path length.
+ Figure 13.8: (a) A weighted net
+work with negative weights
+ which results in degener
+ate shortest paths– in blue
+over preferred non-shortest
+ paths– in green. (b) A directed
+ weighted network with negative
+ weights but without the infinite
+ negative weight problem. (c) A
+ directed weighted network with
+ negative cycles.
+198 the atlas for the aspiring network scientist
+ 13.3 Path Length Distribution
+ Just like with the degree, knowing the length distribution of all
+ shortest paths in the network conveys a lot of information about its
+ connectivity. A tight distribution with little deviation implies that all
+ nodes are more or less at the same distance from the average node in
+ the network. A spread out distribution implies that some nodes are
+ in a far out periphery and others are deeply embedded in a core.
+ # Paths
+ Path Length
+ To generate a path length distribution you perform the same
+ operation you used to get the degree distribution: you have the path
+ length on the x axis and the number of paths of a given length on
+ the y axis. See Figure 13.9 for an example. I’m not going to go on
+ a tangent on log-log spaces and power laws like last time because
+ usually path lengths distribute quasi-normally: you’ll find a lot of
+ classical bell shapes.
+ Some values in the distribution are fixed. For instance, the number
+ of paths of length one is twice the number of edges, because each
+ edge is used for two paths of length one (u → v, and v → u). It goes
+ without saying that things are different in directed networks. The
+ number of total shortest paths is |V|(|V| − 1), because each origin
+ has to reach each destination, minus one because we don’t count the
+ paths of length zero, from the origin to the origin.
+ Diameter
+ The rightmost column of the histogram in Figure 13.9 is important.
+ It records the number of shortest paths of maximum length. These
+ are the “longest shortest paths”. Since this is an important concept,
+ such a long mouthful name won’t do. We’re busy people and we
+ got places to be. So we use a different name for them or, to be more
+ precise, to their length. We call it the diameter of the network.
+ Why do wecare about the diameter? Because that’s the worst case
+ Figure 13.9: The path length
+ distribution (left) of a graph
+ (right). Each bar counts the
+ number of shortest paths of
+ length one, two and three,
+ which is the maximum length
+ in the network.
+shortest paths 199
+ for reachability in the network. The diameter is the measure of the
+ maximum possible separation between two nodes. A long diameter
+ means that the problem of finding a shortest path for some pairs of
+ nodes might be too hard because there are too many hypothetical
+ paths and splits to consider. With a small diameter, everybody is
+ reachable in one or two hops. With a large diameter, a full traversal
+ of the graph might be impossible, especially if we only have local
+ information about our neighborhood.
+ Let’s go over a few values of diameter, just to get a grasp of the
+ concept:
+ • Diameter = 1 → You know everyone;
+ • Diameter = 2 → Your friends know everyone;
+ • Diameter = 3 → Your friends know someone who knows every
+one;
+ • ...
+ It’s now easy to see that a network with diameter equal to three
+ is easy to navigate. As the diameter grows, the number of people to
+ rely on for a full traversal starts becoming unwieldy.
+ If your network has multiple connected components (Section 10.4),
+ we have a convention. Nodes in different components are unreach
+able, and thus we say that their shortest path length is infinite. Thus,
+ a network with more than one connected component has an infinite
+ diameter. Usually, in these cases, what you want to look at is the
+ diameter of the giant connected component.
+ Average
+ The diameter is the worst case scenario: it finds the two nodes that
+ are the most far apart in the network. In general, we want to know
+ the typical case for nodes in the network. What we calculate, then, is
+ not the longest shortest path, but the typical path length, which is the
+ average of all shortest path lengths. This is the expected length of the
+ shortest path between two nodes picked at random in the network.
+ If Puv is the path to go from u to v and |Puv| is its length, then the
+ ∑
+ |Puv|
+ average path length of the network is APL =
+ u,v∈V
+ |V|(|V| −1) . Figure
+ 13.10 shows that, even in a tiny graph, the diameter and the APL
+ can take different values, with the former being more than twice the
+ length of the latter.
+ With APL, we can fix the origin node. For instance, in a social
+ network, you can calculate your average separation from the world.
+200 the atlas for the aspiring network scientist
+ Diameter = 3
+ APL ~ 1.4
+ 125
+ 100
+ FB Users (M)
+ 75
+ 50
+ 25
+ Mean = 3.57
+ 2.5 2.7 2.9 3.1 3.3 3.5 3.7 3.9 4.1 4.3 4.5 4.7
+ Average Degree of Separation
+ This would be an APLv, the average path length for all paths starting
+ at v. Then you can generate the distribution of all lengths for all
+ origins. How does this APLv distribution look like for a real world
+ network? One of the most famous examples I know comes from
+ Facebook15. I show it in Figure 13.11. The remarkable thing is how
+ ridiculously short the paths are even in such a gigantic network.
+ This is in line with classical results of network science, showing
+ that the diameter and APL typically grow sublinearly in terms of
+ number of nodes in the network16. In other words, there are dimin
+ishing returns to path lengths: each additional person contributes
+ less and less to the growth of the system in terms of reachability. In
+ fact, some researchers have found that adding people might even
+ shrink the diameter17,18: as people join a social network, they create
+ shortcuts and new paths that bring close together people that were
+ previously far apart.
+ The most notorious enunciation of the surprising small average
+ path length in large networks is the famous “six degrees of sepa
+ration”. This concept says that, on average, you’re six handshakes
+ away from meeting any person in the world, being a fisherman in
+ Cambodia or an executive in Zimbabwe. People used this concept to
+ describe the famous– failed– Milgram experiment.
+ In 1967, Milgram published a paper19 detailing the travels of a
+ Figure 13.10: The diameter and
+ the APL in a graph can be quite
+ different.
+ Figure 13.11: The path length
+ distribution for Facebook in
+ 2012.
+ 15 Sergey Edunov, Carlos Diuk, Is
+mail Onur Filiz, Smriti Bhagat, and
+ Moira Burke. Three and a half degrees
+ of separation. Research at Facebook, 2016
+ 16 Mark EJ Newman. The structure and
+ function of complex networks. SIAM
+ review, 45(2):167–256, 2003b
+ 17 Jure Leskovec, Jon Kleinberg, and
+ Christos Faloutsos. Graphs over
+ time: densification laws, shrinking
+ diameters and possible explanations. In
+ Proceedings of the eleventh ACM SIGKDD
+ international conference on Knowledge
+ discovery in data mining, pages 177–187.
+ ACM, 2005a
+ 18 Jure Leskovec, Jon Kleinberg, and
+ Christos Faloutsos. Graph evolution:
+ Densification and shrinking diame
+ters. ACM Transactions on Knowledge
+ Discovery from Data (TKDD), 1(1):2,
+ 2007b
+ 19 Stanley Milgram. The small world
+ problem. Psychology today, 2(1):60–67,
+ 1967
+shortest paths 201
+ series of envelopes. He handed a destination address to people in
+ the Midwest of the United States. The destination was in Boston,
+ Massachusetts. The idea was that each recipient needed to attempt
+ to have the letter reach its final destination. However, they could
+ not mail it directly: they needed to hand it over to a person they
+ knew on a first name basis. So they needed to figure out who in
+ their acquaintances was most likely to know somebody (who knew
+ somebody, who knew somebody, ...) in Massachusetts. Each handler
+ of the envelope would have to write their name on it. When the
+ envelope reached the destination, counting the names in it would
+ give an approximation of the degrees of separation between the
+ origin and destination individuals.
+ The number turned out to be 5.5 on average, which gave fuel to
+ the “six degrees of separation” urban legend. However, the experi
+ment was arguably a failure given that, of the more than 400 letters
+ sent, less than a hundred actually arrived at the destination. The
+ problem is that obviously there is no way to account for the fact that
+ a letter might not successfully reach its target because some people
+ in the chain were unreliable, rather than unconnected with the desti
+nation. Fascinating as it is, this theory might be wrong because the
+ degrees of separation could be lower than six: people have proposed
+ four20, as we see in Facebook (Figure 13.11).
+ Diameter and average path length are only the two most famous
+ and most used measures derived from the shortest path length
+ distribution. There is a collection of other measures you might find
+ in network science papers and books. Two other examples are the
+ eccentricity of a node and the radius of a network. You can think of
+ the eccentricity as a node-level diameter. It is the longest shortest
+ path leading from node u to the farthest possible node v in the
+ network. Thus, by definition the diameter is equal to the highest
+ eccentricity among the nodes of the network. The radius of a network
+ is, conversely, equal to the smallest eccentricity in the network.
+ 13.4 Spanning Trees & Other Filtered Graphs
+ I conclude this chapter with a look at spanning trees and other
+ ways to filter down a graph. These methods are usually deployed to
+ reduce a network to its minimum terms and finding its fundamental
+ structure in a way that is parsable by humans. They are also at the
+ basis of some network backboning techniques (Chapter 27).
+ Aspanning tree of an undirected graph is a subgraph that: (i) is
+ a tree (see Section 10.2), and (ii) it includes all of the vertices of the
+ graph. In practice, it is that subgraph that can connect all nodes of
+ the graph with the minimum number of edges, and no cycles.
+ 20 Lars Backstrom, Paolo Boldi, Marco
+ Rosa, Johan Ugander, and Sebastiano
+ Vigna. Four degrees of separation. In
+ Proceedings of the 4th Annual ACM Web
+ Science Conference, pages 33–42. ACM,
+ 2012
+202 the atlas for the aspiring network scientist
+ (a)
+ (b)
+ (c)
+ Figure 13.12(a) shows you an example of a spanning tree inside a
+ graph. If your graph has multiple connected components you cannot
+ f
+ ind a single spanning tree, because you don’t have a way to connect
+ nodes in different components. However, you can make a spanning
+ forest, by finding the spanning trees of each component separately.
+ Spanning trees are nice, but they get used mostly in weighted
+ networks. In that case, you have to distinguish between weights
+ as proximities and weights as distances (Section 6.3): is an edge
+ with a high weight expressing the cost of going from u to v, or is
+ it saying how much u and v interact? In the first case we have a
+ “distance” weight: we want to minimize costs. Imagine finding the
+ tree connecting all your road intersections that minimizes driving
+ distance– the cost of an edge.
+ When your weights are distances you want a minimum spanning
+ tree21: the spanning tree among all spanning trees of a graph that
+ has the minimum possible total edge weight. Figure 13.12(b) shows
+ an example. When your weights are proximities– maybe because
+ they tell you the capacity of the road– then you want the maximum
+ spanning tree: the spanning tree among all spanning trees of a graph
+ that has the maximum possible total edge weight. Figure 13.12(c)
+ shows an example.
+ Of course, the algorithm to find the minimum and the maximum
+ spanning tree is the same, you just flip the sign of the comparison.
+ There’s a good range of algorithms, from classical ones to more mod
+ern which use special data structures: Bor˚uvka22, Prim23, Kruskal24,
+ Chazelle25. They are usually all implemented in standard network
+ analysis libraries.
+ Note that finding the minimum spanning tree doesn’t really solve
+ the traveling salesman problem26, although it sounds like it should.
+ Aquick recap: the traveling salesman problem is the quest to find
+ the shortest possible route that visits each city and returns to the
+ Figure 13.12: (a) A graph with
+ one of its possible spanning
+ trees highlighted in green. (b)
+ The minimum spanning tree
+ of a weighted graph, with the
+ edge width proportional to
+ its weight. (c) The maximum
+ spanning tree of a weighted
+ graph.
+ 21 Ronald L Graham and Pavol Hell. On
+ the history of the minimum spanning
+ tree problem. Annals of the History of
+ Computing, 7(1):43–57, 1985
+ 22 Otakar Bor˚uvka. O jistém problému
+ minimálním. 1926
+ 23 Robert Clay Prim. Shortest connection
+ networks and some generalizations. Bell
+ system technical journal, 36(6):1389–1401,
+ 1957
+ 24 Joseph B Kruskal. On the shortest
+ spanning subtree of a graph and the
+ traveling salesman problem. Proceedings
+ of the American Mathematical society, 7(1):
+ 48–50, 1956
+ 25 Bernard Chazelle. A minimum
+ spanning tree algorithm with inverse
+ackermann type complexity. Journal of
+ the ACM (JACM), 47(6):1028–1047, 2000
+ 26 Eugene L Lawler, Jan Karel Lenstra,
+ AHGRinnooy Kan, David Bernard
+ Shmoys, et al. The traveling salesman
+ problem: a guided tour of combinatorial
+ optimization, volume 3. Wiley New York,
+ 1985
+origin city, given a list of cities and the distances between each pair of
+ shortest paths 203
+ cities. We can represent the problem as a weighted graph, with city
+ distances as edge weights. The minimum spanning tree doesn’t solve
+ the problem: it creates a tree, which has no cycles. Thus, to get back
+ to the origin city, you have to backtrack all the way through the tree
+not ideal.
+ 12
+ 12
+ 6
+ Another thing to keep in mind is that rarely minimum/maximum
+ spanning trees are unique: a weighted network can and will have
+ multiple alternative minimum/maximum spanning trees. Consider
+ the graph in Figure 13.13. Suppose we want to find its minimum
+ spanning tree. The first choice is obvious: we use the edge of weight
+ 6. Then, we have to connect the final node. Each of the edges of
+ weight 12 is a valid addition to the tree: they will connect the node
+ and the result will be a tree, an acyclic graph. So the graph has two
+ valid minimum spanning trees.
+ There is an easy rule to remember to know whether a graph
+ will have a unique minimum/maximum spanning tree or not. If
+ each edge has a distinct weight then there will be only one, unique
+ minimum spanning tree. As soon as you have two edges with the
+ same weight, you open the door to the possibility of having more
+ than one minimum spanning tree. In fact, in an unweighted graph
+ where we assume that all edges have the same weight equal to one,
+ then every spanning tree of that graph is minimum.
+ Spanning trees have some closely related cousins that are worth
+while mentioning. The first one is the planar maximally filtered
+ graph27. As the name suggests, this is a technique to reduce any arbi
+trary graph into a planar version of itself, such that the edge weight
+ sum is maximal (or minimal, depending on the meaning of your edge
+ weights). Since a spanning tree is a tree, it means that it must have
+ |V| −1 edges. On the other hand, a planar maximally filtered graph
+ must have 3(|V|−2) or fewer edges.
+ Just like in the case of the tree, also in this case some motifs cannot
+ appear. In a tree you cannot have cycles. In a planar graph you
+ cannot have a motif that is impossible to draw as planar– i.e. on a
+ 2D surface without edge crossings–, for instance a 5-clique or a 3,3
+Figure 13.13: An example of
+ a weighted graph with a non
+ unique minimum spanning
+ tree.
+ 27 Michele Tumminello, Tomaso Aste,
+ Tiziana Di Matteo, and Rosario N Man
+tegna. A tool for filtering information
+ in complex systems. Proceedings of the
+ National Academy of Sciences, 102(30):
+ 10421–10426, 2005
+204 the atlas for the aspiring network scientist
+ (a)
+ (b)
+ biclique. Look at Figure 13.14 and try to draw those graphs in two
+ dimensions without having any edge crossing another one. You’ll
+ f
+ ind out that is not possible.
+ The second cousin of spanning trees is the triangulated maximally
+ f
+ iltered graph28. This was originally proposed as a more efficient
+ algorithm to extract planar maximally filtered graphs from larger
+ graphs. However, it also allows to specify different topological con
+straints, which are not necessarily making the graph planar.
+ 13.5 Classic Combinatorial Problems
+ Graph exploration in general, and shortest paths in particular, are
+ linked with some of the most famous problems discussed in com
+puter science. We already saw one in Section 12.4– graph coloring:
+ how many colors do I need to make sure that I don’t give the same
+ one to two connected nodes? Here I mention another, related to the
+ classic Traveling Salesman Problem. In the Traveling Salesman Prob
+lem, we have a set of cities and we want to find the path that allows
+ us to visit all cities by covering the minimum possible distance.
+ In this scenario, we are assuming that cities live in a two dimen
+sional space and there is a path between any two cities. However, we
+ could impose the existence of a road graph that makes some city-city
+ connections impossible. In this case, we want to find the path of
+ minimum cost in a graph that visits each node exactly once (i.e. the
+ minimum Hamiltonian path– see Chapter 10). Figure 13.15 shows an
+ Figure 13.14: Two examples
+ of non planar graphs that can
+not be included in any planar
+ maximally filtered graph. (a) A
+ 5-clique; (b) a 3,3-biclique.
+ 28 Guido Previde Massara, Tiziana
+ Di Matteo, and Tomaso Aste. Network
+ f
+ iltering for big data: Triangulated
+ maximally filtered graph. Journal of
+ complex Networks, 5(2):161–178, 2016
+ Figure 13.15: A graph with two
+ Hamiltonian cycles highlighted
+ using the edge color. Red =
+ minimum Hamiltonian; green
+ = maximum Hamiltonian. The
+ edge’s thickness is proportional
+ to its weight.
+example, with two Hamiltonian paths of different costs highlighted
+ shortest paths 205
+ in red and green.
+ Such problems have a huge importance in computer science
+ because they are classical examples of NP-hard problems. These
+ problems have no known polynomial-time solution, meaning that
+ we can usually only find approximate solutions in a reasonable time.
+ Finding the best solution would require brute force algorithms whose
+ time complexity make them unsuitable for problems of large size
+i.e. if your graph has more than a handful nodes.
+ Combinatorics and graphs have a much deeper relationship that
+ this one, though. A vast number of problems in combinatorics can be
+ represented as a graph problem, and often graphs are the best tool to
+ solve them. Two other examples are the classic SAT problem, where
+ we want to know if there is a true/false assignment so that a set of
+ logical propositions is not contradictory; and vehicle routing, where
+ we want to find the optimal set of routes for several vehicles to reach
+ their destinations from their origins.
+ 13.6 Summary
+ 1. There are many ways to explore a graph structure. 
