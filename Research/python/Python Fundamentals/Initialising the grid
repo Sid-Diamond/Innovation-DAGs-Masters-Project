@@ -1,0 +1,45 @@
+from scipy.stats import lognorm
+import numpy as np
+
+class InitialisePercGrid:
+    
+    def __init__(self, height, width, mu, sigma):
+        self.height = height
+        self.width = width
+        self.mu = mu
+        self.sigma = sigma
+        self.q_grid = self.create_q_grid()
+        self.state_grid = self.create_state_grid()
+
+    def create_q_grid(self):
+        q_grid =[]
+        for i in range(self.height-1):
+            qij = lognorm.rvs(s=self.sigma, loc=0, scale=np.exp(self.mu), size=self.width, random_state=None)
+            q_grid.append(list(qij))
+        
+        q_grid.append([0]*self.width)
+        return q_grid
+    
+    def create_state_grid(self):
+        state_grid =[]
+        for i in range(self.height):
+            row =[]
+            for j in range(self.width):
+                if self.q_grid[i][j] <= 0:
+                    row.append(0)
+                else:
+                    row.append(1) 
+            
+            state_grid.append(row)
+        
+        return state_grid
+    
+
+
+if __name__ == "__main__":
+    perc_grid = InitialisePercGrid(height = 5, width =5, mu=0, sigma=0.25)
+    
+    for row in perc_grid.q_grid:
+        print(row)
+
+    print(perc_grid.state_grid)
