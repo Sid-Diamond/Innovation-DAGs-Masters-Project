@@ -67,7 +67,6 @@ class InitialisePercGrid:
                         self.state_grid[ni][nj] = 2 
                         queue.apppend((ni,nj))
 
-
 if __name__ == "__main__":
     perc_grid = InitialisePercGrid(height = 5, width =5, mu=0, sigma=0.25)
     
