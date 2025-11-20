@@ -50,6 +50,6 @@ class BANetwork:
             self.attachment_history.append({
                 'node': new_node,
                 'new_edge': target_node,
-                'avg__degree': np.mean([self.graph.degree(t) for t in target_node])
+                'avg__degree': np.mean([self.graph.degree(t) for t in target_node]) #average degree of connected target nodes
             })
     
