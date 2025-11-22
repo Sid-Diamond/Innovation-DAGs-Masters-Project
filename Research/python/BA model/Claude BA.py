@@ -173,7 +173,7 @@ class BANetwork:
 if __name__ == '__main__':
     # Standard BA model
     ba = BANetwork(n0=2, n_nodes=98, m=2)
-    ba.grow('linear')
+    ba.grow('sublinear')
     print("Linear BA:", ba.stats())
     
     # Sublinear attachment
