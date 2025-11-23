@@ -98,7 +98,7 @@ class BANetwork:
         
         node_colors = self.get_node_colors()
         pos = self.get_temporal_positions()
-        nx.draw(self.graph, pos=pos, ax=ax1, node_size=0.5, width=0.1,alpha =0.6, arrowsize=10, node_color=node_colors) #alpha for transparency
+        nx.draw(self.graph, pos=pos, ax=ax1, node_size=1, width=0.1,alpha =0.6, arrowsize=5, node_color=node_colors) #alpha for transparency
         ax1.set_title("Directed BA Network")
         
         in_degrees = self.in_degree_distribution()
@@ -121,7 +121,7 @@ class BANetwork:
         }
 
 if __name__ == "__main__":
-    ba = BANetwork(n0=10, n_nodes=200, m_edges=5)
+    ba = BANetwork(n0=20, n_nodes=1000, m_edges=10)
     ba.generate_network(attachment_fn='linear')
     
     fig = ba.plot()
