@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 from scipy import stats
 
-
 class BANetworkHomophily:
     """
     Barabasi-Albert network model with homophilic preferential attachment.
@@ -271,15 +270,10 @@ class BANetworkHomophily:
         mle_a = self.fit_powerlaw_mle(degrees_a)
         mle_b = self.fit_powerlaw_mle(degrees_b)
         
-        print(f"\n{'='*60}")
         print(f"Results for h = {self.h}, f_a = {self.f_a}")
-        print(f"{'='*60}")
-        
         print(f"\nNode counts: n_a={len(degrees_a)}, n_b={len(degrees_b)}, total={len(degrees_total)}")
-        print(f"Mean degrees: <k_a>={np.mean(degrees_a):.3f}, <k_b>={np.mean(degrees_b):.3f}, <k_total>={np.mean(degrees_total):.3f}")
-        
-        print(f"\nTheoretical (Karimi): C={self.C:.4f}, β_a={self.beta_a:.4f}, β_b={self.beta_b:.4f}")
-        print(f"                      γ_a={self.gamma_a_theory:.4f}, γ_b={self.gamma_b_theory:.4f}")
+        print(f"Mean degrees: <k_a>={np.mean(degrees_a):.3f}, <k_b>={np.mean(degrees_b):.3f}")
+        print(f"\nTheoretical (Karimi): C={self.C:.4f}")
         
         print(f"\nGroup a:")
         print(f"  MLE:     γ={mle_a['gamma_mle']:.4f} (k_min={mle_a['k_min']}, p={mle_a['ks_pvalue']:.4f})")
@@ -293,8 +287,7 @@ if __name__ == "__main__":
     ba = BANetworkHomophily(n0=10, n_nodes=3000, m_edges=3, h=0.8, f_a=0.8)
     
     ba.compute_gamma_a()
-    ba.compute_gamma_b()
-    
+    ba.compute_gamma_b() 
     ba.generate_network()
     
     fig_net, fig_dist = ba.plot()
