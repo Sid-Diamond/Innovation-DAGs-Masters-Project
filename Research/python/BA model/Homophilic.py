@@ -147,55 +147,16 @@ class BANetworkHomophily:
                   for n in self.graph.nodes()]
         return colors
 
-    def find_optimal_kmin(self,degrees):
-        """Find optimal k_min by maximizing KS test p-value."""
-        
+    def fit_powerlaw_mle(self, degrees, k_min):
         degrees = np.asarray(degrees)
-        unique_degrees = np.unique(degrees)
-        
-        best_kmin = unique_degrees[0]
-        best_pvalue = -1
-        worse_count = 0
-        
-        for k in unique_degrees:
-            degrees_filtered = degrees[degrees >= k]
-            n = len(degrees_filtered)
-            gamma = 1 + n / np.sum(np.log(degrees_filtered / k))
-            
-            pvalue = stats.kstest(degrees_filtered, 
-                                lambda x: 1 - (k / x)**(gamma - 1))[1]
-            
-            if pvalue > best_pvalue:
-                best_pvalue = pvalue
-                best_kmin = k
-                worse_count = 0
-            else:
-                worse_count += 1
-                if worse_count >= 3:
-                    break
-        
-        return best_kmin
-
-    def fit_powerlaw_mle(self, degrees):
-        """
-        Fit power law exponent using MLE: γ = -(1 + n / Σ(ln(k_i / k_min)))
-        Returns dict with gamma_mle, k_min, n_above_kmin, ks_statistic, ks_pvalue.
-        """
-        degrees = np.asarray(degrees)
-        k_min = self.find_optimal_kmin(degrees)
         degrees_filtered = degrees[degrees >= k_min]
-        n = len(degrees_filtered)
         
-        # MLE gives positive exponent; negate for p(k) ~ k^γ convention
+        if len(degrees_filtered) == 0:
+            raise ValueError(f"No degrees >= k_min={k_min}. Adjust k_min.")
+        
+        n = len(degrees_filtered)
         gamma_mle = -(1 + n / np.sum(np.log(degrees_filtered / k_min)))
         
-        degrees_sorted = np.sort(degrees_filtered)
-        empirical_cdf = np.arange(1, n + 1) / n
-        # CDF: F(k) = 1 - (k_min/k)^(|gamma|-1)
-        theoretical_cdf = 1 - (k_min / degrees_sorted)**(-gamma_mle - 1)
-        theoretical_cdf = np.clip(theoretical_cdf, 0, 1)
-        
-        ks_statistic = np.max(np.abs(empirical_cdf - theoretical_cdf))
         ks_pvalue = stats.kstest(degrees_filtered, 
                                 lambda x: 1 - (k_min / x)**(-gamma_mle - 1))[1]
         
@@ -203,12 +164,43 @@ class BANetworkHomophily:
             'gamma_mle': gamma_mle,
             'k_min': k_min,
             'n_above_kmin': n,
-            'ks_statistic': ks_statistic,
             'ks_pvalue': ks_pvalue
         }
 
-    def plot(self, figsize_network=(10, 10), figsize_dists=(14, 5)):
-        """Plot network and degree distributions in separate figures."""
+    def _plot_degree_distribution_ccdf(self, ax, node_type, color, title, k_min):
+        """Helper: plot empirical CCDF with MLE power law fit (no binning)."""
+        degrees = self.degree_distribution(node_type=node_type)
+        degrees_sorted = np.sort(degrees)[::-1]  # descending
+        n = len(degrees_sorted)
+        
+        # Empirical CCDF: P(k >= k_i)
+        ccdf = np.arange(1, n + 1) / n
+        
+        # Plot data as scatter
+        ax.loglog(degrees_sorted, ccdf, 'o', color=color, alpha=0.5, 
+                markersize=4, label='Data (CCDF)')
+        
+        # MLE fit
+        mle_result = self.fit_powerlaw_mle(degrees, k_min=k_min)
+        gamma_mle = mle_result['gamma_mle']
+        k_min_used = mle_result['k_min']
+        
+        # Power law CCDF: P(k >= k) = (k_min/k)^(-(gamma+1))
+        x_fit = np.logspace(np.log10(k_min_used), np.log10(degrees.max()), 100)
+        y_fit = (k_min_used / x_fit)**(-(gamma_mle + 1))
+        
+        ax.loglog(x_fit, y_fit, 'k--', linewidth=2.5,
+            label=f'γ={gamma_mle:.3f} (n={mle_result["n_above_kmin"]}, KS p={mle_result["ks_pvalue"]:.3f})')
+        
+        ax.axvline(k_min_used, color='gray', linestyle=':', linewidth=1, alpha=0.5)
+        ax.legend(fontsize=10)
+        ax.set_xlabel("Degree k", fontsize=11)
+        ax.set_ylabel("P(k ≥ k)", fontsize=11)
+        ax.set_title(title, fontsize=12, fontweight='bold')
+        ax.grid(True, alpha=0.3, which='both')
+
+    def plot(self, k_min_a, k_min_b, figsize_network=(10, 10), figsize_dists=(14, 5)):
+        """Plot network and degree distributions. Specify k_min for each group."""
         
         # Figure 1: Network visualization
         fig_net, ax_net = plt.subplots(figsize=figsize_network)
@@ -218,10 +210,10 @@ class BANetworkHomophily:
         ax_net.set_title(f"Network (h={self.h}, f_a={self.f_a})", fontsize=14, fontweight='bold')
         fig_net.tight_layout()
         
-        # Figure 2: Degree distributions side by side
+        # Figure 2: Degree distributions (CCDF) side by side
         fig_dist, axes = plt.subplots(1, 2, figsize=figsize_dists)
-        self._plot_degree_distribution(axes[0], 'a', 'red', 'Majority (a)')
-        self._plot_degree_distribution(axes[1], 'b', 'blue', 'Minority (b)')
+        self._plot_degree_distribution_ccdf(axes[0], 'a', 'red', 'Majority (a)', k_min=k_min_a)
+        self._plot_degree_distribution_ccdf(axes[1], 'b', 'blue', 'Minority (b)', k_min=k_min_b)
         fig_dist.tight_layout()
         
         return fig_net, fig_dist
@@ -260,37 +252,37 @@ class BANetworkHomophily:
         ax.set_ylabel("Count")
         ax.set_title(title)
 
-    def stats(self):
+    def stats(self, k_min_a, k_min_b):
         """Print network statistics and compare empirical vs. theory."""
         degrees_a = self.degree_distribution(node_type='a')
         degrees_b = self.degree_distribution(node_type='b')
         degrees_total = self.degree_distribution()
         
-        
-        mle_a = self.fit_powerlaw_mle(degrees_a)
-        mle_b = self.fit_powerlaw_mle(degrees_b)
+        mle_a = self.fit_powerlaw_mle(degrees_a, k_min=k_min_a)
+        mle_b = self.fit_powerlaw_mle(degrees_b, k_min=k_min_b)
         
         print(f"Results for h = {self.h}, f_a = {self.f_a}")
         print(f"\nNode counts: n_a={len(degrees_a)}, n_b={len(degrees_b)}, total={len(degrees_total)}")
         print(f"Mean degrees: <k_a>={np.mean(degrees_a):.3f}, <k_b>={np.mean(degrees_b):.3f}")
         print(f"\nTheoretical (Karimi): C={self.C:.4f}")
         
-        print(f"\nGroup a:")
-        print(f"  MLE:     γ={mle_a['gamma_mle']:.4f} (k_min={mle_a['k_min']}, p={mle_a['ks_pvalue']:.4f})")
+        print(f"\nGroup a (k_min={k_min_a}):")
+        print(f"  MLE:     γ={mle_a['gamma_mle']:.4f} (n={mle_a['n_above_kmin']}, p={mle_a['ks_pvalue']:.4f})")
         print(f"  Theory:  γ={self.gamma_a_theory:.4f}")
         
-        print(f"\nGroup b:")
-        print(f"  MLE:     γ={mle_b['gamma_mle']:.4f} (k_min={mle_b['k_min']}, p={mle_b['ks_pvalue']:.4f})")
+        print(f"\nGroup b (k_min={k_min_b}):")
+        print(f"  MLE:     γ={mle_b['gamma_mle']:.4f} (n={mle_b['n_above_kmin']}, p={mle_b['ks_pvalue']:.4f})")
         print(f"  Theory:  γ={self.gamma_b_theory:.4f}")
 
 if __name__ == "__main__":
-    ba = BANetworkHomophily(n0=10, n_nodes=3000, m_edges=3, h=0.8, f_a=0.8)
+    ba = BANetworkHomophily(n0=10, n_nodes=3000, m_edges=3, h=0.4, f_a=0.55)
+    k_min_a, k_min_b = 5, 5
     
     ba.compute_gamma_a()
     ba.compute_gamma_b() 
     ba.generate_network()
     
-    fig_net, fig_dist = ba.plot()
+    fig_net, fig_dist = ba.plot(k_min_a=k_min_a, k_min_b=k_min_b)
     plt.show()
     
-    ba.stats()
+    ba.stats(k_min_a=k_min_a, k_min_b=k_min_b)
