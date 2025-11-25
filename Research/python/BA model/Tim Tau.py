@@ -77,7 +77,14 @@ class BANetwork:
         denominator = beta(self.mu, 1 + (self.mu / self.m_edges))
         return numerator / denominator
     
-    def logarithmic_binning(self, degrees, bin_factor=1.1):
+    def sterling_approximation(self, k):
+        """Sterling's approximation for large k."""
+        if k<0:
+            return 0
+        power_law_exponent = 2 + (self.mu / self.m_edges)
+        return k ** (-power_law_exponent)
+    
+    def logarithmic_binning(self, degrees, bin_factor=1.03):
         """
         Create logarithmic bins where each bin is ~bin_factor times larger than previous.
         Returns bin centers (sqrt(kmin*kmax)) and probabilities.
@@ -127,7 +134,6 @@ class BANetwork:
         Compares both theoretical_distribution and theoretical_distribution2.
         """
         in_degrees = [self.graph.in_degree(n) for n in self.graph.nodes()]
-        
         # Get logarithmically binned data
         bin_centers, probabilities = self.logarithmic_binning(in_degrees, bin_factor=1.1)
         
@@ -136,6 +142,7 @@ class BANetwork:
         k_max = int(np.max(in_degrees))
         k_range = np.arange(k_min, k_max + 1)
         theoretical_probs1 = np.array([self.theoretical_distribution(k) for k in k_range])
+        theoretical_probs2 = np.array([self.sterling_approximation(k) for k in k_range])
         
         # Create plot
         fig, ax = plt.subplots(figsize=figsize)
@@ -150,6 +157,12 @@ class BANetwork:
         ax.plot(k_range[mask1], theoretical_probs1[mask1], 
                 '-', linewidth=2.5, color='red', alpha=0.85,
                 label='Theoretical (Beta version)', zorder=2)
+        
+        # Theoretical curve 2 (Sterling approximation)
+        mask2 = theoretical_probs2 > 0      
+        ax.plot(k_range[mask2], theoretical_probs2[mask2], 
+                '--', linewidth=2.5, color='green', alpha=0.85,
+                label="Theoretical (Sterling's approx.)", zorder=1)
         
         ax.set_xscale('log')
         ax.set_yscale('log')
@@ -170,7 +183,7 @@ class BANetwork:
 
 if __name__ == "__main__":
     # Generate network with Price model parameters
-    ba = BANetwork(n0=10, n_nodes=10**5, m_edges=2, mu=2)
+    ba = BANetwork(n0=10, n_nodes=10**4, m_edges=2, mu=2)
     print("Generating network...")
     ba.generate_network()
     print("Network generated!")
