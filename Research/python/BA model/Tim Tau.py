@@ -84,7 +84,7 @@ class BANetwork:
         power_law_exponent = 2 + (self.mu / self.m_edges)
         return k ** (-power_law_exponent)
     
-    def logarithmic_binning(self, degrees, bin_factor=1.03):
+    def logarithmic_binning(self, degrees, bin_factor=1.0):
         """
         Create logarithmic bins where each bin is ~bin_factor times larger than previous.
         Returns bin centers (sqrt(kmin*kmax)) and probabilities.
