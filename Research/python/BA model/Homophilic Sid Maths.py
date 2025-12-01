@@ -144,9 +144,9 @@ class DirectedHomophilicNetwork:
         p(k) = A_a × Γ(k + α_a + γ_a) / Γ(k + α_a)
         """
         alpha_a = self.mu_a / self.lambda_a
-        gamma_a = 1 + (self.Z_tilde / self.lambda_a)
+        gamma_a = 1 + (1 /(self.Z_tilde*self.lambda_a))
         
-        A_a = (gamma_func(alpha_a + gamma_a) / gamma_func(alpha_a)) * (1 + (self.mu_a/(self.Z_tilde)))
+        A_a = (self.m_edges*(self.f_a)* (gamma_func(alpha_a + gamma_a))) / ((1 + (self.mu_a*self.Z_tilde))* gamma_func(alpha_a))
         numerator = gamma_func(k + alpha_a)
         denominator =  gamma_func(k + alpha_a + gamma_a)
         return A_a * (numerator / denominator)
@@ -158,9 +158,9 @@ class DirectedHomophilicNetwork:
         """
         
         alpha_b = self.mu_b / self.lambda_b
-        gamma_b = 1 + (self.Z_tilde / self.lambda_b)
+        gamma_b = 1 + (1 /(self.Z_tilde* self.lambda_b))
 
-        A_b = (gamma_func(alpha_b + gamma_b) /gamma_func(alpha_b) ) * (1 + (self.mu_b/self.Z_tilde))
+        A_b = (self.m_edges*self.f_b*(gamma_func(alpha_b + gamma_b))) / ((1 + (self.mu_b*self.Z_tilde))*gamma_func(alpha_b))
         numerator = gamma_func(k + alpha_b)
         denominator = gamma_func(k + alpha_b + gamma_b)
         return A_b * (numerator / denominator)
