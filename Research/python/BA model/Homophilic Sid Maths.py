@@ -276,7 +276,6 @@ class DirectedHomophilicNetwork:
         plt.tight_layout()
         return fig
     
-
     def fit_asymptote(self, values, fraction=0.05):
 
         arr = np.array(values)
@@ -351,18 +350,13 @@ if __name__ == "__main__":
         mu_b=1
     )
     
-    print("Generating network...")
     net.generate_network()
-    print("Network generated!\n")
     
     # Plot
     fig = net.plot_degree_distributions()
     plt.show()
-
-    # After generating the network
     fig = net.plot_in_edge_asymptotes()
     plt.show()
 
-    
-    # Statistics
+
     net.print_statistics()
