@@ -342,11 +342,11 @@ if __name__ == "__main__":
     # Generate network with homophily
     net = DirectedHomophilicNetwork(
         n0=200, 
-        n_nodes=5000, 
-        m_edges=3, 
+        n_nodes=50000, 
+        m_edges=30, 
         h=0.8,
         f_a=0.6,
-        mu_a=1,
+        mu_a=2,
         mu_b=1
     )
     

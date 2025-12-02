@@ -31,7 +31,6 @@ class DirectedHomophilicNetwork:
         self.node_types = {}
         self.z_ratios = []
         
-        # Don't compute theoretical params in init since we need g_a, g_b first
         self.lambda_a = h * f_a + (1 - f_a) * (1 - h)
         self.lambda_b = h * (1 - f_a) + (1 - h) * f_a
         self.Z_factor = None
@@ -41,7 +40,7 @@ class DirectedHomophilicNetwork:
         """Compute Z̃ and theoretical exponents using asymptotic g_a, g_b."""
         m = self.m_edges
         
-        # Use asymptotic values instead of lambda squared terms
+        # Z_factor = g_a*λ_a + g_b*λ_b + f_a*μ_a + f_b*μ_b
         term1 = g_a * self.lambda_a + g_b * self.lambda_b
         term2 = self.f_a * self.mu_a + self.f_b * self.mu_b
         self.Z_factor = term1 + term2
@@ -52,6 +51,13 @@ class DirectedHomophilicNetwork:
     def assign_node_type(self):
         """Randomly assign node type based on f_a."""
         return 'a' if np.random.rand() < self.f_a else 'b'
+    
+    def fit_asymptote(self, values, fraction=0.05):
+        """Fit asymptote using mean of top fraction of values."""
+        arr = np.array(values)
+        n_tail = max(1, int(len(arr) * fraction))
+        tail = arr[-n_tail:]
+        return tail.mean()
     
     def homophilic_preferential_attachment(self, new_node_type, existing_nodes, t):
         """
@@ -96,16 +102,6 @@ class DirectedHomophilicNetwork:
             targets = np.random.choice([t for t in range(self.n0) if t != source], size=self.m_edges, replace=False)
             for t in targets:
                 self.graph.add_edge(source, t)
-        
-        initial_E = self.graph.number_of_edges()
-        print(f"Initial edges = {initial_E},   expected m*n0 = {self.m_edges * self.n0}")
-
-
-        # Track initial state
-        t = self.n0
-        in_edges_a = sum(1 for _, target in self.graph.edges() if self.node_types[target] == 'a')
-        in_edges_b = sum(1 for _, target in self.graph.edges() if self.node_types[target] == 'b')
-        self.edge_evolution.append({'t': t, 'in_edges_a': in_edges_a, 'in_edges_b': in_edges_b})
 
         # Add new nodes with homophilic preferential attachment
         for new_node in range(self.n0, self.n0 + self.n_nodes):
@@ -128,7 +124,6 @@ class DirectedHomophilicNetwork:
                 self.edge_evolution.append({'t': new_node, 'in_edges_a': in_edges_a, 'in_edges_b': in_edges_b})
         
         # After network generation, compute asymptotic values and then theoretical params
-        times = np.array([d['t'] for d in self.edge_evolution])
         mean_deg_a = np.array([d['in_edges_a']/d['t'] for d in self.edge_evolution])
         mean_deg_b = np.array([d['in_edges_b']/d['t'] for d in self.edge_evolution])
         
@@ -167,7 +162,6 @@ class DirectedHomophilicNetwork:
         A_b_piece2 = 1 #(alpha_b)/(alpha_b + gamma_b)
         A_b_piece3 = gamma_func(alpha_b + gamma_b)/gamma_func(alpha_b)
         A_b = A_b_piece1 * A_b_piece2 * A_b_piece3
-    
         
         numerator = gamma_func(k + alpha_b)
         denominator = gamma_func(k + alpha_b + gamma_b)
@@ -286,13 +280,6 @@ class DirectedHomophilicNetwork:
         
         plt.tight_layout()
         return fig
-    
-    def fit_asymptote(self, values, fraction=0.05):
-
-        arr = np.array(values)
-        n_tail = max(1, int(len(arr) * fraction))
-        tail = arr[-n_tail:]
-        return tail.mean()
 
     def plot_in_edge_asymptotes(self, figsize=(10, 6), fraction=0.05):
         """
@@ -352,12 +339,12 @@ class DirectedHomophilicNetwork:
 if __name__ == "__main__":
     # Generate network with homophily
     net = DirectedHomophilicNetwork(
-        n0=200, 
-        n_nodes=10000, 
-        m_edges=3, 
+        n0=40, 
+        n_nodes=50000, 
+        m_edges=30, 
         h=0.8,
         f_a=0.6,
-        mu_a=1,
+        mu_a=2,
         mu_b=1
     )
     
