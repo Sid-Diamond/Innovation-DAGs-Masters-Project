@@ -79,51 +79,33 @@ class DirectedHomophilicNetwork:
         
         targets = np.random.choice(existing_nodes, self.m_edges, p=probs, replace=False)
         return targets
-    
+
     def generate_network(self):
         """Generate directed network with homophilic preferential attachment."""
         self.graph = nx.DiGraph()
-        
+        self.edge_evolution = [] 
+
         # Initialize with n0 nodes and assign types based on f_a
         for i in range(self.n0):
             self.graph.add_node(i)
             self.node_types[i] = self.assign_node_type()
-        
-        # Add initial edges: m*n0 edges total with homophilic preferences
-        edges_needed = self.m_edges * self.n0
-        edges_added = 0
-        
+
+        # Add initial edges randomly among initial nodes
         for source in range(self.n0):
-            if edges_added >= edges_needed:
-                break
-            
-            # Get potential targets (all nodes except source)
-            potential_targets = [t for t in range(self.n0) if t != source]
-            
-            if len(potential_targets) == 0:
-                continue
-            
-            # Compute homophilic weights for each potential target
-            source_type = self.node_types[source]
-            weights = []
-            for target in potential_targets:
-                target_type = self.node_types[target]
-                # Weight = h if same type, (1-h) if different type
-                weight = self.h if source_type == target_type else (1 - self.h)
-                weights.append(weight)
-            
-            # Normalize weights to probabilities
-            weights = np.array(weights)
-            probs = weights / weights.sum()
-            
-            # Select m_edges targets (or fewer if not enough edges remain)
-            n_edges = min(self.m_edges, edges_needed - edges_added, len(potential_targets))
-            selected_targets = np.random.choice(potential_targets, n_edges, p=probs, replace=False)
-            
-            for target in selected_targets:
-                self.graph.add_edge(source, target)
-                edges_added += 1
+            targets = np.random.choice([t for t in range(self.n0) if t != source], size=self.m_edges, replace=False)
+            for t in targets:
+                self.graph.add_edge(source, t)
         
+        initial_E = self.graph.number_of_edges()
+        print(f"Initial edges = {initial_E},   expected m*n0 = {self.m_edges * self.n0}")
+
+
+        # Track initial state
+        t = self.n0
+        in_edges_a = sum(1 for _, target in self.graph.edges() if self.node_types[target] == 'a')
+        in_edges_b = sum(1 for _, target in self.graph.edges() if self.node_types[target] == 'b')
+        self.edge_evolution.append({'t': t, 'in_edges_a': in_edges_a, 'in_edges_b': in_edges_b})
+
         # Add new nodes with homophilic preferential attachment
         for new_node in range(self.n0, self.n0 + self.n_nodes):
             t = new_node
@@ -137,7 +119,13 @@ class DirectedHomophilicNetwork:
             
             for target in targets:
                 self.graph.add_edge(new_node, target)
-    
+            
+            # Track evolution every 100 nodes (or adjust frequency)
+            if (new_node - self.n0) % 100 == 0 or new_node == self.n0 + self.n_nodes - 1:
+                in_edges_a = sum(1 for _, target in self.graph.edges() if self.node_types[target] == 'a')
+                in_edges_b = sum(1 for _, target in self.graph.edges() if self.node_types[target] == 'b')
+                self.edge_evolution.append({'t': new_node, 'in_edges_a': in_edges_a, 'in_edges_b': in_edges_b})
+
     def theoretical_distribution_a(self, k):
         """
         Theoretical in-degree distribution for "a" nodes.
@@ -146,7 +134,11 @@ class DirectedHomophilicNetwork:
         alpha_a = self.mu_a / self.lambda_a
         gamma_a = 1 + (1 /(self.Z_tilde*self.lambda_a))
         
-        A_a = (self.m_edges*(self.f_a)* (gamma_func(alpha_a + gamma_a))) / ((1 + (self.mu_a*self.Z_tilde))* gamma_func(alpha_a))
+        A_a_piece1 = (self.m_edges*(self.f_a)) / (1 + (self.mu_a*self.Z_tilde))
+        A_a_piece2 = 1 #(alpha_a)/(alpha_a + gamma_a)
+        A_a_piece3 = gamma_func(alpha_a + gamma_a)/gamma_func(alpha_a)
+        A_a = A_a_piece1 * A_a_piece2 * A_a_piece3
+        
         numerator = gamma_func(k + alpha_a)
         denominator =  gamma_func(k + alpha_a + gamma_a)
         return A_a * (numerator / denominator)
@@ -160,7 +152,12 @@ class DirectedHomophilicNetwork:
         alpha_b = self.mu_b / self.lambda_b
         gamma_b = 1 + (1 /(self.Z_tilde* self.lambda_b))
 
-        A_b = (self.m_edges*self.f_b*(gamma_func(alpha_b + gamma_b))) / ((1 + (self.mu_b*self.Z_tilde))*gamma_func(alpha_b))
+        A_b_piece1 = (self.m_edges*self.f_b) / ((1 + (self.mu_b*self.Z_tilde)))
+        A_b_piece2 = 1 #(alpha_b)/(alpha_b + gamma_b)
+        A_b_piece3 = gamma_func(alpha_b + gamma_b)/gamma_func(alpha_b)
+        A_b = A_b_piece1 * A_b_piece2 * A_b_piece3
+    
+        
         numerator = gamma_func(k + alpha_b)
         denominator = gamma_func(k + alpha_b + gamma_b)
         return A_b * (numerator / denominator)
@@ -207,9 +204,9 @@ class DirectedHomophilicNetwork:
     def plot_degree_distributions(self, figsize=(15, 6)):
         """Plot in-degree distributions for both node types with theoretical curves."""
         in_degrees_a = [self.graph.in_degree(n) for n in self.graph.nodes() 
-                       if self.node_types[n] == 'a']
+                        if self.node_types[n] == 'a']
         in_degrees_b = [self.graph.in_degree(n) for n in self.graph.nodes() 
-                       if self.node_types[n] == 'b']
+                        if self.node_types[n] == 'b']
         
         fig, axes = plt.subplots(1, 2, figsize=figsize)
         
@@ -225,13 +222,13 @@ class DirectedHomophilicNetwork:
             theo_probs_a = np.array([self.theoretical_distribution_a(k) for k in k_range_a])
             
             ax.scatter(bin_centers_a, probs_a, s=50, alpha=0.7,
-                      color='red', edgecolors='black', linewidths=0.5,
-                      label='Simulation', zorder=3)
+                    color='red', edgecolors='black', linewidths=0.5,
+                    label='Simulation', zorder=3)
             
             mask = theo_probs_a > 0
             ax.plot(k_range_a[mask], theo_probs_a[mask],
-                   '-', linewidth=2.5, color='darkred', alpha=0.85,
-                   label='Theory', zorder=2)
+                    '-', linewidth=2.5, color='darkred', alpha=0.85,
+                    label='Theory', zorder=2)
             
             ax.set_xscale('log')
             ax.set_yscale('log')
@@ -253,13 +250,13 @@ class DirectedHomophilicNetwork:
             theo_probs_b = np.array([self.theoretical_distribution_b(k) for k in k_range_b])
             
             ax.scatter(bin_centers_b, probs_b, s=50, alpha=0.7,
-                      color='blue', edgecolors='black', linewidths=0.5,
-                      label='Simulation', zorder=3)
+                    color='blue', edgecolors='black', linewidths=0.5,
+                    label='Simulation', zorder=3)
             
             mask = theo_probs_b > 0
             ax.plot(k_range_b[mask], theo_probs_b[mask],
-                   '-', linewidth=2.5, color='darkblue', alpha=0.85,
-                   label='Theory', zorder=2)
+                    '-', linewidth=2.5, color='darkblue', alpha=0.85,
+                    label='Theory', zorder=2)
             
             ax.set_xscale('log')
             ax.set_yscale('log')
@@ -270,12 +267,55 @@ class DirectedHomophilicNetwork:
             ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
         
         total_nodes = self.n0 + self.n_nodes
-        fig.suptitle(f'Directed Homophilic Network: N={total_nodes:,}, m={self.m_edges}, h={self.h}, f_a={self.f_a}',
-                    fontsize=14, fontweight='bold')
+        fig.suptitle(
+            f'Directed Homophilic Network: N={total_nodes:,}, m={self.m_edges}, '
+            f'h={self.h}, f_a={self.f_a}',
+            fontsize=14, fontweight='bold'
+        )
         
         plt.tight_layout()
         return fig
     
+
+    def fit_asymptote(self, values, fraction=0.05):
+
+        arr = np.array(values)
+        n_tail = max(1, int(len(arr) * fraction))
+        tail = arr[-n_tail:]
+        return tail.mean()
+
+    def plot_in_edge_asymptotes(self, figsize=(10, 6), fraction=0.05):
+        """
+        Plot mean in-edge density for types a and b with asymptotic fits.
+        """
+        times = np.array([d['t'] for d in self.edge_evolution])
+        mean_deg_a = np.array([d['in_edges_a']/d['t'] for d in self.edge_evolution])
+        mean_deg_b = np.array([d['in_edges_b']/d['t'] for d in self.edge_evolution])
+
+        # Compute asymptotes
+        A_inf = self.fit_asymptote(mean_deg_a, fraction=fraction)
+        B_inf = self.fit_asymptote(mean_deg_b, fraction=fraction)
+        fig, ax = plt.subplots(figsize=figsize)
+
+        # Plot data
+        ax.plot(times, mean_deg_a, label=f"Type 'a' (data), m={self.m_edges}", color='red')
+        ax.plot(times, mean_deg_b, label=f"Type 'b' (data), m={self.m_edges}", color='blue')
+
+        # Overlay asymptotes
+        ax.axhline(A_inf, linestyle='--', alpha=0.7, color='darkred',
+                    label=f"Type 'a' asymptote = {A_inf:.3f}")
+        ax.axhline(B_inf, linestyle='--', alpha=0.7, color='darkblue',
+                    label=f"Type 'b' asymptote = {B_inf:.3f}")
+
+        ax.set_xlabel("t (number of nodes)")
+        ax.set_ylabel("Mean in-degree")
+        ax.set_title("Asymptotic In-Edge Density")
+        ax.legend()
+        ax.grid(True, linestyle='--', alpha=0.3)
+
+        plt.tight_layout()
+        return fig
+
     def print_statistics(self):
         """Print network statistics."""
         in_degrees_a = [self.graph.in_degree(n) for n in self.graph.nodes() 
@@ -302,12 +342,12 @@ class DirectedHomophilicNetwork:
 if __name__ == "__main__":
     # Generate network with homophily
     net = DirectedHomophilicNetwork(
-        n0=100, 
-        n_nodes=10000, 
-        m_edges=2, 
+        n0=200, 
+        n_nodes=5000, 
+        m_edges=3, 
         h=0.8,
         f_a=0.6,
-        mu_a=2,
+        mu_a=1,
         mu_b=1
     )
     
@@ -318,6 +358,11 @@ if __name__ == "__main__":
     # Plot
     fig = net.plot_degree_distributions()
     plt.show()
+
+    # After generating the network
+    fig = net.plot_in_edge_asymptotes()
+    plt.show()
+
     
     # Statistics
     net.print_statistics()
