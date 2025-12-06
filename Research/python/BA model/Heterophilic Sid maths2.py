@@ -322,11 +322,11 @@ class DirectedHomophilicNetwork:
             if node_type == 'a':
                 alpha = self.mu_a / self.lambda_a
                 gamma_param = 1 + 1 / (self.Z_tilde * self.lambda_a)
-                b0 = (self.m_edges * self.f_a) / (1 + (self.mu_a * self.Z_tilde))
+                b0 = 1 / (1 + (self.mu_a * self.Z_tilde))
             else:
                 alpha = self.mu_b / self.lambda_b
                 gamma_param = 1 + 1 / (self.Z_tilde * self.lambda_b)
-                b0 = (self.m_edges * self.f_b) / (1 + (self.mu_b * self.Z_tilde))
+                b0 = 1 / (1 + (self.mu_b * self.Z_tilde))
             
             # Compute A(k)
             A_values = []
