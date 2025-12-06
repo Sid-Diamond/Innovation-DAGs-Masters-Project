@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 from scipy.special import gamma as gamma_func
+from scipy.special import loggamma
 
 class DirectedHomophilicNetwork:
     """
@@ -29,7 +30,6 @@ class DirectedHomophilicNetwork:
         
         self.graph = None
         self.node_types = {}
-        self.z_ratios = []
         
         self.lambda_a = h * f_a + (1 - f_a) * (1 - h)
         self.lambda_b = h * (1 - f_a) + (1 - h) * f_a
@@ -39,6 +39,9 @@ class DirectedHomophilicNetwork:
     def _compute_theoretical_params(self, g_a, g_b):
         """Compute Z̃ and theoretical exponents using asymptotic g_a, g_b."""
         m = self.m_edges
+
+        self.g_a = g_a
+        self.g_b = g_b
         
         # Z_factor = g_a*λ_a + g_b*λ_b + f_a*μ_a + f_b*μ_b
         term1 = g_a * self.lambda_a + g_b * self.lambda_b
@@ -72,13 +75,6 @@ class DirectedHomophilicNetwork:
         mu_values = np.where(node_types == 'a', self.mu_a, self.mu_b)
         
         numerators = lambda_values * in_degrees + mu_values
-        
-        # Track theoretical vs empirical Z
-        if self.Z_factor is not None:
-            Z_theoretical = t * self.Z_factor
-            Z_empirical = np.sum(numerators)
-            ratio = Z_empirical / Z_theoretical
-            self.z_ratios.append(ratio)
         
         # Use empirical Z for exact normalization
         Z_empirical = np.sum(numerators)
@@ -140,32 +136,31 @@ class DirectedHomophilicNetwork:
         alpha_a = self.mu_a / self.lambda_a
         gamma_a = 1 + (1 /(self.Z_tilde*self.lambda_a))
         
-        A_a_piece1 = (self.m_edges*(self.f_a)) / (1 + (self.mu_a*self.Z_tilde))
+        A_a_piece1 = 1 / (1 + (self.mu_a*self.Z_tilde))
         A_a_piece2 = 1 #(alpha_a)/(alpha_a + gamma_a)
         A_a_piece3 = gamma_func(alpha_a + gamma_a)/gamma_func(alpha_a)
         A_a = A_a_piece1 * A_a_piece2 * A_a_piece3
         
-        numerator = gamma_func(k + alpha_a)
-        denominator =  gamma_func(k + alpha_a + gamma_a)
-        return A_a * (numerator / denominator)
+        log_ratio = loggamma(k + alpha_a) - loggamma(k + alpha_a + gamma_a)
+
+        return A_a * np.exp(log_ratio)
     
     def theoretical_distribution_b(self, k):
         """
         Theoretical in-degree distribution for "b" nodes.
         p(k) = A_b × Γ(k + α_b + γ_b) / Γ(k + α_b)
         """
-        
         alpha_b = self.mu_b / self.lambda_b
         gamma_b = 1 + (1 /(self.Z_tilde* self.lambda_b))
 
-        A_b_piece1 = (self.m_edges*self.f_b) / ((1 + (self.mu_b*self.Z_tilde)))
+        A_b_piece1 = 1 / ((1 + (self.mu_b*self.Z_tilde)))
         A_b_piece2 = 1 #(alpha_b)/(alpha_b + gamma_b)
         A_b_piece3 = gamma_func(alpha_b + gamma_b)/gamma_func(alpha_b)
         A_b = A_b_piece1 * A_b_piece2 * A_b_piece3
         
-        numerator = gamma_func(k + alpha_b)
-        denominator = gamma_func(k + alpha_b + gamma_b)
-        return A_b * (numerator / denominator)
+        log_ratio = loggamma(k + alpha_b) - loggamma(k + alpha_b + gamma_b)
+        
+        return A_b * np.exp(log_ratio)
     
     def logarithmic_binning(self, degrees, bin_factor=1.1):
         """Create logarithmic bins for degree distribution."""
@@ -313,34 +308,114 @@ class DirectedHomophilicNetwork:
         plt.tight_layout()
         return fig
 
+    def compute_A_values(self, max_k=50):
+        """Compute A(k) values for both node types."""
+        if self.Z_tilde is None:
+            print("Error: Network must be generated first")
+            return None
+        
+        k_values = np.arange(0, max_k + 1)
+        results = {}
+        
+        for node_type in ['a', 'b']:
+            # Get parameters
+            if node_type == 'a':
+                alpha = self.mu_a / self.lambda_a
+                gamma_param = 1 + 1 / (self.Z_tilde * self.lambda_a)
+                b0 = (self.m_edges * self.f_a) / (1 + (self.mu_a * self.Z_tilde))
+            else:
+                alpha = self.mu_b / self.lambda_b
+                gamma_param = 1 + 1 / (self.Z_tilde * self.lambda_b)
+                b0 = (self.m_edges * self.f_b) / (1 + (self.mu_b * self.Z_tilde))
+            
+            # Compute A(k)
+            A_values = []
+            for k in k_values:
+                product = 1
+                for i in range(k):
+                    product *= (alpha + i) / (alpha + gamma_param + i)
+                gamma_ratio = gamma_func(k + alpha + gamma_param) / gamma_func(k + alpha)
+                A_values.append(b0 * product * gamma_ratio)
+            
+            A_theoretical = b0 * gamma_func(alpha + gamma_param) / gamma_func(alpha)
+            b0_adjusted = b0 * gamma_func(alpha + gamma_param) / gamma_func(alpha)
+            
+            results[node_type] = {
+                'A_values': np.array(A_values),
+                'A_theoretical': A_theoretical,
+                'b0_adjusted': b0_adjusted
+            }
+        
+        return k_values, results
+
+    def plot_A_values(self, max_k=50):
+        """Plot A(k) for both node types."""
+        k_values, results = self.compute_A_values(max_k)
+        
+        fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+        
+        for idx, node_type in enumerate(['a', 'b']):
+            ax = axes[idx]
+            res = results[node_type]
+            color = 'red' if node_type == 'a' else 'blue'
+            
+            ax.plot(k_values, res['A_values'], 'o-', color=color, 
+                    linewidth=2, markersize=4, alpha=0.7, label='A(k) computed')
+            ax.axhline(res['b0_adjusted'], linestyle='--', color='black', 
+                    linewidth=2, alpha=0.7, 
+                    label=f"b₀·Γ(α+γ)/Γ(α) = {res['b0_adjusted']:.2f}")
+            
+            ax.set_xlabel('k', fontsize=13)
+            ax.set_ylabel('A(k)', fontsize=13)
+            ax.set_title(f"Type '{node_type}' Normalization", fontsize=13, fontweight='bold')
+            ax.set_xscale('log')
+            ax.legend(fontsize=10)
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        return fig
+
     def print_statistics(self):
         """Print network statistics."""
         in_degrees_a = [self.graph.in_degree(n) for n in self.graph.nodes() 
-                       if self.node_types[n] == 'a']
+                    if self.node_types[n] == 'a']
         in_degrees_b = [self.graph.in_degree(n) for n in self.graph.nodes() 
-                       if self.node_types[n] == 'b']
+                    if self.node_types[n] == 'b']
         
-        # Z-factor statistics
-        if len(self.z_ratios) > 0:
-            mean_ratio = np.mean(self.z_ratios)
-            percent_diff = (mean_ratio - 1.0) * 100
+        # Compute Z-factor check now
+        if self.Z_factor is not None:
+            in_degrees = np.array([self.graph.in_degree(n) for n in self.graph.nodes()])
+            node_types = np.array([self.node_types[n] for n in self.graph.nodes()])
+            
+            lambda_values = np.where(node_types == 'a', self.lambda_a, self.lambda_b)
+            mu_values = np.where(node_types == 'a', self.mu_a, self.mu_b)
+            
+            Z_empirical = np.sum(lambda_values * in_degrees + mu_values)
+            Z_theoretical = self.graph.number_of_nodes() * self.Z_factor
+            ratio = Z_empirical / Z_theoretical
+            
             print(f"\nZ-factor Analysis:")
-            print(f"  Mean Z_empirical/Z_theoretical = {mean_ratio:.6f}")
-            print(f"  Mean % difference = {percent_diff:+.4f}%")
-        
+            print(f"  Z_empirical/Z_theoretical = {ratio:.6f}")
+            print(f"  % difference = {(ratio - 1.0) * 100:+.4f}%")
+
         print(f"\nType 'a': {len(in_degrees_a):,} nodes ({len(in_degrees_a)/self.graph.number_of_nodes()*100:.1f}%)")
         print(f"  Mean in-degree: {np.mean(in_degrees_a):.2f}")
         print(f"  Max in-degree: {max(in_degrees_a) if in_degrees_a else 0}")
+        print(f"  Min in-degree type 'a': {min(in_degrees_a) if in_degrees_a else 'N/A'}")
+
         
         print(f"\nType 'b': {len(in_degrees_b):,} nodes ({len(in_degrees_b)/self.graph.number_of_nodes()*100:.1f}%)")
         print(f"  Mean in-degree: {np.mean(in_degrees_b):.2f}")
         print(f"  Max in-degree: {max(in_degrees_b) if in_degrees_b else 0}")
+        print(f"  Min in-degree type 'b': {min(in_degrees_b) if in_degrees_b else 'N/A'}")
+
+        print(f"\ng_a = {self.g_a:.6f}, g_b = {self.g_b:.6f}, g_a + g_b = {self.g_a + self.g_b:.6f}")
 
 if __name__ == "__main__":
     # Generate network with homophily
     net = DirectedHomophilicNetwork(
         n0=40, 
-        n_nodes=50000, 
+        n_nodes=5000, 
         m_edges=30, 
         h=0.8,
         f_a=0.6,
@@ -349,11 +424,12 @@ if __name__ == "__main__":
     )
     
     net.generate_network()
-    
+    net.print_statistics()
+     
     # Plot
     fig = net.plot_degree_distributions()
     plt.show()
     fig = net.plot_in_edge_asymptotes()
     plt.show()
-
-    net.print_statistics()
+    fig = net.plot_A_values(max_k=50)
+    plt.show()
