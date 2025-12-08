@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.special import gamma as gamma_func, loggamma
 from typing import Dict, Tuple, List
 import time
+from scipy.stats import chisquare
 
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
@@ -44,15 +45,17 @@ class DirectedHomophilicNetwork:
 
     def _compute_theoretical_params(self, g_a: float, g_b: float):
         """Compute Z̃ using asymptotic g values."""
-        self.g_a, self.g_b = g_a, g_b
-        self.Z_factor = (g_a * self.lambda_a + g_b * self.lambda_b + 
-                         self.f_a * self.mu['a'] + self.f_b * self.mu['b'])
+        self.g_a = g_a
+        self.g_b_asymptotic = g_b  # Store asymptotic value for plotting
+        self.g_b = self.m_edges - g_a  # Use m - g_a for theoretical calculations
+        self.Z_factor = (self.g_a * self.lambda_a + self.g_b * self.lambda_b + 
+                self.f_a * self.mu['a'] + self.f_b * self.mu['b'])
         self.Z_tilde = self.m_edges / self.Z_factor
-    
+
     def assign_node_type(self) -> str:
         """Randomly assign node type based on f_a."""
         return 'a' if np.random.rand() < self.f_a else 'b'
-    
+        
     def homophilic_preferential_attachment(self, n_nodes_so_far: int) -> np.ndarray:
         """OPTIMIZED: Select m_edges targets using cached in-degrees."""
         # Use cached in-degrees and node types (numpy arrays are fast)
@@ -157,7 +160,7 @@ class DirectedHomophilicNetwork:
         return [self.graph.in_degree(n) for n in self.graph.nodes() 
                 if self.node_types[n] == type_val]
     
-    def logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.01) -> Tuple[np.ndarray, np.ndarray]:
+    def logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.04) -> Tuple[np.ndarray, np.ndarray]:
         """Create logarithmic bins for degree distribution."""
         if len(degrees) == 0:
             return np.array([]), np.array([])
@@ -234,9 +237,9 @@ class DirectedHomophilicNetwork:
         
         for mean_deg, type_name, color in [(mean_deg_a, 'a', 'red'), (mean_deg_b, 'b', 'blue')]:
             ax.plot(times, mean_deg, label=f"Type '{type_name}' (data)", color=color)
-            asymptote = self.g_a if type_name == 'a' else self.g_b
+            asymptote = self.g_a if type_name == 'a' else self.g_b_asymptotic
             ax.axhline(asymptote, linestyle='--', alpha=0.7, color='dark'+color,
-                      label=f"Type '{type_name}' asymptote = {asymptote:.3f}")
+                    label=f"Type '{type_name}' asymptote = {asymptote:.3f}")
         
         ax.set_xlabel("t (number of nodes)")
         ax.set_ylabel("Mean in-degree")
@@ -244,9 +247,9 @@ class DirectedHomophilicNetwork:
         ax.legend()
         ax.grid(True, linestyle='--', alpha=0.3)
         plt.tight_layout()
-        return fig
-    
-    def plot_A_values(self, max_k: int = 50):
+        return fig   
+         
+    def plot_A_values(self, max_k: int = 25):
         """Plot normalization constant A(k) for both types."""
         k_values = np.arange(0, max_k + 1)
         fig, axes = plt.subplots(1, 2, figsize=(15, 6))
@@ -277,7 +280,58 @@ class DirectedHomophilicNetwork:
         
         plt.tight_layout()
         return fig
-    
+
+    def monte_carlo_test(self, n_runs=10, min_degree=1, max_degree=100):
+        """Run Monte Carlo simulations and return chi-squared statistics."""
+        
+        chi2_values = []
+        p_values = []
+        
+        print(f"\nRunning {n_runs} Monte Carlo simulations...")
+        
+        for i in range(n_runs):
+            # Generate new network
+            net_mc = DirectedHomophilicNetwork(
+                self.n0, self.n_nodes, self.m_edges, self.h, 
+                self.f_a, self.mu['a'], self.mu['b']
+            )
+            net_mc.generate_network()
+            
+            # Get filtered data
+            in_degrees = net_mc._get_degrees('b')
+            degrees = np.array(in_degrees)
+            degrees = degrees[(degrees >= min_degree) & (degrees <= max_degree)]
+            
+            # Observed and expected frequencies
+            k_values = np.arange(min_degree, max_degree + 1)
+            observed = np.array([np.sum(degrees == k) for k in k_values])
+            
+            theo_probs = np.array([self.theoretical_distribution(k, 'b') for k in k_values])
+            theo_probs = theo_probs / theo_probs.sum()
+            expected = theo_probs * len(degrees)
+            
+            # Filter bins with expected >= 5 and renormalize
+            mask = expected >= 5
+            obs_filt = observed[mask]
+            exp_filt = expected[mask] * (obs_filt.sum() / expected[mask].sum())
+            
+            # Chi-squared test
+            chi2, p_value = chisquare(obs_filt, exp_filt)
+            chi2_values.append(chi2)
+            p_values.append(p_value)
+        
+        # Calculate data fraction
+        test_degrees = np.array(self._get_degrees('b'))
+        percent = 100 * np.sum((test_degrees >= min_degree) & (test_degrees <= max_degree)) / len(test_degrees)
+        
+        # Summary
+        print(f"\nMonte Carlo ({n_runs} runs, k∈[{min_degree},{max_degree}], ~{percent:.1f}% data):")
+        print(f"  χ²: {np.mean(chi2_values):.2f} ± {np.std(chi2_values):.2f}")
+        print(f"  p-value: {np.mean(p_values):.3f} ± {np.std(p_values):.3f}")
+        print(f"  Fraction p > 0.05: {np.sum(np.array(p_values) > 0.05) / n_runs:.2%}\n")
+        
+        return np.array(chi2_values), np.array(p_values)
+
     def print_statistics(self):
         """Print comprehensive network statistics."""
         in_degrees_a, in_degrees_b = self._get_degrees('a'), self._get_degrees('b')
@@ -306,19 +360,19 @@ class DirectedHomophilicNetwork:
             print(f"  Max in-degree: {max(degrees) if degrees else 0}")
             print(f"  Min in-degree: {min(degrees) if degrees else 'N/A'}")
         
-        print(f"\ng_a = {self.g_a:.6f}, g_b = {self.g_b:.6f}, g_a + g_b = {self.g_a + self.g_b:.6f}")
-
+        print(f"\ng_a = {self.g_a:.6f}, g_b (asymptotic) = {self.g_b_asymptotic:.6f}, g_a + g_b = {self.g_a + self.g_b_asymptotic:.6f}")
 
 if __name__ == "__main__":
    
     
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=100000, m_edges=15, h=0.8, f_a=0.6, mu_a=2, mu_b=1)
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=10000, m_edges=30, h=0.8, f_a=0.6, mu_a=2, mu_b=1)
     
     start = time.time()
     net.generate_network()
     print(f"\nGeneration time: {time.time() - start:.2f}s")
     
     net.print_statistics()
+    chi2_vals, p_vals = net.monte_carlo_test(n_runs=100, min_degree=1, max_degree=150)
     
     net.plot_degree_distributions()
     plt.show()
