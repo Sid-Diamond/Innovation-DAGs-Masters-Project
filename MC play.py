@@ -2,9 +2,9 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 from scipy.special import gamma as gamma_func, loggamma
+from scipy.stats import chisquare
 from typing import Dict, Tuple, List
 import time
-from scipy.stats import chisquare
 
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
@@ -22,14 +22,14 @@ class DirectedHomophilicNetwork:
         
         # Network state
         self.graph = None
-        self.node_types = None  # Will be numpy array
+        self.node_types = None
         self.edge_evolution = []
-        self.g_a, self.g_b, self.Z_factor, self.Z_tilde = None, None, None, None
+        self.g_a, self.g_b, self.g_b_asymptotic, self.Z_factor, self.Z_tilde = None, None, None, None, None
         
         # Cached state for speed
-        self.in_degrees = None  # Cached in-degrees
-        self.in_edges_a_count = 0  # Running count
-        self.in_edges_b_count = 0  # Running count
+        self.in_degrees = None
+        self.in_edges_a_count = 0
+        self.in_edges_b_count = 0
     
     def _get_params(self, node_type: str) -> Dict[str, float]:
         """Get all distribution parameters for a node type."""
@@ -46,10 +46,10 @@ class DirectedHomophilicNetwork:
     def _compute_theoretical_params(self, g_a: float, g_b: float):
         """Compute Z̃ using asymptotic g values."""
         self.g_a = g_a
-        self.g_b_asymptotic = g_b  # Store asymptotic value for plotting
-        self.g_b = self.m_edges - g_a  # Use m - g_a for theoretical calculations
+        self.g_b_asymptotic = g_b
+        self.g_b = self.m_edges - g_a  # Theoretical constraint
         self.Z_factor = (self.g_a * self.lambda_a + self.g_b * self.lambda_b + 
-                self.f_a * self.mu['a'] + self.f_b * self.mu['b'])
+                        self.f_a * self.mu['a'] + self.f_b * self.mu['b'])
         self.Z_tilde = self.m_edges / self.Z_factor
 
     def assign_node_type(self) -> str:
@@ -57,29 +57,25 @@ class DirectedHomophilicNetwork:
         return 'a' if np.random.rand() < self.f_a else 'b'
         
     def homophilic_preferential_attachment(self, n_nodes_so_far: int) -> np.ndarray:
-        """OPTIMIZED: Select m_edges targets using cached in-degrees."""
-        # Use cached in-degrees and node types (numpy arrays are fast)
+        """Select m_edges targets using cached in-degrees."""
         in_deg = self.in_degrees[:n_nodes_so_far]
         types = self.node_types[:n_nodes_so_far]
         
-        # Vectorized computation
-        lambda_vals = np.where(types == 0, self.lambda_a, self.lambda_b)  # 0='a', 1='b'
+        lambda_vals = np.where(types == 0, self.lambda_a, self.lambda_b)
         mu_vals = np.where(types == 0, self.mu['a'], self.mu['b'])
         
         probs = lambda_vals * in_deg + mu_vals
-        probs = probs / probs.sum()  # Normalize
+        probs = probs / probs.sum()
         
         return np.random.choice(n_nodes_so_far, size=self.m_edges, p=probs, replace=False)
     
     def generate_network(self):
-        """OPTIMIZED: Generate network with cached state."""
+        """Generate network with cached state."""
         total_nodes = self.n0 + self.n_nodes
         
-        # Pre-allocate arrays (MUCH faster than growing dynamically)
-        self.node_types = np.empty(total_nodes, dtype=np.int8)  # 0='a', 1='b'
+        # Pre-allocate arrays
+        self.node_types = np.empty(total_nodes, dtype=np.int8)
         self.in_degrees = np.zeros(total_nodes, dtype=np.int32)
-        
-        # NetworkX graph for final storage
         self.graph = nx.DiGraph()
         
         # Initialize nodes
@@ -92,9 +88,8 @@ class DirectedHomophilicNetwork:
             targets = np.random.choice([t for t in range(self.n0) if t != source], 
                                        size=self.m_edges, replace=False)
             self.graph.add_edges_from((source, int(t)) for t in targets)
-            # Update cached in-degrees
             self.in_degrees[targets] += 1
-            # Update running counts
+            
             for t in targets:
                 if self.node_types[t] == 0:
                     self.in_edges_a_count += 1
@@ -106,14 +101,11 @@ class DirectedHomophilicNetwork:
             self.node_types[new_node] = 0 if self.assign_node_type() == 'a' else 1
             self.graph.add_node(new_node)
             
-            # OPTIMIZED: Use cached state
             targets = self.homophilic_preferential_attachment(new_node)
             self.graph.add_edges_from((new_node, int(t)) for t in targets)
             
-            # Update cached in-degrees (O(m) instead of O(N))
             self.in_degrees[targets] += 1
             
-            # Update running edge counts (O(m) instead of O(E))
             for t in targets:
                 if self.node_types[t] == 0:
                     self.in_edges_a_count += 1
@@ -128,7 +120,6 @@ class DirectedHomophilicNetwork:
                     'in_edges_b': self.in_edges_b_count
                 })
         
-        # Compute theoretical parameters
         self._fit_asymptotes()
     
     def _fit_asymptotes(self, fraction: float = 0.05):
@@ -143,16 +134,18 @@ class DirectedHomophilicNetwork:
         self._compute_theoretical_params(g_a, g_b)
     
     def theoretical_distribution(self, k: int, node_type: str) -> float:
-        """Unified theoretical in-degree distribution for any node type."""
+        """
+        Piecewise theoretical in-degree distribution:
+        P(k=0) = b₀
+        P(k≥1) = A·Γ(k+α)/Γ(k+α+γ)
+        """
         params = self._get_params(node_type)
-        log_ratio = loggamma(k + params['alpha']) - loggamma(k + params['alpha'] + params['gamma'])
-        return params['A'] * np.exp(log_ratio)
-    
-    def theoretical_distribution_a(self, k: int) -> float:
-        return self.theoretical_distribution(k, 'a')
-    
-    def theoretical_distribution_b(self, k: int) -> float:
-        return self.theoretical_distribution(k, 'b')
+        
+        if k == 0:
+            return params['b0']
+        else:
+            log_ratio = loggamma(k + params['alpha']) - loggamma(k + params['alpha'] + params['gamma'])
+            return params['A'] * np.exp(log_ratio)
     
     def _get_degrees(self, node_type: str) -> List[int]:
         """Get in-degrees for nodes of specified type."""
@@ -160,7 +153,7 @@ class DirectedHomophilicNetwork:
         return [self.graph.in_degree(n) for n in self.graph.nodes() 
                 if self.node_types[n] == type_val]
     
-    def logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.1) -> Tuple[np.ndarray, np.ndarray]:
+    def logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.02) -> Tuple[np.ndarray, np.ndarray]:
         """Create logarithmic bins for degree distribution."""
         if len(degrees) == 0:
             return np.array([]), np.array([])
@@ -183,7 +176,7 @@ class DirectedHomophilicNetwork:
             count = np.sum((degrees >= kmin) & (degrees <= kmax))
             
             if count > 0:
-                center = np.sqrt(0.5 * kmax) if kmin == 0 and kmax > 0 else (0.5 if kmin == 0 else np.sqrt(kmin * kmax))
+                center = np.sqrt(0.5 * kmax) if kmin == 0 and kmax > 0 else (0.0 if kmin == 0 else np.sqrt(kmin * kmax))
                 bin_centers.append(center)
                 probabilities.append(count / n_total)
         
@@ -199,26 +192,30 @@ class DirectedHomophilicNetwork:
                 continue
                 
             ax = axes[idx]
-            bin_centers, probs = self.logarithmic_binning(in_degrees)
             
             # Empirical data
+            bin_centers, probs = self.logarithmic_binning(in_degrees)
             ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
-                      edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
+                    edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
             
-            # Theoretical curve
-            k_range = np.arange(int(np.min(in_degrees)), int(np.max(in_degrees)) + 1)
+            # Black dashed vertical line at x=0
+            ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
+            
+            # Theoretical curve starting from k=0
+            k_range = np.arange(0, int(np.max(in_degrees)) + 1)
             theo_probs = np.array([self.theoretical_distribution(k, node_type) for k in k_range])
             mask = theo_probs > 0
-            ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5, 
-                   color='dark'+color, alpha=0.85, label='Theory', zorder=2)
+            ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5, color='dark'+color, 
+                alpha=0.85, label='Theory', zorder=2)
             
             # Formatting
-            ax.set_xscale('log')
+            ax.set_xscale('symlog', linthresh=0.1)
             ax.set_yscale('log')
+            ax.set_xlim(left=-0.05)
             ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
             ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
             ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
-            ax.legend(fontsize=10, loc='best', framealpha=0.9)
+            ax.legend(fontsize=9, loc='best', framealpha=0.9)
             ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
         
         fig.suptitle(f'Directed Homophilic Network: N={self.n0 + self.n_nodes:,}, '
@@ -226,7 +223,7 @@ class DirectedHomophilicNetwork:
                     fontsize=14, fontweight='bold')
         plt.tight_layout()
         return fig
-    
+
     def plot_in_edge_asymptotes(self, figsize: Tuple = (10, 6)):
         """Plot mean in-edge density with asymptotic fits."""
         times = np.array([d['t'] for d in self.edge_evolution])
@@ -239,7 +236,7 @@ class DirectedHomophilicNetwork:
             ax.plot(times, mean_deg, label=f"Type '{type_name}' (data)", color=color)
             asymptote = self.g_a if type_name == 'a' else self.g_b_asymptotic
             ax.axhline(asymptote, linestyle='--', alpha=0.7, color='dark'+color,
-                    label=f"Type '{type_name}' asymptote = {asymptote:.3f}")
+                      label=f"Type '{type_name}' asymptote = {asymptote:.3f}")
         
         ax.set_xlabel("t (number of nodes)")
         ax.set_ylabel("Mean in-degree")
@@ -247,8 +244,8 @@ class DirectedHomophilicNetwork:
         ax.legend()
         ax.grid(True, linestyle='--', alpha=0.3)
         plt.tight_layout()
-        return fig   
-         
+        return fig
+    
     def plot_A_values(self, max_k: int = 25):
         """Plot normalization constant A(k) for both types."""
         k_values = np.arange(0, max_k + 1)
@@ -281,8 +278,8 @@ class DirectedHomophilicNetwork:
         plt.tight_layout()
         return fig
 
-    def monte_carlo_test(self, n_runs=10, min_degree=1, max_degree=100):
-        """Run Monte Carlo simulations and return chi-squared statistics."""
+    def monte_carlo_test(self, n_runs=10, min_degree=0, min_bin_count=10):
+        """Chi-squared test stopping at first bin with < min_bin_count observations."""
         
         chi2_values = []
         p_values = []
@@ -297,40 +294,61 @@ class DirectedHomophilicNetwork:
             )
             net_mc.generate_network()
             
-            # Get filtered data
-            in_degrees = net_mc._get_degrees('b')
-            degrees = np.array(in_degrees)
-            degrees = degrees[(degrees >= min_degree) & (degrees <= max_degree)]
+            # Get ALL type 'b' nodes (for proper scaling)
+            all_degrees_b = np.array(net_mc._get_degrees('b'))
+            n_total_b = len(all_degrees_b)
             
-            # Observed and expected frequencies
+            if n_total_b == 0:
+                continue
+            
+            # Find valid range
+            max_degree = int(np.max(all_degrees_b))
             k_values = np.arange(min_degree, max_degree + 1)
-            observed = np.array([np.sum(degrees == k) for k in k_values])
+            observed_full = np.array([np.sum(all_degrees_b == k) for k in k_values])
             
-            theo_probs = np.array([self.theoretical_distribution(k, 'b') for k in k_values])
-            theo_probs = theo_probs / theo_probs.sum()
-            expected = theo_probs * len(degrees)
+            # Find cutoff where bins drop below min_bin_count
+            valid_mask = observed_full >= min_bin_count
+            if not np.any(valid_mask):
+                continue
+            max_k_used = k_values[np.where(valid_mask)[0][-1]]
             
-            # Filter bins with expected >= 5 and renormalize
-            mask = expected >= 5
-            obs_filt = observed[mask]
-            exp_filt = expected[mask] * (obs_filt.sum() / expected[mask].sum())
+            # Filter to test range
+            k_test = k_values[k_values <= max_k_used]
+            observed_test = observed_full[k_values <= max_k_used]
+            
+            # Count how many nodes fall in test range
+            n_in_test_range = np.sum((all_degrees_b >= min_degree) & (all_degrees_b <= max_k_used))
+            
+            # Expected: scale by nodes actually IN the test range
+            theo_probs = np.array([self.theoretical_distribution(k, 'b') for k in k_test])
+            theo_probs_normalized = theo_probs / theo_probs.sum()  # Conditional distribution
+            expected_test = theo_probs_normalized * n_in_test_range
+            
+            # Skip if expected values too small
+            if np.any(expected_test < 1):
+                continue
             
             # Chi-squared test
-            chi2, p_value = chisquare(obs_filt, exp_filt)
+            chi2, p_value = chisquare(observed_test, expected_test)
             chi2_values.append(chi2)
             p_values.append(p_value)
         
-        # Calculate data fraction
-        test_degrees = np.array(self._get_degrees('b'))
-        percent = 100 * np.sum((test_degrees >= min_degree) & (test_degrees <= max_degree)) / len(test_degrees)
-        
         # Summary
-        print(f"\nMonte Carlo ({n_runs} runs, k∈[{min_degree},{max_degree}], ~{percent:.1f}% data):")
+        test_degrees = np.array(self._get_degrees('b'))
+        total_b = len(test_degrees)
+        
+        n_in_range = np.sum((test_degrees >= min_degree) & (test_degrees <= max_k_used))
+        percent_used = 100 * n_in_range / total_b if total_b > 0 else 0
+        
+        chi2_values = np.array(chi2_values)
+        p_values = np.array(p_values)
+        
+        print(f"\nMonte Carlo ({len(chi2_values)} valid runs, k∈[{min_degree},{max_k_used}], {percent_used:.1f}% data):")
         print(f"  χ²: {np.mean(chi2_values):.2f} ± {np.std(chi2_values):.2f}")
         print(f"  p-value: {np.mean(p_values):.3f} ± {np.std(p_values):.3f}")
-        print(f"  Fraction p > 0.05: {np.sum(np.array(p_values) > 0.05) / n_runs:.2%}\n")
+        print(f"  Fraction p > 0.05: {np.sum(p_values > 0.05) / len(chi2_values):.2%}\n")
         
-        return np.array(chi2_values), np.array(p_values)
+        return chi2_values, p_values
 
     def print_statistics(self):
         """Print comprehensive network statistics."""
@@ -363,20 +381,24 @@ class DirectedHomophilicNetwork:
         print(f"\ng_a = {self.g_a:.6f}, g_b (asymptotic) = {self.g_b_asymptotic:.6f}, g_a + g_b = {self.g_a + self.g_b_asymptotic:.6f}")
 
 if __name__ == "__main__":
-   
-    
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=10000, m_edges=30, h=0.8, f_a=0.6, mu_a=2, mu_b=1)
+    # Generate network
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=10000, m_edges= 40, h=0.8, f_a=0.6, mu_a=2, mu_b=1)
     
     start = time.time()
     net.generate_network()
-    print(f"\nGeneration time: {time.time() - start:.2f}s")
     
     net.print_statistics()
-    chi2_vals, p_vals = net.monte_carlo_test(n_runs=1, min_degree=1, max_degree=150)
     
+    run_monte_carlo = True
+    if run_monte_carlo:
+        chi2_vals, p_vals = net.monte_carlo_test(n_runs=50, min_degree=0, min_bin_count=20)
+    
+
     net.plot_degree_distributions()
     plt.show()
+    
     net.plot_in_edge_asymptotes()
     plt.show()
+    
     net.plot_A_values()
     plt.show()
