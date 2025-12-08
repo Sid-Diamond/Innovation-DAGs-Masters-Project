@@ -298,9 +298,6 @@ class DirectedHomophilicNetwork:
             all_degrees_b = np.array(net_mc._get_degrees('b'))
             n_total_b = len(all_degrees_b)
             
-            if n_total_b == 0:
-                continue
-            
             # Find valid range
             max_degree = int(np.max(all_degrees_b))
             k_values = np.arange(min_degree, max_degree + 1)
@@ -323,10 +320,6 @@ class DirectedHomophilicNetwork:
             theo_probs = np.array([self.theoretical_distribution(k, 'b') for k in k_test])
             theo_probs_normalized = theo_probs / theo_probs.sum()  # Conditional distribution
             expected_test = theo_probs_normalized * n_in_test_range
-            
-            # Skip if expected values too small
-            if np.any(expected_test < 1):
-                continue
             
             # Chi-squared test
             chi2, p_value = chisquare(observed_test, expected_test)
