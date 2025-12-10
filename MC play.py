@@ -133,20 +133,26 @@ class DirectedHomophilicNetwork:
         
         self._compute_theoretical_params(g_a, g_b)
     
-    def theoretical_distribution(self, k: int, node_type: str) -> float:
-        """
-        Piecewise theoretical in-degree distribution:
-        P(k=0) = b₀
-        P(k≥1) = A·Γ(k+α)/Γ(k+α+γ)
-        """
-        params = self._get_params(node_type)
-        
-        if k == 0:
-            return params['b0']
-        else:
-            log_ratio = loggamma(k + params['alpha']) - loggamma(k + params['alpha'] + params['gamma'])
-            return params['A'] * np.exp(log_ratio)
-    
+    def theoretical_distribution(self, k, node_type: str):
+            """
+            Theoretical in-degree distribution with analytic continuation.
+            Accepts scalar or array k (integer or real).
+            """
+            params = self._get_params(node_type)
+            k = np.atleast_1d(k)
+            result = np.zeros_like(k, dtype=float)
+            
+            zero_mask = (k == 0)
+            pos_mask = (k > 0)
+            
+            result[zero_mask] = params['b0']
+            if np.any(pos_mask):
+                k_pos = k[pos_mask]
+                log_ratio = loggamma(k_pos + params['alpha']) - loggamma(k_pos + params['alpha'] + params['gamma'])
+                result[pos_mask] = params['A'] * np.exp(log_ratio)
+            
+            return result.item() if result.shape == (1,) else result
+
     def _get_degrees(self, node_type: str) -> List[int]:
         """Get in-degrees for nodes of specified type."""
         type_val = 0 if node_type == 'a' else 1
@@ -181,48 +187,56 @@ class DirectedHomophilicNetwork:
                 probabilities.append(count / n_total)
         
         return np.array(bin_centers), np.array(probabilities)
-    
-    def plot_degree_distributions(self, figsize: Tuple = (15, 6)):
-        """Plot in-degree distributions with theoretical curves."""
-        fig, axes = plt.subplots(1, 2, figsize=figsize)
-        
-        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
-            in_degrees = self._get_degrees(node_type)
-            if len(in_degrees) == 0:
-                continue
+
+    def plot_degree_distributions(self, figsize: Tuple = (15, 6), discretisations: int = 10**5):
+            """
+            Plot in-degree distributions with theoretical curves.
+            
+            Parameters:
+            -----------
+            discretisations : int
+                0 = integer k values only, >0 = number of continuous points for smooth curve
+            """
+            fig, axes = plt.subplots(1, 2, figsize=figsize)
+            
+            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+                in_degrees = self._get_degrees(node_type)
+                if len(in_degrees) == 0:
+                    continue
+                    
+                ax = axes[idx]
                 
-            ax = axes[idx]
+                # Empirical data
+                bin_centers, probs = self.logarithmic_binning(in_degrees)
+                ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
+                        edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
+                
+                ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
+                
+                # Theoretical curve
+                k_max = int(np.max(in_degrees))
+                k_range = np.arange(0, k_max + 1) if discretisations == 0 else np.concatenate([[0], np.linspace(0.01, k_max, discretisations)])
+                theo_probs = self.theoretical_distribution(k_range, node_type)
+                mask = theo_probs > 0
+                
+                ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5, color='dark'+color, 
+                        alpha=0.85, label='Theory', zorder=2)
+                
+                # Formatting
+                ax.set_xscale('symlog', linthresh=0.1)
+                ax.set_yscale('log')
+                ax.set_xlim(left=-0.05)
+                ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
+                ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
+                ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
+                ax.legend(fontsize=9, loc='best', framealpha=0.9)
+                ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
             
-            # Empirical data
-            bin_centers, probs = self.logarithmic_binning(in_degrees)
-            ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
-                    edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
-            
-            # Black dashed vertical line at x=0
-            ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
-            
-            # Theoretical curve starting from k=0
-            k_range = np.arange(0, int(np.max(in_degrees)) + 1)
-            theo_probs = np.array([self.theoretical_distribution(k, node_type) for k in k_range])
-            mask = theo_probs > 0
-            ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5, color='dark'+color, 
-                alpha=0.85, label='Theory', zorder=2)
-            
-            # Formatting
-            ax.set_xscale('symlog', linthresh=0.1)
-            ax.set_yscale('log')
-            ax.set_xlim(left=-0.05)
-            ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
-            ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
-            ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
-            ax.legend(fontsize=9, loc='best', framealpha=0.9)
-            ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
-        
-        fig.suptitle(f'Directed Homophilic Network: N={self.n0 + self.n_nodes:,}, '
-                    f'm={self.m_edges}, h={self.h}, f_a={self.f_a}',
-                    fontsize=14, fontweight='bold')
-        plt.tight_layout()
-        return fig
+            fig.suptitle(f'Directed Homophilic Network: N={self.n0 + self.n_nodes:,}, '
+                        f'm={self.m_edges}, h={self.h}, f_a={self.f_a}',
+                        fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            return fig
 
     def plot_in_edge_asymptotes(self, figsize: Tuple = (10, 6)):
         """Plot mean in-edge density with asymptotic fits."""
@@ -375,14 +389,14 @@ class DirectedHomophilicNetwork:
 
 if __name__ == "__main__":
     # Generate network
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=10000, m_edges= 40, h=0.8, f_a=0.6, mu_a=2, mu_b=1)
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=10000, m_edges= 40, h=0.8, f_a=0.4, mu_a=1, mu_b=2)
     
     start = time.time()
     net.generate_network()
     
     net.print_statistics()
     
-    run_monte_carlo = True
+    run_monte_carlo = False
     if run_monte_carlo:
         chi2_vals, p_vals = net.monte_carlo_test(n_runs=50, min_degree=0, min_bin_count=20)
     
