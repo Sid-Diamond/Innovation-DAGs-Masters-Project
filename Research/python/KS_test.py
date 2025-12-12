@@ -1,14 +1,12 @@
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-from scipy.special import gamma as gamma_func
-from scipy.special import beta as beta_func
-from scipy.stats import chisquare
-from typing import Dict, Tuple, List
-import time
-from scipy.stats import kstest        
 import matplotlib.patches as mpatches
-        
+from scipy.special import gamma as gamma_func, beta as beta_func
+from scipy.stats import chisquare, ksone
+from typing import Dict, Tuple, List
+from scipy.integrate import quad
+import time
 
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
@@ -51,7 +49,7 @@ class DirectedHomophilicNetwork:
         """Compute Z̃ using asymptotic g values."""
         self.g_a = g_a
         self.g_b_asymptotic = g_b
-        self.g_b = self.m_edges - g_a  # Theoretical constraint
+        self.g_b = self.m_edges - g_a
         self.Z_factor = (self.g_a * self.lambda_a + self.g_b * self.lambda_b + 
                         self.f_a * self.mu['a'] + self.f_b * self.mu['b'])
         self.Z_tilde = self.m_edges / self.Z_factor
@@ -140,10 +138,8 @@ class DirectedHomophilicNetwork:
     def theoretical_distribution(self, k, node_type: str):
         """
         Theoretical in-degree distribution with analytic continuation.
-        Accepts scalar or array k (integer or real).
         Form: p(k) = b_0 * B(k, alpha + gamma) / B(k, alpha) for k > 0
         """
-        
         params = self._get_params(node_type)
         k = np.atleast_1d(k)
         result = np.zeros_like(k, dtype=float)
@@ -157,6 +153,59 @@ class DirectedHomophilicNetwork:
             result[pos_mask] = params['b0'] * beta_func(k_pos, params['alpha'] + params['gamma']) / beta_func(k_pos, params['alpha'])
         
         return result.item() if result.shape == (1,) else result
+
+    def theoretical_cdf(self, k, node_type: str, renormalize_range=None):
+        """CDF for distribution with point mass at k=0 and continuous part for k>0."""
+        k = np.atleast_1d(k)
+        k = np.asarray(k, dtype=float)
+        
+        if renormalize_range is None:
+            k_min = 0.0
+            k_max = float(k.max())
+        else:
+            k_min, k_max = float(renormalize_range[0]), float(renormalize_range[1])
+        
+        params = self._get_params(node_type)
+        b0 = params['b0']  # Probability mass at exactly k=0
+        
+        # PDF for continuous part (k > 0 only)
+        def pdf_continuous(x):
+            return self.theoretical_distribution(x, node_type) if x > 0 else 0.0
+        
+        # Compute normalization
+        if k_min == 0:
+            # Full distribution: point mass + continuous part
+            continuous_norm, _ = quad(pdf_continuous, 0, k_max, limit=100)
+            norm = b0 + continuous_norm
+        else:
+            # Truncated (k_min > 0): only continuous part
+            norm, _ = quad(pdf_continuous, k_min, k_max, limit=100)
+        
+        if norm == 0:
+            return np.zeros_like(k)
+        
+        # Compute CDF
+        cdf = np.zeros_like(k, dtype=float)
+        for i, k_val in enumerate(k):
+            if k_val < k_min:
+                cdf[i] = 0.0
+            elif k_val >= k_max:
+                cdf[i] = 1.0
+            else:
+                if k_min == 0:
+                    # Include point mass at k=0
+                    if k_val == 0:
+                        cdf[i] = b0 / norm
+                    else:
+                        # k_val > 0: add point mass + continuous integral
+                        continuous_integral, _ = quad(pdf_continuous, 0, k_val, limit=100)
+                        cdf[i] = (b0 + continuous_integral) / norm
+                else:
+                    # Truncated range (k_min > 0)
+                    integral, _ = quad(pdf_continuous, k_min, k_val, limit=100)
+                    cdf[i] = integral / norm
+        
+        return cdf.item() if cdf.shape == (1,) else cdf
 
     def _get_degrees(self, node_type: str) -> List[int]:
         """Get in-degrees for nodes of specified type."""
@@ -193,55 +242,141 @@ class DirectedHomophilicNetwork:
         
         return np.array(bin_centers), np.array(probabilities)
 
+    def ks_test_and_plot(self, node_type='b', min_degree=0, min_bin_count=10, n_discrepancies=3, figsize=(12, 6)):
+        """KS test with visualization - computes once, shows both."""
+        
+        degrees = np.array(self._get_degrees(node_type))
+        max_degree = int(np.max(degrees))
+        
+        # Find valid range
+        k_values = np.arange(min_degree, max_degree + 1)
+        observed_counts = np.array([np.sum(degrees == k) for k in k_values])
+        valid_mask = observed_counts >= min_bin_count
+        
+        if not np.any(valid_mask):
+            print(f"No bins with >= {min_bin_count} observations!")
+            return None, None, None
+        
+        max_k = k_values[np.where(valid_mask)[0][-1]]
+        
+        # Filter degrees to test range
+        degrees_filtered = degrees[(degrees >= min_degree) & (degrees <= max_k)]
+        percent_used = 100 * len(degrees_filtered) / len(degrees)
+        n = len(degrees_filtered)
+        
+        # Compute empirical CDF
+        unique_degrees = np.sort(np.unique(degrees_filtered))
+        empirical_cdf = np.array([np.sum(degrees_filtered <= k) / n for k in unique_degrees])
+        
+        # Compute theoretical CDF with renormalization to test range
+        if min_degree > 0 or max_k < max_degree:
+            theoretical_cdf_vals = self.theoretical_cdf(
+                unique_degrees, node_type, 
+                renormalize_range=(min_degree, max_k)
+            )
+        else:
+            theoretical_cdf_vals = self.theoretical_cdf(unique_degrees, node_type)
+        
+        discrepancies = np.abs(empirical_cdf - theoretical_cdf_vals)
+        
+        # KS statistic and p-value
+        D_manual = np.max(discrepancies)
+        p_value = ksone.sf(D_manual, n)
+        
+        # Find largest discrepancies
+        largest_indices = np.argsort(discrepancies)[-n_discrepancies:][::-1]
+        
+        # Print results
+        print(f"\nKS Test: Type '{node_type}', k∈[{min_degree},{max_k}], {percent_used:.1f}% data")
+        print(f"  D = {D_manual:.6f}, p = {p_value:.6e}")
+        
+        # Plot
+        fig, ax = plt.subplots(figsize=figsize)
+        
+        ax.step(unique_degrees, empirical_cdf, where='post', linewidth=2, 
+                label='Empirical CDF', color='blue', alpha=0.7)
+        ax.plot(unique_degrees, theoretical_cdf_vals, linewidth=2, 
+                label='Theoretical CDF', color='red', alpha=0.7)
+        
+        # Plot discrepancies
+        colors = ['darkgreen', 'darkorange', 'purple', 'brown', 'pink']
+        legend_patches = []
+        for i, idx in enumerate(largest_indices):
+            k = unique_degrees[idx]
+            emp = empirical_cdf[idx]
+            theo = theoretical_cdf_vals[idx]
+            disc = discrepancies[idx]
+            color = colors[i % len(colors)]
+            
+            ax.annotate('', xy=(k, emp), xytext=(k, theo),
+                    arrowprops=dict(arrowstyle='<->', color=color, lw=2))
+            
+            legend_patches.append(mpatches.Patch(color=color, label=f'k={int(k)}: D={disc:.4f}'))
+        
+        handles1, labels1 = ax.get_legend_handles_labels()
+        ax.legend(handles=handles1 + legend_patches, fontsize=10, loc='lower right', framealpha=0.9)
+        
+        ax.set_xlabel('In-degree k', fontsize=13)
+        ax.set_ylabel('Cumulative Probability', fontsize=13)
+        ax.set_title(f'KS Test: Type "{node_type}" (D={D_manual:.4f}, p={p_value:.2e})', 
+                    fontsize=13, fontweight='bold')
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.set_xlim(left=min_degree)
+        ax.set_ylim(0, 1.05)
+        
+        plt.tight_layout()
+        
+        return fig, D_manual, p_value
+
     def plot_degree_distributions(self, figsize: Tuple = (15, 6), discretisations: int = 10**5):
-            """
-            Plot in-degree distributions with theoretical curves.
+        """
+        Plot in-degree distributions with theoretical curves.
+        
+        Parameters:
+        -----------
+        discretisations : int
+            0 = integer k values only, >0 = number of continuous points for smooth curve
+        """
+        fig, axes = plt.subplots(1, 2, figsize=figsize)
+        
+        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+            in_degrees = self._get_degrees(node_type)
+            if len(in_degrees) == 0:
+                continue
+                
+            ax = axes[idx]
             
-            Parameters:
-            -----------
-            discretisations : int
-                0 = integer k values only, >0 = number of continuous points for smooth curve
-            """
-            fig, axes = plt.subplots(1, 2, figsize=figsize)
+            # Empirical data
+            bin_centers, probs = self.logarithmic_binning(in_degrees)
+            ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
+                    edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
             
-            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
-                in_degrees = self._get_degrees(node_type)
-                if len(in_degrees) == 0:
-                    continue
-                    
-                ax = axes[idx]
-                
-                # Empirical data
-                bin_centers, probs = self.logarithmic_binning(in_degrees)
-                ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
-                        edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
-                
-                ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
-                
-                # Theoretical curve
-                k_max = int(np.max(in_degrees))
-                k_range = np.arange(0, k_max + 1) if discretisations == 0 else np.concatenate([[0], np.linspace(0.01, k_max, discretisations)])
-                theo_probs = self.theoretical_distribution(k_range, node_type)
-                mask = theo_probs > 0
-                
-                ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5, color='dark'+color, 
-                        alpha=0.85, label='Theory', zorder=2)
-                
-                # Formatting
-                ax.set_xscale('symlog', linthresh=0.1)
-                ax.set_yscale('log')
-                ax.set_xlim(left=-0.05)
-                ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
-                ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
-                ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
-                ax.legend(fontsize=9, loc='best', framealpha=0.9)
-                ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
+            ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
             
-            fig.suptitle(f'Directed Homophilic Network: N={self.n0 + self.n_nodes:,}, '
-                        f'm={self.m_edges}, h={self.h}, f_a={self.f_a}',
-                        fontsize=14, fontweight='bold')
-            plt.tight_layout()
-            return fig
+            # Theoretical curve
+            k_max = int(np.max(in_degrees))
+            k_range = np.arange(0, k_max + 1) if discretisations == 0 else np.concatenate([[0], np.linspace(0.01, k_max, discretisations)])
+            theo_probs = self.theoretical_distribution(k_range, node_type)
+            mask = theo_probs > 0
+            
+            ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5, color='dark'+color, 
+                    alpha=0.85, label='Theory', zorder=2)
+            
+            # Formatting
+            ax.set_xscale('symlog', linthresh=0.1)
+            ax.set_yscale('log')
+            ax.set_xlim(left=-0.05)
+            ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
+            ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
+            ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
+            ax.legend(fontsize=9, loc='best', framealpha=0.9)
+            ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
+        
+        fig.suptitle(f'Directed Homophilic Network: N={self.n0 + self.n_nodes:,}, '
+                    f'm={self.m_edges}, h={self.h}, f_a={self.f_a}',
+                    fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        return fig
 
     def plot_in_edge_asymptotes(self, figsize: Tuple = (10, 6)):
         """Plot mean in-edge density with asymptotic fits."""
@@ -296,155 +431,7 @@ class DirectedHomophilicNetwork:
         
         plt.tight_layout()
         return fig
-    
-    def theoretical_cdf(self, k, node_type: str):
-        """Theoretical CDF via summation of PMF."""
-        k = np.atleast_1d(k)
-        cdf = np.zeros_like(k, dtype=float)
-        
-        for i, k_val in enumerate(k):
-            if k_val < 0:
-                cdf[i] = 0.0
-            else:
-                k_range = np.arange(0, int(np.floor(k_val)) + 1)
-                cdf[i] = np.sum(self.theoretical_distribution(k_range, node_type))
-        
-        return cdf.item() if cdf.shape == (1,) else cdf
 
-    def ks_test(self, node_type='b', min_degree=0, min_bin_count=10):
-        """
-        KS test with manual D statistic and scipy's p-value calculation.
-        """
-        from scipy.stats import ksone
-        
-        degrees = np.array(self._get_degrees(node_type))
-        max_degree = int(np.max(degrees))
-        
-        # Find valid range
-        k_values = np.arange(min_degree, max_degree + 1)
-        observed_counts = np.array([np.sum(degrees == k) for k in k_values])
-        valid_mask = observed_counts >= min_bin_count
-        
-        if not np.any(valid_mask):
-            print(f"No bins with >= {min_bin_count} observations!")
-            return None, None
-        
-        max_k = k_values[np.where(valid_mask)[0][-1]]
-        
-        # Filter degrees to test range
-        degrees_filtered = degrees[(degrees >= min_degree) & (degrees <= max_k)]
-        percent_used = 100 * len(degrees_filtered) / len(degrees)
-        n = len(degrees_filtered)
-        
-        # Compute manual D statistic (our correct one)
-        unique_degrees = np.sort(np.unique(degrees_filtered))
-        empirical_cdf = np.array([np.sum(degrees_filtered <= k) / n for k in unique_degrees])
-        theoretical_cdf_vals = np.array([self.theoretical_cdf(k, node_type) for k in unique_degrees])
-        discrepancies = np.abs(empirical_cdf - theoretical_cdf_vals)
-        D_manual = np.max(discrepancies)
-        
-        # Compute p-value using one-sample Kolmogorov distribution
-        # p-value = P(D > D_observed) for one-sample test
-        p_value = ksone.sf(D_manual, n)  # sf = survival function = 1 - CDF
-        
-        print(f"\nKS Test (Type '{node_type}', k∈[{min_degree},{max_k}], {percent_used:.1f}% data):")
-        print(f"  D statistic (manual): {D_manual:.6f}")
-        print(f"  p-value: {p_value:.6f}")
-        
-        return D_manual, p_value
-
-    def plot_ks_test(self, node_type='b', min_degree=0, min_bin_count=10, n_discrepancies=3, figsize=(12, 6)):
-        """Plot empirical vs theoretical CDF with largest discrepancies highlighted."""
-        from scipy.stats import kstest
-        import matplotlib.patches as mpatches
-        
-        degrees = np.array(self._get_degrees(node_type))
-        max_degree = int(np.max(degrees))
-        
-        # Find valid range
-        k_values = np.arange(min_degree, max_degree + 1)
-        observed_counts = np.array([np.sum(degrees == k) for k in k_values])
-        valid_mask = observed_counts >= min_bin_count
-        
-        if not np.any(valid_mask):
-            print(f"No bins with >= {min_bin_count} observations!")
-            return None
-        
-        max_k = k_values[np.where(valid_mask)[0][-1]]
-        
-        # Filter to test range
-        degrees_filtered = degrees[(degrees >= min_degree) & (degrees <= max_k)]
-        percent_used = 100 * len(degrees_filtered) / len(degrees)
-        
-        # Compute CDFs at each unique degree value
-        unique_degrees = np.sort(np.unique(degrees_filtered))
-        empirical_cdf = np.array([np.sum(degrees_filtered <= k) / len(degrees_filtered) 
-                                for k in unique_degrees])
-        theoretical_cdf_vals = np.array([self.theoretical_cdf(k, node_type) 
-                                        for k in unique_degrees])
-        
-        # Calculate discrepancies
-        discrepancies = np.abs(empirical_cdf - theoretical_cdf_vals)
-        
-        # Find n largest discrepancies
-        largest_indices = np.argsort(discrepancies)[-n_discrepancies:][::-1]
-        
-        # KS test
-        result = kstest(degrees_filtered, 
-                        lambda x: self.theoretical_cdf(x, node_type),
-                        alternative='two-sided')
-        
-        # Plot
-        fig, ax = plt.subplots(figsize=figsize)
-        
-        # Plot CDFs
-        ax.step(unique_degrees, empirical_cdf, where='post', linewidth=2, 
-                label='Empirical CDF', color='blue', alpha=0.7)
-        ax.plot(unique_degrees, theoretical_cdf_vals, linewidth=2, 
-                label='Theoretical CDF', color='red', alpha=0.7)
-        
-        # Colors for discrepancies
-        colors = ['darkgreen', 'darkorange', 'purple', 'brown', 'pink']
-        
-        # Plot discrepancies with double-headed arrows
-        legend_patches = []
-        for i, idx in enumerate(largest_indices):
-            k = unique_degrees[idx]
-            emp = empirical_cdf[idx]
-            theo = theoretical_cdf_vals[idx]
-            disc = discrepancies[idx]
-            color = colors[i % len(colors)]
-            
-            # Vertical line with arrows at both ends
-            ax.annotate('', xy=(k, emp), xytext=(k, theo),
-                    arrowprops=dict(arrowstyle='<->', color=color, lw=2))
-            
-            # Create legend entry
-            legend_patches.append(mpatches.Patch(color=color, label=f'k={int(k)}: D={disc:.4f}'))
-        
-        # Combined legend
-        handles1, labels1 = ax.get_legend_handles_labels()
-        all_handles = handles1 + legend_patches
-        ax.legend(handles=all_handles, fontsize=10, loc='lower right', framealpha=0.9)
-        
-        ax.set_xlabel('In-degree k', fontsize=13)
-        ax.set_ylabel('Cumulative Probability', fontsize=13)
-        ax.set_title(f'KS Test: Type "{node_type}" (D={result.statistic:.4f}, p={result.pvalue:.4f}, '
-                    f'{percent_used:.1f}% data)', fontsize=13, fontweight='bold')
-        ax.grid(True, alpha=0.3, linestyle='--')
-        ax.set_xlim(left=min_degree)
-        ax.set_ylim(0, 1.05)
-        
-        plt.tight_layout()
-        
-        print(f"\nPlot: Top {n_discrepancies} largest discrepancies:")
-        for idx in largest_indices:
-            k = unique_degrees[idx]
-            disc = discrepancies[idx]
-            print(f"  k={int(k):3d}: D = {disc:.4f}")
-        
-        return fig
-    
     def monte_carlo_test(self, n_runs=10, min_degree=0, min_bin_count=10):
         """Chi-squared test stopping at first bin with < min_bin_count observations."""
         
@@ -485,7 +472,7 @@ class DirectedHomophilicNetwork:
             
             # Expected: scale by nodes actually IN the test range
             theo_probs = np.array([self.theoretical_distribution(k, 'b') for k in k_test])
-            theo_probs_normalized = theo_probs / theo_probs.sum()  # Conditional distribution
+            theo_probs_normalized = theo_probs / theo_probs.sum()
             expected_test = theo_probs_normalized * n_in_test_range
             
             # Chi-squared test
@@ -540,40 +527,58 @@ class DirectedHomophilicNetwork:
         
         print(f"\ng_a = {self.g_a:.6f}, g_b (asymptotic) = {self.g_b_asymptotic:.6f}, g_a + g_b = {self.g_a + self.g_b_asymptotic:.6f}")
 
+    def test_full_range_sanity_check(self, node_type='b'):
+        """Sanity check: verify full range CDF normalizes to 1.0"""
+        degrees = np.array(self._get_degrees(node_type))
+        max_k = int(np.max(degrees))
+        
+        theo_cdf_at_max = self.theoretical_cdf(max_k, node_type)
+        
+        print(f"\n{'='*50}")
+        print(f"SANITY CHECK: Type '{node_type}'")
+        print(f"  Theoretical CDF({max_k}) = {theo_cdf_at_max:.6f}")
+        print(f"  Expected: ≈ 1.0")
+        print(f"  Status: {'✓ PASS' if abs(theo_cdf_at_max - 1.0) < 0.01 else '✗ FAIL'}")
+        print(f"{'='*50}\n")
+        
+        return theo_cdf_at_max
+
 if __name__ == "__main__":
     # Generate network
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=10000, m_edges= 40, h=0.8, f_a=0.4, mu_a=1, mu_b=2)
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=25000, m_edges=40, h=0.8, f_a=0.4, mu_a=1, mu_b=2)
     
     start = time.time()
     net.generate_network()
-
-
-    degrees_b = np.array(net._get_degrees('b'))
-    empirical_cdf_at_0 = np.sum(degrees_b <= 0) / len(degrees_b)
-    theoretical_cdf_at_0 = net.theoretical_cdf(0, 'b')
-
+    print(f"Network generated in {time.time() - start:.2f}s")
+    
+    # Print statistics
     net.print_statistics()
     
-    run_monte_carlo = False
-    if run_monte_carlo:
-        chi2_vals, p_vals = net.monte_carlo_test(n_runs=50, min_degree=0, min_bin_count=20)
-
-    net.plot_ks_test(node_type='b', min_degree=0, min_bin_count= 0, n_discrepancies=3)
-    net.ks_test(node_type='b', min_degree=0, min_bin_count=0)
+    # Sanity check
+    net.test_full_range_sanity_check(node_type='b')
     
-
+    # KS test with visualization
+    fig, D, p = net.ks_test_and_plot(node_type='b', min_degree=0, min_bin_count=0, n_discrepancies=3)
     plt.show()
     
-
+    # Plot degree distributions
     net.plot_degree_distributions()
     plt.show()
     
-    plot_Asymptotes = False
-    if plot_Asymptotes:
+    # Optional: Monte Carlo chi-squared test
+    run_monte_carlo = False
+    if run_monte_carlo:
+        chi2_vals, p_vals = net.monte_carlo_test(n_runs=50, min_degree=0, min_bin_count=0)
+    
+    # Optional: Plot asymptotes
+    plot_asymptotes = False
+    if plot_asymptotes:
         net.plot_in_edge_asymptotes()
         plt.show()
     
+    # Optional: Plot A values
     plot_A_const = False
     if plot_A_const:
         net.plot_A_values()
         plt.show()
+   
