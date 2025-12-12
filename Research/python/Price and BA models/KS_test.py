@@ -330,12 +330,8 @@ class DirectedHomophilicNetwork:
 
     def plot_degree_distributions(self, figsize: Tuple = (15, 6), discretisations: int = 10**5):
         """
-        Plot in-degree distributions with theoretical curves.
-        
-        Parameters:
-        -----------
-        discretisations : int
-            0 = integer k values only, >0 = number of continuous points for smooth curve
+        Plot in-degree distributions with theoretical curves. If discretisations=0,
+        theoretical curve is only computed at integer k.
         """
         fig, axes = plt.subplots(1, 2, figsize=figsize)
         
@@ -527,22 +523,6 @@ class DirectedHomophilicNetwork:
         
         print(f"\ng_a = {self.g_a:.6f}, g_b (asymptotic) = {self.g_b_asymptotic:.6f}, g_a + g_b = {self.g_a + self.g_b_asymptotic:.6f}")
 
-    def test_full_range_sanity_check(self, node_type='b'):
-        """Sanity check: verify full range CDF normalizes to 1.0"""
-        degrees = np.array(self._get_degrees(node_type))
-        max_k = int(np.max(degrees))
-        
-        theo_cdf_at_max = self.theoretical_cdf(max_k, node_type)
-        
-        print(f"\n{'='*50}")
-        print(f"SANITY CHECK: Type '{node_type}'")
-        print(f"  Theoretical CDF({max_k}) = {theo_cdf_at_max:.6f}")
-        print(f"  Expected: ≈ 1.0")
-        print(f"  Status: {'✓ PASS' if abs(theo_cdf_at_max - 1.0) < 0.01 else '✗ FAIL'}")
-        print(f"{'='*50}\n")
-        
-        return theo_cdf_at_max
-
 if __name__ == "__main__":
     # Generate network
     net = DirectedHomophilicNetwork(n0=100, n_nodes=25000, m_edges=40, h=0.8, f_a=0.4, mu_a=1, mu_b=2)
@@ -554,17 +534,14 @@ if __name__ == "__main__":
     # Print statistics
     net.print_statistics()
     
-    # Sanity check
-    net.test_full_range_sanity_check(node_type='b')
-    
-    # KS test with visualization
-    fig, D, p = net.ks_test_and_plot(node_type='b', min_degree=0, min_bin_count=0, n_discrepancies=3)
-    plt.show()
-    
     # Plot degree distributions
     net.plot_degree_distributions()
     plt.show()
     
+    # KS test with visualization
+    fig, D, p = net.ks_test_and_plot(node_type='b', min_degree=0, min_bin_count=0, n_discrepancies=3)
+    plt.show()
+
     # Optional: Monte Carlo chi-squared test
     run_monte_carlo = False
     if run_monte_carlo:
