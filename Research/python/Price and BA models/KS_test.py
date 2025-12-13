@@ -539,21 +539,23 @@ if __name__ == "__main__":
     plt.show()
     
     # KS test with visualization
-    fig, D, p = net.ks_test_and_plot(node_type='b', min_degree=0, min_bin_count=0, n_discrepancies=3)
-    plt.show()
+    KS_test = False
+    if KS_test:
+        fig, D, p = net.ks_test_and_plot(node_type='b', min_degree=0, min_bin_count=0, n_discrepancies=3)
+        plt.show()
 
-    # Optional: Monte Carlo chi-squared test
+    # Monte Carlo chi-squared test
     run_monte_carlo = False
     if run_monte_carlo:
         chi2_vals, p_vals = net.monte_carlo_test(n_runs=50, min_degree=0, min_bin_count=0)
     
-    # Optional: Plot asymptotes
-    plot_asymptotes = False
+    # Plot asymptotes
+    plot_asymptotes = True
     if plot_asymptotes:
         net.plot_in_edge_asymptotes()
         plt.show()
     
-    # Optional: Plot A values
+    # Plot A values
     plot_A_const = False
     if plot_A_const:
         net.plot_A_values()
