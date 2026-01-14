@@ -235,12 +235,13 @@ class DirectedHomophilicNetwork:
         # Until the max degree + 1 to include the max degree in the last bin
         # e.g. [0, 1, 1.02, 1.04, ..., max_degree + 1]
         
-        # Compute bin statistics
+        # Compute bin statistics: how many degrees fall into each bin
         bin_centers, probabilities = [], []
         for i in range(len(bins) - 1):
             kmin, kmax = bins[i], bins[i + 1] - 1
             count = np.sum((degrees >= kmin) & (degrees <= kmax))
-            
+
+          #continued analysis of this code block needed!!! looks dodgy  
             if count > 0:
                 center = np.sqrt(0.5 * kmax) if kmin == 0 and kmax > 0 else (0.0 if kmin == 0 else np.sqrt(kmin * kmax))
                 bin_centers.append(center)
