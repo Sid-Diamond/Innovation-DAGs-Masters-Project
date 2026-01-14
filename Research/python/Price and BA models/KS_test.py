@@ -14,12 +14,12 @@ class DirectedHomophilicNetwork:
     def __init__(self, n0: int, n_nodes: int, m_edges: int, h: float, f_a: float, mu_a: float, mu_b: float):
         # Network parameters
         self.n0, self.n_nodes, self.m_edges = n0, n_nodes, m_edges
-        self.h, self.f_a, self.f_b = h, f_a, 1 - f_a
+        self.h, self.f_a, self.f_b = h, f_a, 1 - f_a #tuple unpacking statement
         self.mu = {'a': mu_a, 'b': mu_b}
         
         # Computed parameters
         self.lambda_a = h * f_a + (1 - f_a) * (1 - h)
-        self.lambda_b = h * (1 - f_a) + (1 - h) * f_a
+        self.lambda_b = h * self.f_b + (1- self.f_b)*(1 - h)
         self.lambda_ = {'a': self.lambda_a, 'b': self.lambda_b}
         
         # Network state
@@ -525,7 +525,7 @@ class DirectedHomophilicNetwork:
 
 if __name__ == "__main__":
     # Generate network
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=25000, m_edges=40, h=0.8, f_a=0.4, mu_a=1, mu_b=2)
+    net = DirectedHomophilicNetwork(n0=1000, n_nodes=25000, m_edges=5, h=0.8, f_a=0.4, mu_a=1, mu_b=2)
     
     start = time.time()
     net.generate_network()
@@ -539,7 +539,7 @@ if __name__ == "__main__":
     plt.show()
     
     # KS test with visualization
-    KS_test = False
+    KS_test =  True
     if KS_test:
         fig, D, p = net.ks_test_and_plot(node_type='b', min_degree=0, min_bin_count=0, n_discrepancies=3)
         plt.show()
