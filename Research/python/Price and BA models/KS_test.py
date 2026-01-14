@@ -140,7 +140,7 @@ class DirectedHomophilicNetwork:
     def theoretical_distribution(self, k, node_type: str):
         """
         Theoretical in-degree distribution with analytic continuation.
-        Form: p(k) = p_0 * B(k, alpha + gamma) / B(k, alpha) for k > 0
+        Form: p(k) = p_0 * B(k, alpha + gamma) / B(k, alpha) for k > 0. p0 at k=0.
         """
         params = self._get_params(node_type)
         k = np.atleast_1d(k)
@@ -218,9 +218,10 @@ class DirectedHomophilicNetwork:
     def logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.02) -> Tuple[np.ndarray, np.ndarray]:
         """Create logarithmic bins for degree distribution."""
         if len(degrees) == 0:
-            return np.array([]), np.array([])
+            return np.array([]), np.array([]) #prevents crash out if no nodes of a given type
         
-        degrees = np.array(degrees)
+        
+        degrees = np.array(degrees) # Ensure numpy array
         max_degree, n_total = np.max(degrees), len(degrees)
         
         # Create bins
@@ -230,6 +231,9 @@ class DirectedHomophilicNetwork:
             current *= bin_factor
         bins.append(int(max_degree) + 1)
         bins = sorted(set(bins))
+        # Creates logarithmic sequence that defines bins until the max degree
+        # Until the max degree + 1 to include the max degree in the last bin
+        # e.g. [0, 1, 1.02, 1.04, ..., max_degree + 1]
         
         # Compute bin statistics
         bin_centers, probabilities = [], []
