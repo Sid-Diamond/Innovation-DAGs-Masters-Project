@@ -40,10 +40,10 @@ class DirectedHomophilicNetwork:
         
         alpha = mu_x / lambda_x
         gamma = 1 + 1 / (self.Z_tilde * lambda_x)
-        b0 = 1 / (1 + mu_x * self.Z_tilde)
-        A = b0 * gamma_func(alpha + gamma) / gamma_func(alpha)
+        p0 = 1 / (1 + mu_x * self.Z_tilde)
+        A = p0 * gamma_func(alpha + gamma) / gamma_func(alpha)
         
-        return {'alpha': alpha, 'gamma': gamma, 'b0': b0, 'A': A}
+        return {'alpha': alpha, 'gamma': gamma, 'p0': p0, 'A': A}
 
     def _compute_theoretical_params(self, g_a: float, g_b: float):
         """Compute Z̃ using asymptotic g values."""
@@ -76,7 +76,7 @@ class DirectedHomophilicNetwork:
         total_nodes = self.n0 + self.n_nodes
         
         # Pre-allocate arrays
-        self.node_types = np.empty(total_nodes, dtype=np.int8)
+        self.node_types = np.empty(total_nodes, dtype=np.int8) # 0 for 'a', 1 for 'b'
         self.in_degrees = np.zeros(total_nodes, dtype=np.int32)
         self.graph = nx.DiGraph()
         
@@ -87,8 +87,8 @@ class DirectedHomophilicNetwork:
         
         # Initial random edges
         for source in range(self.n0):
-            targets = np.random.choice([t for t in range(self.n0) if t != source], 
-                                       size=self.m_edges, replace=False)
+            targets = np.random.choice([t for t in range(self.n0) if t != source], size=self.m_edges, replace=False)
+            # select m targets without self-loops without seleccting same target multiple times. Node type irrelevant here.
             self.graph.add_edges_from((source, int(t)) for t in targets)
             self.in_degrees[targets] += 1
             
@@ -121,6 +121,8 @@ class DirectedHomophilicNetwork:
                     'in_edges_a': self.in_edges_a_count,
                     'in_edges_b': self.in_edges_b_count
                 })
+                # Stores in edge counts for every y = n0 +100t and at the final datapoint for a non memory 
+                # intensive asymptotic g value calculation
         
         self._fit_asymptotes()
     
@@ -138,7 +140,7 @@ class DirectedHomophilicNetwork:
     def theoretical_distribution(self, k, node_type: str):
         """
         Theoretical in-degree distribution with analytic continuation.
-        Form: p(k) = b_0 * B(k, alpha + gamma) / B(k, alpha) for k > 0
+        Form: p(k) = p_0 * B(k, alpha + gamma) / B(k, alpha) for k > 0
         """
         params = self._get_params(node_type)
         k = np.atleast_1d(k)
@@ -147,10 +149,10 @@ class DirectedHomophilicNetwork:
         zero_mask = (k == 0)
         pos_mask = (k > 0)
         
-        result[zero_mask] = params['b0']
+        result[zero_mask] = params['p0']
         if np.any(pos_mask):
             k_pos = k[pos_mask]
-            result[pos_mask] = params['b0'] * beta_func(k_pos, params['alpha'] + params['gamma']) / beta_func(k_pos, params['alpha'])
+            result[pos_mask] = params['p0'] * beta_func(k_pos, params['alpha'] + params['gamma']) / beta_func(k_pos, params['alpha'])
         
         return result.item() if result.shape == (1,) else result
 
@@ -166,7 +168,7 @@ class DirectedHomophilicNetwork:
             k_min, k_max = float(renormalize_range[0]), float(renormalize_range[1])
         
         params = self._get_params(node_type)
-        b0 = params['b0']  # Probability mass at exactly k=0
+        p0 = params['p0']  # Probability mass at exactly k=0
         
         # PDF for continuous part (k > 0 only)
         def pdf_continuous(x):
@@ -176,7 +178,7 @@ class DirectedHomophilicNetwork:
         if k_min == 0:
             # Full distribution: point mass + continuous part
             continuous_norm, _ = quad(pdf_continuous, 0, k_max, limit=100)
-            norm = b0 + continuous_norm
+            norm = p0 + continuous_norm
         else:
             # Truncated (k_min > 0): only continuous part
             norm, _ = quad(pdf_continuous, k_min, k_max, limit=100)
@@ -195,11 +197,11 @@ class DirectedHomophilicNetwork:
                 if k_min == 0:
                     # Include point mass at k=0
                     if k_val == 0:
-                        cdf[i] = b0 / norm
+                        cdf[i] = p0 / norm
                     else:
                         # k_val > 0: add point mass + continuous integral
                         continuous_integral, _ = quad(pdf_continuous, 0, k_val, limit=100)
-                        cdf[i] = (b0 + continuous_integral) / norm
+                        cdf[i] = (p0 + continuous_integral) / norm
                 else:
                     # Truncated range (k_min > 0)
                     integral, _ = quad(pdf_continuous, k_min, k_val, limit=100)
@@ -410,7 +412,7 @@ class DirectedHomophilicNetwork:
                 product = np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i) 
                                   for i in range(k)]) if k > 0 else 1.0
                 gamma_ratio = gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha'])
-                A_values.append(params['b0'] * product * gamma_ratio)
+                A_values.append(params['p0'] * product * gamma_ratio)
             
             ax = axes[idx]
             ax.plot(k_values, A_values, 'o-', color=color, linewidth=2, 
