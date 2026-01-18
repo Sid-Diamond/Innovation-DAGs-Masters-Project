@@ -1,7 +1,6 @@
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 from scipy.special import gamma as gamma_func, beta as beta_func
 from scipy.stats import chisquare, ksone
 from typing import Dict, Tuple, List
@@ -10,11 +9,16 @@ import time
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
     
-    def __init__(self, n0: int, n_nodes: int, m_edges: int, h: float, f_a: float, mu_a: float, mu_b: float):
+    def __init__(self, n0: int, n_nodes: int, m_edges: int, h: float, f_a: float, mu_a: float, mu_b: float, seed: int = None):
         # Network parameters
         self.n0, self.n_nodes, self.m_edges = n0, n_nodes, m_edges
         self.h, self.f_a, self.f_b = h, f_a, 1 - f_a
         self.mu = {'a': mu_a, 'b': mu_b}
+        self.seed = seed
+        
+        # Set random seed if provided
+        if self.seed is not None:
+            np.random.seed(self.seed)
         
         # Computed parameters
         self.lambda_a = h * f_a + (1 - f_a) * (1 - h)
@@ -501,7 +505,17 @@ class DirectedHomophilicNetwork:
 
 if __name__ == "__main__":
     # Generate network
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=25000, m_edges=40, h=0.8, f_a=0.4, mu_a=1, mu_b=2)
+    # Set seed=42 for reproducible results, seed=None for random results
+    net = DirectedHomophilicNetwork(
+        n0=100, 
+        n_nodes=25000, 
+        m_edges=40, 
+        h=0.8, 
+        f_a=0.4, 
+        mu_a=1, 
+        mu_b=2,
+        seed=42
+    )
     
     start = time.time()
     net.generate_network()
