@@ -6,6 +6,8 @@ from scipy.stats import chisquare, ksone
 from typing import Dict, Tuple, List
 import time
 
+from sklearn.linear_model import Log
+
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
     
@@ -216,7 +218,7 @@ class DirectedHomophilicNetwork:
         return [self.graph.in_degree(n) for n in self.graph.nodes() 
                 if self.node_types[n] == type_val]
     
-    def logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.02) -> Tuple[np.ndarray, np.ndarray]:
+    def logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.01) -> Tuple[np.ndarray, np.ndarray]:
         """Create logarithmic bins with k=0 always in its own bin."""
         if len(degrees) == 0:
             return np.array([]), np.array([])# prevents crash out if no nodes of a given type exist
@@ -511,40 +513,156 @@ class DirectedHomophilicNetwork:
         print(f"\ng_a = {self.g_a:.6f}, g_b = {self.g_b:.6f}, g_b_empirical = {self.g_b_empirical:.6f}")
         print(f"g_a + g_b = {self.g_a + self.g_b:.6f} (m = {self.m_edges})")
 
+    def plot_degree_distributions_discrete(self, figsize: Tuple = (15, 6), max_k_display: int = None):
+        """
+        Plot using discrete integer probabilities - no binning.
+        This shows the true empirical PMF at each integer k value.
+        LINEAR SCALE VERSION - raw data.
+        """
+        fig, axes = plt.subplots(1, 2, figsize=figsize)
+        
+        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+            in_degrees = self._get_degrees(node_type)
+            if len(in_degrees) == 0:
+                continue
+                
+            ax = axes[idx]
+            
+            # Empirical PMF at integer values
+            unique_k, counts = np.unique(in_degrees, return_counts=True)
+            empirical_pmf = counts / len(in_degrees)
+            
+            ax.scatter(unique_k, empirical_pmf, s=1, alpha=0.7, color=color,
+                    edgecolors='black', linewidths=1, label='Simulation', zorder=3)
+            
+            # Theoretical curve at integer values
+            k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
+            k_range = np.arange(0, k_max + 1)
+            theo_probs = self.theoretical_distribution(k_range, node_type)
+            
+            ax.plot(k_range, theo_probs, '-', linewidth=1, color='dark'+color, 
+                    alpha=1, label='Theory', zorder=2)
+            
+            # Formatting - LINEAR AXES
+            ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
+            ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
+            ax.set_title(f'Type "{node_type}" (n={len(in_degrees)}) - LINEAR SCALE', fontsize=13, fontweight='bold')
+            ax.legend(fontsize=9, loc='best', framealpha=0.9)
+            ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+        
+        fig.suptitle(f'Directed Homophilic Network: N={self.n0 + self.n_nodes:,}, '
+                    f'm={self.m_edges}, h={self.h}, f_a={self.f_a}',
+                    fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        return fig
+
+    def plot_degree_distributions_hybrid(self, figsize: Tuple = (15, 12), max_k_display: int = None):
+        """
+        Plot using discrete integer probabilities - TWO VIEWS.
+        Top row: log-log for full range
+        Bottom row: linear scale zoomed to where you have good statistics
+        """
+        fig, axes = plt.subplots(2, 2, figsize=figsize)
+        
+        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+            in_degrees = self._get_degrees(node_type)
+            if len(in_degrees) == 0:
+                continue
+                
+            # Empirical PMF at integer values
+            unique_k, counts = np.unique(in_degrees, return_counts=True)
+            empirical_pmf = counts / len(in_degrees)
+            
+            # Theoretical curve at integer values
+            k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
+            k_range = np.arange(0, k_max + 1)
+            theo_probs = self.theoretical_distribution(k_range, node_type)
+            
+            # TOP ROW: Log-log (full range)
+            ax_log = axes[0, idx]
+            ax_log.scatter(unique_k, empirical_pmf, s=50, alpha=0.7, color=color,
+                        edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
+            mask = theo_probs > 0
+            ax_log.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5, color='dark'+color, 
+                        alpha=0.85, label='Theory', zorder=2)
+            ax_log.set_xscale('log')
+            ax_log.set_yscale('log')
+            ax_log.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=11)
+            ax_log.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=11)
+            ax_log.set_title(f'Type "{node_type}" - LOG SCALE (full range)', fontsize=11, fontweight='bold')
+            ax_log.legend(fontsize=9)
+            ax_log.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
+            
+            # BOTTOM ROW: Linear (zoomed to good statistics)
+            ax_lin = axes[1, idx]
+            # Only show k where you have at least 5 observations
+            good_stats_mask = counts >= 5
+            k_cutoff = unique_k[good_stats_mask][-1] if np.any(good_stats_mask) else 50
+            k_cutoff = min(k_cutoff, 100)  # Cap at k=100 for readability
+            
+            # Plot empirical
+            plot_mask = unique_k <= k_cutoff
+            ax_lin.scatter(unique_k[plot_mask], empirical_pmf[plot_mask], s=50, alpha=0.7, color=color,
+                        edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
+            
+            # Plot theory up to cutoff
+            k_range_zoom = np.arange(0, k_cutoff + 1)
+            theo_probs_zoom = self.theoretical_distribution(k_range_zoom, node_type)
+            ax_lin.plot(k_range_zoom, theo_probs_zoom, '-', linewidth=2.5, color='dark'+color, 
+                        alpha=0.85, label='Theory', zorder=2)
+            
+            ax_lin.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=11)
+            ax_lin.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=11)
+            ax_lin.set_title(f'Type "{node_type}" - LINEAR (k ≤ {k_cutoff}, good stats)', fontsize=11, fontweight='bold')
+            ax_lin.legend(fontsize=9)
+            ax_lin.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+            ax_lin.set_xlim(-1, k_cutoff + 5)
+        
+        fig.suptitle(f'Directed Homophilic Network: N={self.n0 + self.n_nodes:,}, '
+                    f'm={self.m_edges}, h={self.h}, f_a={self.f_a}',
+                    fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        return fig
+
 if __name__ == "__main__":
-    # Generate network
-    # Set seed=42 for reproducible results, seed=None for random results
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=25000, m_edges=5, h=0.5, f_a=0.5, mu_a=1, mu_b=1, seed=5)
-    
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=25000, m_edges=10, h=0.9, f_a=0.9, mu_a=10, mu_b=1, seed=5) 
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
     
-    # Print statistics
-    net.print_statistics()
+    Statistics = True
+    if Statistics:
+        net.print_statistics()
     
-    # Plot degree distributions
-    net.plot_degree_distributions()
-    plt.show()
+    Log_Binned = True
+    if Log_Binned:
+        net.plot_degree_distributions()
+        plt.show()
+
+    Discrete_Linear = True
+    if Discrete_Linear:
+        net.plot_degree_distributions_discrete()
+        plt.show()
+
+    Hybrid_Plot = True
+    if Hybrid_Plot:
+        net.plot_degree_distributions_hybrid()
+        plt.show()
     
-    # KS test with visualization
     KS_test = True
     if KS_test:
         fig, D, p = net.ks_test_and_plot(node_type='b', kmin=0, kmax=None)
         plt.show()
 
-    # Monte Carlo chi-squared test
     run_monte_carlo = False
     if run_monte_carlo:
         chi2_vals, p_vals = net.monte_carlo_test(n_runs=50, min_degree=0, min_bin_count=0)
     
-    # Plot asymptotes
     plot_asymptotes = False
     if plot_asymptotes:
         net.plot_in_edge_asymptotes()
         plt.show()
     
-    # Plot A values
     plot_A_const = False
     if plot_A_const:
         net.plot_A_values()
