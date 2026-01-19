@@ -624,8 +624,356 @@ class DirectedHomophilicNetwork:
         plt.tight_layout()
         return fig
 
+    def ks_sweep_m_edges(self, m_min, m_max, m_step=1, node_type='b', kmin=0, kmax=25, 
+                        n_runs=3, figsize=(12, 6)):
+        """
+        Sweep over different m_edges values and compute KS statistics.
+        dict : Results containing m values, mean/std of D and p-values
+        """
+        import warnings
+        warnings.filterwarnings('ignore')
+        
+        m_values = np.arange(m_min, m_max + 1, m_step)
+        D_means, D_stds = [], []
+        p_means, p_stds = [], []
+        
+        print(f"\nSweeping m_edges: {m_values}")
+        print(f"Fixed: n0={self.n0}, n_nodes={self.n_nodes}, h={self.h}, f_a={self.f_a}")
+        
+        for m in m_values:
+            D_runs, p_runs = [], []
+            
+            for run in range(n_runs):
+                # Generate network with this m value
+                net_temp = DirectedHomophilicNetwork(
+                    self.n0, self.n_nodes, int(m), self.h, 
+                    self.f_a, self.mu['a'], self.mu['b']
+                )
+                net_temp.generate_network()
+                
+                # Get degrees and run KS test
+                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+                if len(degrees) == 0:
+                    continue
+                
+                # Auto-set kmax if None
+                kmax_actual = int(degrees.max()) if kmax is None else kmax
+                
+                degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
+                if len(degrees_filtered) == 0:
+                    continue
+                
+                n = len(degrees_filtered)
+                unique_degrees = np.arange(kmin, kmax_actual + 1)
+                sorted_data = np.sort(degrees_filtered)
+                counts = np.searchsorted(sorted_data, unique_degrees, side='right')
+                empirical_cdf = counts / n
+                
+                theoretical_cdf_vals = net_temp.theoretical_cdf_discrete(
+                    unique_degrees, node_type, kmin=kmin, kmax=kmax_actual
+                )
+                
+                D = np.abs(empirical_cdf - theoretical_cdf_vals).max()
+                p_value = ksone.sf(D, n)
+                
+                D_runs.append(D)
+                p_runs.append(p_value)
+            
+            if len(D_runs) > 0:
+                D_means.append(np.mean(D_runs))
+                D_stds.append(np.std(D_runs))
+                p_means.append(np.mean(p_runs))
+                p_stds.append(np.std(p_runs))
+                print(f"  m={m:2d}: D={D_means[-1]:.4f}±{D_stds[-1]:.4f}, p={p_means[-1]:.3f}±{p_stds[-1]:.3f}")
+        
+        # Convert to arrays
+        D_means = np.array(D_means)
+        D_stds = np.array(D_stds)
+        p_means = np.array(p_means)
+        p_stds = np.array(p_stds)
+        
+        # Plot results
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+        
+        # KS statistic
+        if n_runs == 1:
+            ax1.plot(m_values, D_means, marker='o', linewidth=2, markersize=8, label='KS Statistic D')
+        else:
+            ax1.errorbar(m_values, D_means, yerr=D_stds, marker='o', capsize=5, 
+                        linewidth=2, markersize=8, label='KS Statistic D')
+        ax1.set_xlabel('m_edges', fontsize=12)
+        ax1.set_ylabel('KS Statistic D', fontsize=12)
+        ax1.set_title(f'KS Test vs m_edges (Type "{node_type}")', fontsize=13, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.legend()
+        
+        # p-value
+        if n_runs == 1:
+            ax2.plot(m_values, p_means, marker='s', linewidth=2, markersize=8, color='red', label='p-value')
+        else:
+            ax2.errorbar(m_values, p_means, yerr=p_stds, marker='s', capsize=5,
+                        linewidth=2, markersize=8, color='red', label='p-value')
+        ax2.axhline(0.05, linestyle='--', color='black', alpha=0.5, label='p=0.05')
+        ax2.set_xlabel('m_edges', fontsize=12)
+        ax2.set_ylabel('p-value', fontsize=12)
+        ax2.set_title(f'p-value vs m_edges (Type "{node_type}")', fontsize=13, fontweight='bold')
+        ax2.set_ylim(-0.05, 1.05)
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+        
+        plt.tight_layout()
+        
+        return {
+            'm_values': m_values,
+            'D_means': D_means,
+            'D_stds': D_stds,
+            'p_means': p_means,
+            'p_stds': p_stds,
+            'fig': fig
+        }
+
+    def ks_sweep_n0(self, n0_min, n0_max, n0_step=1, node_type='b', kmin=0, kmax=25,
+                    n_runs=3, figsize=(12, 6)):
+        """
+        Sweep over different n0 values and compute KS statistics.
+        dict : Results containing n0 values, mean/std of D and p-values
+        """
+        import warnings
+        warnings.filterwarnings('ignore')
+        
+        n0_values = np.arange(n0_min, n0_max + 1, n0_step)
+        D_means, D_stds = [], []
+        p_means, p_stds = [], []
+        
+        print(f"\nSweeping n0: {n0_values}")
+        print(f"Fixed: m_edges={self.m_edges}, n_nodes={self.n_nodes}, h={self.h}, f_a={self.f_a}")
+        
+        for n0 in n0_values:
+            D_runs, p_runs = [], []
+            
+            for run in range(n_runs):
+                # Generate network with this n0 value
+                net_temp = DirectedHomophilicNetwork(
+                    int(n0), self.n_nodes, self.m_edges, self.h,
+                    self.f_a, self.mu['a'], self.mu['b']
+                )
+                net_temp.generate_network()
+                
+                # Get degrees and run KS test
+                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+                if len(degrees) == 0:
+                    continue
+                
+                # Auto-set kmax if None
+                kmax_actual = int(degrees.max()) if kmax is None else kmax
+                
+                degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
+                if len(degrees_filtered) == 0:
+                    continue
+                
+                n = len(degrees_filtered)
+                unique_degrees = np.arange(kmin, kmax_actual + 1)
+                sorted_data = np.sort(degrees_filtered)
+                counts = np.searchsorted(sorted_data, unique_degrees, side='right')
+                empirical_cdf = counts / n
+                
+                theoretical_cdf_vals = net_temp.theoretical_cdf_discrete(
+                    unique_degrees, node_type, kmin=kmin, kmax=kmax_actual
+                )
+                
+                D = np.abs(empirical_cdf - theoretical_cdf_vals).max()
+                p_value = ksone.sf(D, n)
+                
+                D_runs.append(D)
+                p_runs.append(p_value)
+            
+            if len(D_runs) > 0:
+                D_means.append(np.mean(D_runs))
+                D_stds.append(np.std(D_runs))
+                p_means.append(np.mean(p_runs))
+                p_stds.append(np.std(p_runs))
+                print(f"  n0={n0:4d}: D={D_means[-1]:.4f}±{D_stds[-1]:.4f}, p={p_means[-1]:.3f}±{p_stds[-1]:.3f}")
+        
+        # Convert to arrays
+        D_means = np.array(D_means)
+        D_stds = np.array(D_stds)
+        p_means = np.array(p_means)
+        p_stds = np.array(p_stds)
+        
+        # Plot results
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+        
+        # KS statistic
+        if n_runs == 1:
+            ax1.plot(n0_values, D_means, marker='o', linewidth=2, markersize=8, label='KS Statistic D')
+        else:
+            ax1.errorbar(n0_values, D_means, yerr=D_stds, marker='o', capsize=5,
+                        linewidth=2, markersize=8, label='KS Statistic D')
+        ax1.set_xlabel('n0 (initial nodes)', fontsize=12)
+        ax1.set_ylabel('KS Statistic D', fontsize=12)
+        ax1.set_title(f'KS Test vs n0 (Type "{node_type}")', fontsize=13, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.legend()
+        
+        # p-value
+        if n_runs == 1:
+            ax2.plot(n0_values, p_means, marker='s', linewidth=2, markersize=8, color='red', label='p-value')
+        else:
+            ax2.errorbar(n0_values, p_means, yerr=p_stds, marker='s', capsize=5,
+                        linewidth=2, markersize=8, color='red', label='p-value')
+        ax2.axhline(0.05, linestyle='--', color='black', alpha=0.5, label='p=0.05')
+        ax2.set_xlabel('n0 (initial nodes)', fontsize=12)
+        ax2.set_ylabel('p-value', fontsize=12)
+        ax2.set_title(f'p-value vs n0 (Type "{node_type}")', fontsize=13, fontweight='bold')
+        ax2.set_ylim(-0.05, 1.05)
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+        
+        plt.tight_layout()
+        
+        return {
+            'n0_values': n0_values,
+            'D_means': D_means,
+            'D_stds': D_stds,
+            'p_means': p_means,
+            'p_stds': p_stds,
+            'fig': fig
+        }
+
+    def ks_surface_n0_m(self, n0_min, n0_max, n0_step, m_min, m_max, m_step, 
+                        node_type='b', kmin=0, kmax=25, n_runs=3, figsize=(16, 6)):
+        """
+        dict : Results containing grid values and p-value/D statistic surfaces
+        """
+        import warnings
+        warnings.filterwarnings('ignore')
+        from mpl_toolkits.mplot3d import Axes3D
+        
+        n0_values = np.arange(n0_min, n0_max + 1, n0_step)
+        m_values = np.arange(m_min, m_max + 1, m_step)
+        
+        # Create meshgrid for surface
+        N0_grid, M_grid = np.meshgrid(n0_values, m_values, indexing='ij')
+        P_grid = np.zeros_like(N0_grid, dtype=float)
+        D_grid = np.zeros_like(N0_grid, dtype=float)
+        
+        print(f"\nCreating surface: n0={n0_values}, m={m_values}")
+        print(f"Fixed: n_nodes={self.n_nodes}, h={self.h}, f_a={self.f_a}")
+        print(f"Total points: {len(n0_values) * len(m_values)}\n")
+        
+        point_count = 0
+        total_points = len(n0_values) * len(m_values)
+        
+        for i, n0 in enumerate(n0_values):
+            for j, m in enumerate(m_values):
+                D_runs, p_runs = [], []
+                
+                for run in range(n_runs):
+                    # Generate network
+                    net_temp = DirectedHomophilicNetwork(
+                        int(n0), self.n_nodes, int(m), self.h,
+                        self.f_a, self.mu['a'], self.mu['b']
+                    )
+                    net_temp.generate_network()
+                    
+                    # KS test
+                    degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+                    if len(degrees) == 0:
+                        continue
+                    
+                    # Auto-set kmax if None
+                    kmax_actual = int(degrees.max()) if kmax is None else kmax
+                    
+                    degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
+                    if len(degrees_filtered) == 0:
+                        continue
+                    
+                    n = len(degrees_filtered)
+                    unique_degrees = np.arange(kmin, kmax_actual + 1)
+                    sorted_data = np.sort(degrees_filtered)
+                    counts = np.searchsorted(sorted_data, unique_degrees, side='right')
+                    empirical_cdf = counts / n
+                    
+                    theoretical_cdf_vals = net_temp.theoretical_cdf_discrete(
+                        unique_degrees, node_type, kmin=kmin, kmax=kmax_actual
+                    )
+                    
+                    D = np.abs(empirical_cdf - theoretical_cdf_vals).max()
+                    p_value = ksone.sf(D, n)
+                    
+                    D_runs.append(D)
+                    p_runs.append(p_value)
+                
+                if len(D_runs) > 0:
+                    P_grid[i, j] = np.mean(p_runs)
+                    D_grid[i, j] = np.mean(D_runs)
+                else:
+                    P_grid[i, j] = np.nan
+                    D_grid[i, j] = np.nan
+                
+                point_count += 1
+                if point_count % 5 == 0 or point_count == total_points:
+                    print(f"  Progress: {point_count}/{total_points} ({100*point_count/total_points:.1f}%)")
+        
+        # Create visualizations
+        fig = plt.figure(figsize=figsize)
+        
+        # 3D surface for p-value
+        ax1 = fig.add_subplot(121, projection='3d')
+        surf1 = ax1.plot_surface(N0_grid, M_grid, P_grid, cmap='viridis', 
+                                edgecolor='none', alpha=0.8)
+        ax1.set_xlabel('n0', fontsize=11)
+        ax1.set_ylabel('m_edges', fontsize=11)
+        ax1.set_zlabel('p-value', fontsize=11)
+        ax1.set_title(f'KS p-value Surface (Type "{node_type}")', fontsize=12, fontweight='bold')
+        fig.colorbar(surf1, ax=ax1, shrink=0.5, aspect=5)
+        
+        # 3D surface for D statistic
+        ax2 = fig.add_subplot(122, projection='3d')
+        surf2 = ax2.plot_surface(N0_grid, M_grid, D_grid, cmap='plasma',
+                                edgecolor='none', alpha=0.8)
+        ax2.set_xlabel('n0', fontsize=11)
+        ax2.set_ylabel('m_edges', fontsize=11)
+        ax2.set_zlabel('KS Statistic D', fontsize=11)
+        ax2.set_title(f'KS D Statistic Surface (Type "{node_type}")', fontsize=12, fontweight='bold')
+        fig.colorbar(surf2, ax=ax2, shrink=0.5, aspect=5)
+        
+        plt.tight_layout()
+        
+        # Create contour plot as well
+        fig2, (ax3, ax4) = plt.subplots(1, 2, figsize=(14, 6))
+        
+        # p-value contour
+        contour1 = ax3.contourf(M_grid, N0_grid, P_grid, levels=20, cmap='viridis')
+        ax3.contour(M_grid, N0_grid, P_grid, levels=[0.05], colors='red', 
+                    linewidths=2, linestyles='--')
+        ax3.set_xlabel('m_edges', fontsize=12)
+        ax3.set_ylabel('n0', fontsize=12)
+        ax3.set_title(f'p-value Contours (Type "{node_type}")\nRed line: p=0.05', 
+                    fontsize=12, fontweight='bold')
+        fig2.colorbar(contour1, ax=ax3)
+        
+        # D statistic contour
+        contour2 = ax4.contourf(M_grid, N0_grid, D_grid, levels=20, cmap='plasma')
+        ax4.set_xlabel('m_edges', fontsize=12)
+        ax4.set_ylabel('n0', fontsize=12)
+        ax4.set_title(f'KS D Statistic Contours (Type "{node_type}")', 
+                    fontsize=12, fontweight='bold')
+        fig2.colorbar(contour2, ax=ax4)
+        
+        plt.tight_layout()
+        
+        return {
+            'n0_grid': N0_grid,
+            'm_grid': M_grid,
+            'p_grid': P_grid,
+            'd_grid': D_grid,
+            'fig_3d': fig,
+            'fig_contour': fig2
+        }
+
 if __name__ == "__main__":
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=25000, m_edges=10, h=0.9, f_a=0.9, mu_a=10, mu_b=1, seed=5) 
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=30000, m_edges=10, h=0.8, f_a=0.8, mu_a=5, mu_b=1, seed=5) 
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
@@ -634,12 +982,12 @@ if __name__ == "__main__":
     if Statistics:
         net.print_statistics()
     
-    Log_Binned = True
+    Log_Binned = False
     if Log_Binned:
         net.plot_degree_distributions()
         plt.show()
 
-    Discrete_Linear = True
+    Discrete_Linear = False
     if Discrete_Linear:
         net.plot_degree_distributions_discrete()
         plt.show()
@@ -666,4 +1014,20 @@ if __name__ == "__main__":
     plot_A_const = False
     if plot_A_const:
         net.plot_A_values()
+        plt.show()
+    
+
+    sweep_m_edges = True
+    if sweep_m_edges: 
+        results_m = net.ks_sweep_m_edges(m_min=5, m_max=20, m_step=2, node_type='b', kmin=0, kmax= None, n_runs=5)
+        plt.show()
+    
+    sweep_n0 = False
+    if sweep_n0:
+        results_n0 = net.ks_sweep_n0(n0_min=50, n0_max=500, n0_step=50, node_type='b', kmin=0, kmax=25, n_runs=3)
+        plt.show()
+    
+    surface_n0_m = False
+    if surface_n0_m:
+        results_surface = net.ks_surface_n0_m(n0_min=50, n0_max=500, n0_step=100,m_min=5,m_max=20, m_step=5, node_type='b',kmin=0,kmax=None, n_runs=2)
         plt.show()
