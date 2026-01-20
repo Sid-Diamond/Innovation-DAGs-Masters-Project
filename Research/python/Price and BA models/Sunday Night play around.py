@@ -5,8 +5,7 @@ from scipy.special import gamma as gamma_func, beta as beta_func
 from scipy.stats import chisquare, ksone
 from typing import Dict, Tuple, List
 import time
-
-from sklearn.linear_model import Log
+from scipy.stats import chi2
 
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
@@ -624,219 +623,203 @@ class DirectedHomophilicNetwork:
         plt.tight_layout()
         return fig
 
-    def ks_sweep_m_edges(self, m_min, m_max, m_step=1, node_type='b', kmin=0, kmax=25, 
-                        n_runs=3, figsize=(12, 6)):
-        """
-        Sweep over different m_edges values and compute KS statistics.
-        dict : Results containing m values, mean/std of D and p-values
-        """
-        import warnings
-        warnings.filterwarnings('ignore')
-        
-        m_values = np.arange(m_min, m_max + 1, m_step)
-        D_means, D_stds = [], []
-        p_means, p_stds = [], []
-        
-        print(f"\nSweeping m_edges: {m_values}")
-        print(f"Fixed: n0={self.n0}, n_nodes={self.n_nodes}, h={self.h}, f_a={self.f_a}")
-        
-        for m in m_values:
-            D_runs, p_runs = [], []
-            
-            for run in range(n_runs):
-                # Generate network with this m value
-                net_temp = DirectedHomophilicNetwork(
-                    self.n0, self.n_nodes, int(m), self.h, 
-                    self.f_a, self.mu['a'], self.mu['b']
-                )
-                net_temp.generate_network()
-                
-                # Get degrees and run KS test
-                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                if len(degrees) == 0:
-                    continue
-                
-                # Auto-set kmax if None
-                kmax_actual = int(degrees.max()) if kmax is None else kmax
-                
-                degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
-                if len(degrees_filtered) == 0:
-                    continue
-                
-                n = len(degrees_filtered)
-                unique_degrees = np.arange(kmin, kmax_actual + 1)
-                sorted_data = np.sort(degrees_filtered)
-                counts = np.searchsorted(sorted_data, unique_degrees, side='right')
-                empirical_cdf = counts / n
-                
-                theoretical_cdf_vals = net_temp.theoretical_cdf_discrete(
-                    unique_degrees, node_type, kmin=kmin, kmax=kmax_actual
-                )
-                
-                D = np.abs(empirical_cdf - theoretical_cdf_vals).max()
-                p_value = ksone.sf(D, n)
-                
-                D_runs.append(D)
-                p_runs.append(p_value)
-            
-            if len(D_runs) > 0:
-                D_means.append(np.mean(D_runs))
-                D_stds.append(np.std(D_runs))
-                p_means.append(np.mean(p_runs))
-                p_stds.append(np.std(p_runs))
-                print(f"  m={m:2d}: D={D_means[-1]:.4f}±{D_stds[-1]:.4f}, p={p_means[-1]:.3f}±{p_stds[-1]:.3f}")
-        
-        # Convert to arrays
-        D_means = np.array(D_means)
-        D_stds = np.array(D_stds)
-        p_means = np.array(p_means)
-        p_stds = np.array(p_stds)
-        
-        # Plot results
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-        
-        # KS statistic
-        if n_runs == 1:
-            ax1.plot(m_values, D_means, marker='o', linewidth=2, markersize=8, label='KS Statistic D')
-        else:
-            ax1.errorbar(m_values, D_means, yerr=D_stds, marker='o', capsize=5, 
-                        linewidth=2, markersize=8, label='KS Statistic D')
-        ax1.set_xlabel('m_edges', fontsize=12)
-        ax1.set_ylabel('KS Statistic D', fontsize=12)
-        ax1.set_title(f'KS Test vs m_edges (Type "{node_type}")', fontsize=13, fontweight='bold')
-        ax1.grid(True, alpha=0.3)
-        ax1.legend()
-        
-        # p-value
-        if n_runs == 1:
-            ax2.plot(m_values, p_means, marker='s', linewidth=2, markersize=8, color='red', label='p-value')
-        else:
-            ax2.errorbar(m_values, p_means, yerr=p_stds, marker='s', capsize=5,
-                        linewidth=2, markersize=8, color='red', label='p-value')
-        ax2.axhline(0.05, linestyle='--', color='black', alpha=0.5, label='p=0.05')
-        ax2.set_xlabel('m_edges', fontsize=12)
-        ax2.set_ylabel('p-value', fontsize=12)
-        ax2.set_title(f'p-value vs m_edges (Type "{node_type}")', fontsize=13, fontweight='bold')
-        ax2.set_ylim(-0.05, 1.05)
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-        
-        plt.tight_layout()
-        
-        return {
-            'm_values': m_values,
-            'D_means': D_means,
-            'D_stds': D_stds,
-            'p_means': p_means,
-            'p_stds': p_stds,
-            'fig': fig
-        }
+    def aggregate_pvals_diagnostic(self, pvals):
+        pvals = np.asarray(pvals)
+        R = len(pvals)
+        if R == 0:
+            return np.nan, np.nan, np.nan
+        p_median = np.median(pvals)
+        fisher_stat = -2.0 * np.sum(np.log(pvals))
+        p_fisher = 1.0 - chi2.cdf(fisher_stat, df=2*R)
+        p_hmp = R / np.sum(1.0 / pvals)
+        return p_median, p_fisher, p_hmp
 
-    def ks_sweep_n0(self, n0_min, n0_max, n0_step=1, node_type='b', kmin=0, kmax=25,
-                    n_runs=3, figsize=(12, 6)):
+    def ks_sweep_n0(self, n0_min, n0_max, n0_step=1, node_type='b', kmin=0, kmax=25, n_runs=3, figsize=(12, 6)):
         """
-        Sweep over different n0 values and compute KS statistics.
-        dict : Results containing n0 values, mean/std of D and p-values
+        Sweep over initial node count n0 for diagnostic KS testing.
+        Returns median, Fisher, and harmonic mean p-values across runs.
         """
-        import warnings
-        warnings.filterwarnings('ignore')
-        
         n0_values = np.arange(n0_min, n0_max + 1, n0_step)
-        D_means, D_stds = [], []
-        p_means, p_stds = [], []
-        
+        D_medians, p_medians, p_fishers, p_hmps = [], [], [], []
+
         print(f"\nSweeping n0: {n0_values}")
-        print(f"Fixed: m_edges={self.m_edges}, n_nodes={self.n_nodes}, h={self.h}, f_a={self.f_a}")
-        
+
         for n0 in n0_values:
             D_runs, p_runs = [], []
-            
-            for run in range(n_runs):
-                # Generate network with this n0 value
+
+            for _ in range(n_runs):
                 net_temp = DirectedHomophilicNetwork(
                     int(n0), self.n_nodes, self.m_edges, self.h,
                     self.f_a, self.mu['a'], self.mu['b']
                 )
                 net_temp.generate_network()
-                
-                # Get degrees and run KS test
+
                 degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                if len(degrees) == 0:
+                if degrees.size == 0:
                     continue
-                
-                # Auto-set kmax if None
+
                 kmax_actual = int(degrees.max()) if kmax is None else kmax
-                
-                degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
-                if len(degrees_filtered) == 0:
+                degrees = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
+                if degrees.size == 0:
                     continue
-                
-                n = len(degrees_filtered)
-                unique_degrees = np.arange(kmin, kmax_actual + 1)
-                sorted_data = np.sort(degrees_filtered)
-                counts = np.searchsorted(sorted_data, unique_degrees, side='right')
-                empirical_cdf = counts / n
-                
-                theoretical_cdf_vals = net_temp.theoretical_cdf_discrete(
-                    unique_degrees, node_type, kmin=kmin, kmax=kmax_actual
+
+                n = len(degrees)
+                support = np.arange(kmin, kmax_actual + 1)
+                sorted_deg = np.sort(degrees)
+                empirical_cdf = np.searchsorted(sorted_deg, support, side='right') / n
+
+                theoretical_cdf = net_temp.theoretical_cdf_discrete(
+                    support, node_type, kmin=kmin, kmax=kmax_actual
                 )
-                
-                D = np.abs(empirical_cdf - theoretical_cdf_vals).max()
-                p_value = ksone.sf(D, n)
-                
+
+                D = np.max(np.abs(empirical_cdf - theoretical_cdf))
+                p = ksone.sf(D, n)
+
                 D_runs.append(D)
-                p_runs.append(p_value)
-            
-            if len(D_runs) > 0:
-                D_means.append(np.mean(D_runs))
-                D_stds.append(np.std(D_runs))
-                p_means.append(np.mean(p_runs))
-                p_stds.append(np.std(p_runs))
-                print(f"  n0={n0:4d}: D={D_means[-1]:.4f}±{D_stds[-1]:.4f}, p={p_means[-1]:.3f}±{p_stds[-1]:.3f}")
-        
-        # Convert to arrays
-        D_means = np.array(D_means)
-        D_stds = np.array(D_stds)
-        p_means = np.array(p_means)
-        p_stds = np.array(p_stds)
-        
+                p_runs.append(p)
+
+            if D_runs:
+                D_median = np.median(D_runs)
+                p_median, p_fisher, p_hmp = self.aggregate_pvals_diagnostic(p_runs)
+
+                D_medians.append(D_median)
+                p_medians.append(p_median)
+                p_fishers.append(p_fisher)
+                p_hmps.append(p_hmp)
+
+                print(
+                    f"  n0={n0:3d}: D_med={D_median:.4f}, "
+                    f"p_med={p_median:.3f}, "
+                    f"p_F={p_fisher:.3f}, "
+                    f"p_HMP={p_hmp:.3f}"
+                )
+            else:
+                D_medians.append(np.nan)
+                p_medians.append(np.nan)
+                p_fishers.append(np.nan)
+                p_hmps.append(np.nan)
+
+        # Plotting
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.plot(n0_values[:len(D_medians)], p_medians, marker='o', label='Median p')
+        ax.plot(n0_values[:len(p_fishers)], p_fishers, marker='s', label='Fisher p')
+        ax.plot(n0_values[:len(p_hmps)], p_hmps, marker='^', label='HMP p')
+        ax.axhline(0.05, linestyle='--', color='black', alpha=0.5, label='p=0.05')
+        ax.set_xlabel('n0 (initial nodes)', fontsize=12)
+        ax.set_ylabel('p-value', fontsize=12)
+        ax.set_title(f'p-value Diagnostics vs n0 (Type "{node_type}")', fontsize=13, fontweight='bold')
+        ax.set_ylim(-0.05, 1.05)
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+
+        plt.tight_layout()
+
+        return {
+            'n0_values': n0_values[:len(D_medians)],
+            'D_medians': D_medians,
+            'p_medians': p_medians,
+            'p_fishers': p_fishers,
+            'p_hmps': p_hmps,
+            'fig': fig
+        }
+
+    def ks_sweep_m_edges(self, m_min: int, m_max: int, m_step: int = 1, node_type='b',
+                        kmin: int = 0, kmax: int = 25, n_runs: int = 3, figsize=(12, 6)):
+        """
+        Sweep over m_edges, compute KS statistics and diagnostic p-values.
+        Returns dict with D medians, median p, Fisher p, HMP p, and figure.
+        """
+
+        m_values = np.arange(m_min, m_max + 1, m_step)
+        D_medians, p_medians, p_fishers, p_hmps = [], [], [], []
+
+        print(f"\nSweeping m_edges: {m_values}")
+
+        for m in m_values:
+            D_runs, p_runs = [], []
+
+            for _ in range(n_runs):
+                net_temp = DirectedHomophilicNetwork(
+                    self.n0, self.n_nodes, int(m), self.h,
+                    self.f_a, self.mu['a'], self.mu['b']
+                )
+                net_temp.generate_network()
+
+                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+                if degrees.size == 0:
+                    continue
+
+                kmax_actual = int(degrees.max()) if kmax is None else kmax
+                degrees = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
+                if degrees.size == 0:
+                    continue
+
+                n = len(degrees)
+                support = np.arange(kmin, kmax_actual + 1)
+                sorted_deg = np.sort(degrees)
+                empirical_cdf = np.searchsorted(sorted_deg, support, side='right') / n
+
+                theoretical_cdf = net_temp.theoretical_cdf_discrete(
+                    support, node_type, kmin=kmin, kmax=kmax_actual
+                )
+
+                D = np.max(np.abs(empirical_cdf - theoretical_cdf))
+                p = ksone.sf(D, n)
+
+                D_runs.append(D)
+                p_runs.append(p)
+
+            # Compute diagnostics
+            if D_runs:
+                D_median = np.median(D_runs)
+                p_median, p_fisher, p_hmp = self.aggregate_pvals_diagnostic(p_runs)
+
+                D_medians.append(D_median)
+                p_medians.append(p_median)
+                p_fishers.append(p_fisher)
+                p_hmps.append(p_hmp)
+
+                print(
+                    f"  m={m:2d}: D_med={D_median:.4f}, "
+                    f"p_med={p_median:.3f}, "
+                    f"p_F={p_fisher:.3f}, "
+                    f"p_HMP={p_hmp:.3f}"
+                )
+            else:
+                D_medians.append(np.nan)
+                p_medians.append(np.nan)
+                p_fishers.append(np.nan)
+                p_hmps.append(np.nan)
+
         # Plot results
+        import matplotlib.pyplot as plt
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-        
-        # KS statistic
-        if n_runs == 1:
-            ax1.plot(n0_values, D_means, marker='o', linewidth=2, markersize=8, label='KS Statistic D')
-        else:
-            ax1.errorbar(n0_values, D_means, yerr=D_stds, marker='o', capsize=5,
-                        linewidth=2, markersize=8, label='KS Statistic D')
-        ax1.set_xlabel('n0 (initial nodes)', fontsize=12)
-        ax1.set_ylabel('KS Statistic D', fontsize=12)
-        ax1.set_title(f'KS Test vs n0 (Type "{node_type}")', fontsize=13, fontweight='bold')
+
+        ax1.plot(m_values[:len(D_medians)], D_medians, marker='o', linewidth=2, markersize=6)
+        ax1.set_xlabel('m_edges', fontsize=12)
+        ax1.set_ylabel('KS Statistic D (median)', fontsize=12)
+        ax1.set_title(f'KS D Statistic Median vs m_edges (Type "{node_type}")', fontsize=13, fontweight='bold')
         ax1.grid(True, alpha=0.3)
-        ax1.legend()
-        
-        # p-value
-        if n_runs == 1:
-            ax2.plot(n0_values, p_means, marker='s', linewidth=2, markersize=8, color='red', label='p-value')
-        else:
-            ax2.errorbar(n0_values, p_means, yerr=p_stds, marker='s', capsize=5,
-                        linewidth=2, markersize=8, color='red', label='p-value')
-        ax2.axhline(0.05, linestyle='--', color='black', alpha=0.5, label='p=0.05')
-        ax2.set_xlabel('n0 (initial nodes)', fontsize=12)
+
+        ax2.plot(m_values[:len(p_medians)], p_medians, marker='o', label='Median p')
+        ax2.plot(m_values[:len(p_fishers)], p_fishers, marker='s', label='Fisher p')
+        ax2.plot(m_values[:len(p_hmps)], p_hmps, marker='^', label='HMP p')
+        ax2.axhline(0.05, linestyle='--', color='black', alpha=0.5)
+        ax2.set_xlabel('m_edges', fontsize=12)
         ax2.set_ylabel('p-value', fontsize=12)
-        ax2.set_title(f'p-value vs n0 (Type "{node_type}")', fontsize=13, fontweight='bold')
+        ax2.set_title(f'p-value Diagnostics vs m_edges (Type "{node_type}")', fontsize=13, fontweight='bold')
         ax2.set_ylim(-0.05, 1.05)
         ax2.grid(True, alpha=0.3)
         ax2.legend()
-        
+
         plt.tight_layout()
-        
+
         return {
-            'n0_values': n0_values,
-            'D_means': D_means,
-            'D_stds': D_stds,
-            'p_means': p_means,
-            'p_stds': p_stds,
+            'm_values': m_values[:len(D_medians)],
+            'D_medians': D_medians,
+            'p_medians': p_medians,
+            'p_fishers': p_fishers,
+            'p_hmps': p_hmps,
             'fig': fig
         }
 
@@ -973,7 +956,7 @@ class DirectedHomophilicNetwork:
         }
 
 if __name__ == "__main__":
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=30000, m_edges=10, h=0.8, f_a=0.8, mu_a=5, mu_b=1, seed=5) 
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=30000, m_edges=5, h=0.8, f_a=0.8, mu_a=5, mu_b=1, seed=None) 
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
@@ -1015,11 +998,10 @@ if __name__ == "__main__":
     if plot_A_const:
         net.plot_A_values()
         plt.show()
-    
 
     sweep_m_edges = True
     if sweep_m_edges: 
-        results_m = net.ks_sweep_m_edges(m_min=5, m_max=20, m_step=2, node_type='b', kmin=0, kmax= None, n_runs=5)
+        results_m = net.ks_sweep_m_edges(m_min=5, m_max=60, m_step=15, node_type='b', kmin=0, kmax= None, n_runs=5)
         plt.show()
     
     sweep_n0 = False
