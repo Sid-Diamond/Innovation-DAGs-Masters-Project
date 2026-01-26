@@ -253,62 +253,6 @@ class DirectedHomophilicNetwork:
         
         return np.array(bin_centers), np.array(probabilities)
 
-    def ks_test_and_plot(self, node_type='b', kmin=0, kmax=25, figsize=(12, 6)):
-        """
-        KS test with visualization over integer degrees in [kmin, kmax].
-        Only the KS test decides the range; theoretical CDF is evaluated at these points.
-        """
-        
-        degrees = np.array(self._get_degrees(node_type), dtype=int)
-        if len(degrees) == 0:
-            print("No nodes of this type!")
-            return None, None, None
-
-        if kmax is None:
-            kmax = int(degrees.max())
-
-        # Filter degrees to the test range
-        degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax)]
-        if len(degrees_filtered) == 0:
-            print(f"No degrees in range [{kmin}, {kmax}]")
-            return None, None, None
-
-        n = len(degrees_filtered)
-        percent_used = 100 * n / len(degrees)
-
-        # Compute empirical CDF over filtered integers (vectorized)
-        unique_degrees = np.arange(kmin, kmax + 1)
-        sorted_data = np.sort(degrees_filtered)
-        counts = np.searchsorted(sorted_data, unique_degrees, side='right')
-        empirical_cdf = counts / n
-
-        # Theoretical CDF values at unique degrees
-        theoretical_cdf_vals = self.theoretical_cdf_discrete(unique_degrees, node_type, kmin=kmin, kmax=kmax)
-        
-        # KS statistic
-        discrepancies = np.abs(empirical_cdf - theoretical_cdf_vals)
-        D = discrepancies.max()
-        p_value = ksone.sf(D, n)
-
-        # Plot
-        fig, ax = plt.subplots(figsize=figsize)
-        ax.plot(unique_degrees, empirical_cdf, 'o-', label='Empirical CDF', color='blue', alpha=0.7)
-        ax.plot(unique_degrees, theoretical_cdf_vals, '-', label='Theoretical CDF', color='red', alpha=0.7)
-
-        ax.set_xlabel('In-degree k')
-        ax.set_ylabel('Cumulative Probability')
-        ax.set_title(f'KS Test: Type "{node_type}" (D={D:.4f}, p={p_value:.2e})')
-        ax.grid(True, alpha=0.3, linestyle='--')
-        ax.set_xlim(left=kmin, right=kmax)
-        ax.set_ylim(0, 1.05)
-        ax.legend()
-        plt.tight_layout()
-
-        print(f"\nKS Test: Type '{node_type}', k∈[{kmin},{kmax}], {percent_used:.1f}% data")
-        print(f"  D = {D:.6f}, p = {p_value:.6e}")
-
-        return fig, D, p_value
-
     def plot_degree_distributions(self, figsize: Tuple = (15, 6), discretisations: int = 10**5):
         """
         Plot in-degree distributions with theoretical curves. If discretisations=0,
@@ -622,6 +566,62 @@ class DirectedHomophilicNetwork:
                     fontsize=14, fontweight='bold')
         plt.tight_layout()
         return fig
+
+    def ks_test_and_plot(self, node_type='b', kmin=0, kmax=25, figsize=(12, 6)):
+        """
+        KS test with visualization over integer degrees in [kmin, kmax].
+        Only the KS test decides the range; theoretical CDF is evaluated at these points.
+        """
+        
+        degrees = np.array(self._get_degrees(node_type), dtype=int)
+        if len(degrees) == 0:
+            print("No nodes of this type!")
+            return None, None, None
+
+        if kmax is None:
+            kmax = int(degrees.max())
+
+        # Filter degrees to the test range
+        degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax)]
+        if len(degrees_filtered) == 0:
+            print(f"No degrees in range [{kmin}, {kmax}]")
+            return None, None, None
+
+        n = len(degrees_filtered)
+        percent_used = 100 * n / len(degrees)
+
+        # Compute empirical CDF over filtered integers (vectorized)
+        unique_degrees = np.arange(kmin, kmax + 1)
+        sorted_data = np.sort(degrees_filtered)
+        counts = np.searchsorted(sorted_data, unique_degrees, side='right')
+        empirical_cdf = counts / n
+
+        # Theoretical CDF values at unique degrees
+        theoretical_cdf_vals = self.theoretical_cdf_discrete(unique_degrees, node_type, kmin=kmin, kmax=kmax)
+        
+        # KS statistic
+        discrepancies = np.abs(empirical_cdf - theoretical_cdf_vals)
+        D = discrepancies.max()
+        p_value = ksone.sf(D, n)
+
+        # Plot
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.plot(unique_degrees, empirical_cdf, 'o-', label='Empirical CDF', color='blue', alpha=0.7)
+        ax.plot(unique_degrees, theoretical_cdf_vals, '-', label='Theoretical CDF', color='red', alpha=0.7)
+
+        ax.set_xlabel('In-degree k')
+        ax.set_ylabel('Cumulative Probability')
+        ax.set_title(f'KS Test: Type "{node_type}" (D={D:.4f}, p={p_value:.2e})')
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.set_xlim(left=kmin, right=kmax)
+        ax.set_ylim(0, 1.05)
+        ax.legend()
+        plt.tight_layout()
+
+        print(f"\nKS Test: Type '{node_type}', k∈[{kmin},{kmax}], {percent_used:.1f}% data")
+        print(f"  D = {D:.6f}, p = {p_value:.6e}")
+
+        return fig, D, p_value
 
     def aggregate_pvals_diagnostic(self, pvals):
         pvals = np.asarray(pvals)
@@ -956,7 +956,7 @@ class DirectedHomophilicNetwork:
         }
 
 if __name__ == "__main__":
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=30000, m_edges=5, h=0.8, f_a=0.8, mu_a=5, mu_b=1, seed=None) 
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=5000, m_edges=5, h=0.8, f_a=0.8, mu_a=5, mu_b=1, seed=None) 
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
@@ -1001,7 +1001,7 @@ if __name__ == "__main__":
 
     sweep_m_edges = True
     if sweep_m_edges: 
-        results_m = net.ks_sweep_m_edges(m_min=5, m_max=60, m_step=15, node_type='b', kmin=0, kmax= None, n_runs=5)
+        results_m = net.ks_sweep_m_edges(m_min=2, m_max=60, m_step=2, node_type='b', kmin=0, kmax= None, n_runs=10)
         plt.show()
     
     sweep_n0 = False
