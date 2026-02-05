@@ -967,7 +967,7 @@ class DirectedHomophilicNetwork:
         print(f"g_a + g_b = {self.g_a + self.g_b:.6f} (m = {self.m_edges})")
 
 if __name__ == "__main__":
-    net = DirectedHomophilicNetwork(n0=100, n_nodes=5000, m_edges=5, h=0.8, f_a=0.8, mu_a=5, mu_b=1, seed=None) 
+    net = DirectedHomophilicNetwork(n0=100, n_nodes=5000, m_edges=5, h=0.8, f_a=0.8, mu_a=5, mu_b=1, seed=5) 
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
@@ -986,12 +986,12 @@ if __name__ == "__main__":
         net.plot_degree_distributions_discrete()
         plt.show()
 
-    Hybrid_Plot = True
+    Hybrid_Plot = False
     if Hybrid_Plot:
         net.plot_degree_distributions_hybrid()
         plt.show()
     
-    KS_test = True
+    KS_test = False
     if KS_test:
         fig, D, p = net.ks_test_and_plot(node_type='b', kmin=0, kmax=None)
         plt.show()
@@ -1010,7 +1010,7 @@ if __name__ == "__main__":
         net.plot_A_values()
         plt.show()
 
-    sweep_m_edges = True
+    sweep_m_edges = False
     if sweep_m_edges: 
         results_m = net.ks_sweep_m_edges(m_min=2, m_max=60, m_step=2, node_type='b', kmin=0, kmax= None, n_runs=10)
         plt.show()
