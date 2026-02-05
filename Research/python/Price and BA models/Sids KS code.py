@@ -163,6 +163,12 @@ class DirectedHomophilicNetwork:
         
         return result.item() if result.shape == (1,) else result
 
+    def _get_degrees(self, node_type: str) -> List[int]:
+        """Get in-degrees for nodes of specified type."""
+        type_val = 0 if node_type == 'a' else 1
+        return [self.graph.in_degree(n) for n in self.graph.nodes() 
+                if self.node_types[n] == type_val]
+    
 
 #GoF.
 
@@ -216,12 +222,6 @@ class DirectedHomophilicNetwork:
 
         return unique_vals, cdf_vals
 
-    def _get_degrees(self, node_type: str) -> List[int]:
-        """Get in-degrees for nodes of specified type."""
-        type_val = 0 if node_type == 'a' else 1
-        return [self.graph.in_degree(n) for n in self.graph.nodes() 
-                if self.node_types[n] == type_val]
-    
     def monte_carlo_test(self, n_runs=10, min_degree=0, min_bin_count=10):
         """Chi-squared test stopping at first bin with < min_bin_count observations."""
         
