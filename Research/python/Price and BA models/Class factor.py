@@ -2,17 +2,13 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 from scipy.special import gamma as gamma_func, beta as beta_func
-from scipy.stats import chisquare, ksone
 from typing import Dict, Tuple, List
 import time
-from scipy.stats import chi2
 from scipy.optimize import minimize
 from scipy.special import beta as beta_func
 
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
-
-    # Theory and Model.
 
     def __init__(
         self,
@@ -322,16 +318,7 @@ class GoFDiagnostics:
 
         return unique_vals, cdf_vals
 
-
-    def csn_distance(
-        self,
-        net: DirectedHomophilicNetwork,
-        data,
-        a: int,
-        b: int,
-        beta,
-        node_type: str,
-    ) -> float:
+    def csn_distance(self,net: DirectedHomophilicNetwork,data,a: int,b: int, beta, node_type: str,) -> float:
         """
         CSN/AD-style distance on a truncated window [a,b]:
 
@@ -346,11 +333,6 @@ class GoFDiagnostics:
           - S(n; beta; [a,b]) is the theoretical CDF conditional on [a,b]
             **under the parameter vector beta = (p0, alpha, gamma)**.
         """
-
-        data = np.asarray(data, dtype=int)
-        if data.size == 0:
-            # Convention: no data in [a,b] => distance 0
-            return 0.0
 
         # By assumption, all data lie in [a,b]
         N_a = data.size
@@ -369,15 +351,7 @@ class GoFDiagnostics:
         empirical_ratio = N_n / N_a
 
         # Theoretical conditional CDF S(n; beta; [a,b])
-        # STEP 4: pass beta into the CDF call
-        S_n = self.theoretical_cdf_discrete(
-            net,
-            n_vals,
-            node_type,
-            kmin=a,
-            kmax=b,
-            beta=beta,      # <-- this is the important addition
-        )
+        S_n = self.theoretical_cdf_discrete(net, n_vals, node_type, kmin=a, kmax=b,beta=beta,)
         S_n = np.asarray(S_n, dtype=float)
 
         # Denominator sqrt(S (1-S)), with safeguard
@@ -385,7 +359,6 @@ class GoFDiagnostics:
         valid = denom > 0
 
         if not np.any(valid):
-            # If everything is degenerate (S in {0,1}), define D=0
             return 0.0
 
         numer = np.abs(empirical_ratio[valid] - S_n[valid])
@@ -393,118 +366,46 @@ class GoFDiagnostics:
         D = float(np.max(D_vals))
         return D
 
-    def _fit_beta_mle(
-        self,
-        net: DirectedHomophilicNetwork,
-        data,
-        a: int,
-        b: int,
-        node_type: str,
-        beta_init,
-    ):
-        """
-        Curve-fit (p0, alpha, gamma) for the given node_type on the window [a,b]
-        by matching the truncated PMF to the empirical PMF (least-squares in
-        log-probabilities).
-
-        Parameters
-        ----------
-        net : DirectedHomophilicNetwork
-            Network whose asymptotic parameters provide a natural initial guess.
-        data : array-like
-            Degrees, already truncated to a <= x <= b for the chosen node_type.
-        a, b : int
-            Window [a,b] for truncation.
-        node_type : str
-            'a' or 'b'.
-        beta_init :
-            Initial guess for (p0, alpha, gamma). Can be:
-              - a tuple/list/array of length 3, or
-              - None, in which case we use net._get_params(node_type).
-
-        Returns
-        -------
-        beta_mle : np.ndarray, shape (3,)
-            Fitted (p0, alpha, gamma).
-        """
-
+    def _fit_beta_mle(self, net: DirectedHomophilicNetwork, data, a: int, b: int, node_type: str, beta_init,):
         data = np.asarray(data, dtype=int)
         if data.size == 0:
-            # No data in window: fall back to initial guess from net
             params0 = net._get_params(node_type)
-            return np.array(
-                [params0['p0'], params0['alpha'], params0['gamma']], dtype=float
-            )
+            beta_mle = np.array([params0['p0'], params0['alpha'], params0['gamma']], dtype=float)
+            return beta_mle, True
 
-        # Get initial guess for (p0, alpha, gamma)
         params0 = net._get_params(node_type)
         if beta_init is None:
-            p0_0 = float(params0['p0'])
-            alpha0 = float(params0['alpha'])
-            gamma0 = float(params0['gamma'])
+            p0_0 = float(params0['p0']); alpha0 = float(params0['alpha']); gamma0 = float(params0['gamma'])
         else:
             beta_init_arr = np.asarray(beta_init, dtype=float)
-            if beta_init_arr.shape[0] != 3:
-                raise ValueError(
-                    "beta_init for _fit_beta_mle should be length-3: (p0, alpha, gamma)"
-                )
             p0_0, alpha0, gamma0 = beta_init_arr
 
-        # Support on [a,b]
         k_support = np.arange(a, b + 1, dtype=int)
 
-        # Empirical PMF on [a,b]
         unique_k, counts = np.unique(data, return_counts=True)
         total = counts.sum()
         emp_pmf = counts / total
 
         def truncated_pmf(p0: float, alpha: float, gamma: float) -> np.ndarray:
-            """
-            Build truncated PMF p(k | p0, alpha, gamma) over k in [a,b],
-            with renormalisation on [a,b].
-            """
-            # Enforce basic constraints
-            if not (0.0 < p0 < 1.0) or alpha <= 0 or gamma <= 0:
-                # Return tiny uniform; will be penalised
-                return np.full_like(k_support, 1e-300, dtype=float)
-
             pmf = np.zeros_like(k_support, dtype=float)
-
-            # k == 0 if in window
             zero_mask = (k_support == 0)
             if np.any(zero_mask):
                 pmf[zero_mask] = p0
-
-            # k > 0 part
             pos_mask = (k_support > 0)
             if np.any(pos_mask):
                 k_pos = k_support[pos_mask]
-                # Form: p(k) ∝ p0 * B(k, alpha + gamma) / B(k, alpha)
-                pmf[pos_mask] = (
-                    p0
-                    * beta_func(k_pos, alpha + gamma)
-                    / beta_func(k_pos, alpha)
-                )
-
-            # Renormalise over [a,b]
+                pmf[pos_mask] = p0 * beta_func(k_pos, alpha + gamma) / beta_func(k_pos, alpha)
             Z_trunc = pmf.sum()
             if Z_trunc <= 0:
                 return np.full_like(k_support, 1e-300, dtype=float)
-
             pmf /= Z_trunc
             pmf = np.clip(pmf, 1e-300, 1.0)
             return pmf
 
         def objective(theta: np.ndarray) -> float:
-            """
-            Least-squares in log-PMF between empirical and model on [a,b].
-            We only compare at k where we have empirical mass.
-            """
             p0, alpha, gamma = theta
             model_pmf_full = truncated_pmf(p0, alpha, gamma)
-
-            model_probs = []
-            emp_probs = []
+            model_probs, emp_probs = [], []
             for k, p_emp in zip(unique_k, emp_pmf):
                 if a <= k <= b:
                     idx = np.where(k_support == k)[0]
@@ -512,187 +413,98 @@ class GoFDiagnostics:
                         continue
                     model_probs.append(model_pmf_full[idx[0]])
                     emp_probs.append(p_emp)
-
             if not model_probs:
-                # No overlap between support and data; large penalty
                 return 1e6
-
             model_probs = np.asarray(model_probs, dtype=float)
             emp_probs = np.asarray(emp_probs, dtype=float)
-
-            # Compare in log-space
             log_model = np.log(model_probs)
             log_emp = np.log(emp_probs)
             return np.sum((log_model - log_emp) ** 2)
 
-        # Initial theta
         theta0 = np.array([p0_0, alpha0, gamma0], dtype=float)
+        bounds = [(1e-6, 1.0 - 1e-6), (1e-4, None), (1e-4, None)]
 
-        # Bounds: 0 < p0 < 1, alpha > 0, gamma > 0
-        bounds = [
-            (1e-6, 1.0 - 1e-6),  # p0
-            (1e-4, None),        # alpha
-            (1e-4, None),        # gamma
-        ]
-
-        res = minimize(
-            objective,
-            theta0,
-            method='L-BFGS-B',
-            bounds=bounds,
-        )
+        res = minimize(objective, theta0, method='L-BFGS-B', bounds=bounds)
 
         if not res.success:
-            # If optimisation fails, fall back to initial guess
             p0_mle, alpha_mle, gamma_mle = p0_0, alpha0, gamma0
+            used_fallback = True
         else:
             p0_mle, alpha_mle, gamma_mle = res.x
+            used_fallback = False
 
-        return np.array([p0_mle, alpha_mle, gamma_mle], dtype=float)
+        beta_mle = np.array([p0_mle, alpha_mle, gamma_mle], dtype=float)
+        return beta_mle, used_fallback
 
-    def mc_on_window(
-        self,
-        net: DirectedHomophilicNetwork,
-        node_type: str,
-        a: int,
-        b: int,
-        beta_theory,
-        N_sims: int,
-    ):
-        """
-        Monte Carlo experiment on a single window [a,b] for a given node_type,
-        with fixed theoretical parameters beta_theory.
-
-        For each simulation s = 1,...,N_sims:
-
-            1) Generate a network from the model with the same parameters as 'net'
-               (which encode beta_theory at the global/asymptotic level).
-            2) Extract degrees for node_type and truncate to [a,b].
-            3) Compute D_theory_s = D(data_s; beta_theory; [a,b]) using csn_distance.
-               (Currently 'beta_theory' is not passed into the CDF; the model
-                structure is taken from net_sim, but we keep beta_theory in the
-                interface.)
-            4) Fit beta_mle_s = (p0, alpha, gamma) on the truncated data via
-               _fit_beta_mle, and compute
-               D_mle_s = D(data_s; beta_mle_s; [a,b]).
-
-        After N_sims, compute:
-
-            p([a,b])      = (# sims with D_mle_s > D_theory_s) / N_sims
-            sigma_p([a,b]) = sqrt( p (1 - p) / N_sims )
-
-        Returns
-        -------
-        result : dict
-            {
-              'a': a,
-              'b': b,
-              'D_theory': np.ndarray,   # shape (N_sims,)
-              'D_mle': np.ndarray,      # shape (N_sims,)
-              'beta_mle': np.ndarray,   # shape (N_sims, 3) if numeric
-              'p': float,
-              'sigma_p': float,
-              'beta_mle_mean': np.ndarray or None,
-              'beta_mle_std': np.ndarray or None,
-            }
-        """
-
+    def mc_on_window(self, net: DirectedHomophilicNetwork, node_type: str, a: int, b: int, beta_theory, N_sims: int,):
         D_theory_list = []
         D_mle_list = []
         beta_mle_list = []
+        fallback_flags = []
 
-        # Ensure beta_theory has the shape we expect for comparison/storage.
-        # For now we just store it; csn_distance uses net_sim's internal params.
         beta_theory_arr = np.asarray(beta_theory) if beta_theory is not None else None
 
         for s in range(N_sims):
-            # 1) Generate a new network using the same parameters as 'net'
-            net_sim = DirectedHomophilicNetwork(
-                net.n0,
-                net.n_nodes,
-                net.m_edges,
-                net.h,
-                net.f_a,
-                net.mu['a'],
-                net.mu['b'],
-                seed=None,  # random seed can be left free or controlled externally
-            )
+            net_sim = DirectedHomophilicNetwork(net.n0, net.n_nodes, net.m_edges, net.h, net.f_a, net.mu['a'], net.mu['b'], seed=None)
             net_sim.generate_network()
 
-            # 2) Extract degrees and truncate to [a,b]
             degrees = np.array(net_sim._get_degrees(node_type), dtype=int)
             data_s = degrees[(degrees >= a) & (degrees <= b)]
 
             if data_s.size == 0:
-                # No data in [a,b]: define distances as 0 and beta_mle = beta_theory
                 D_theory_list.append(0.0)
                 D_mle_list.append(0.0)
-                if beta_theory_arr is not None:
-                    beta_mle_list.append(beta_theory_arr)
-                else:
-                    beta_mle_list.append(np.array([np.nan, np.nan, np.nan]))
+                beta_mle_list.append(beta_theory_arr if beta_theory_arr is not None else np.array([np.nan, np.nan, np.nan]))
+                fallback_flags.append(True)
                 continue
 
-            # 3) Compute D_theory_s with the CSN distance
-            #    Note: csn_distance currently uses net_sim's theoretical CDF,
-            #    which encodes the global asymptotic parameters. 'beta_theory'
-            #    is kept in the interface for future use when you plug beta
-            #    directly into the model.
-            D_theory_s = self.csn_distance(
-                net_sim,
-                data_s,
-                a,
-                b,
-                beta_theory,
-                node_type,
-            )
-
-            # 4) Fit beta_mle_s = (p0, alpha, gamma) on [a,b] and compute D_mle_s
-            beta_mle_s = self._fit_beta_mle(
-                net_sim,
-                data_s,
-                a,
-                b,
-                node_type,
-                beta_init=None,  # start from net_sim._get_params(node_type)
-            )
-
-            # For D_mle, we still use csn_distance; the current implementation
-            # of csn_distance obtains the theoretical CDF from net_sim itself,
-            # so beta_mle_s is stored for inspection but not yet passed into the
-            # CDF machinery. Once you refactor net to accept (p0, alpha, gamma)
-            # explicitly, you can wire beta_mle_s into csn_distance.
-            D_mle_s = self.csn_distance(
-                net_sim,
-                data_s,
-                a,
-                b,
-                beta_mle_s,
-                node_type,
-            )
+            D_theory_s = self.csn_distance(net_sim, data_s, a, b, beta_theory, node_type)
+            beta_mle_s, used_fallback_s = self._fit_beta_mle(net_sim, data_s, a, b, node_type, beta_init=None)
+            D_mle_s = self.csn_distance(net_sim, data_s, a, b, beta_mle_s, node_type)
 
             D_theory_list.append(D_theory_s)
             D_mle_list.append(D_mle_s)
             beta_mle_list.append(beta_mle_s)
+            fallback_flags.append(used_fallback_s)
 
-        # Convert to arrays
         D_theory_arr = np.array(D_theory_list, dtype=float)
         D_mle_arr = np.array(D_mle_list, dtype=float)
+        fallback_flags = np.asarray(fallback_flags, dtype=bool)
 
-        # p([a,b]) = fraction with D_mle > D_theory
         greater_mask = D_mle_arr > D_theory_arr
         p = float(np.mean(greater_mask.astype(float)))
         sigma_p = float(np.sqrt(p * (1.0 - p) / max(N_sims, 1)))
 
-        # Try to build numeric array for beta_mle and compute mean/std
         try:
             beta_mle_arr = np.asarray(beta_mle_list, dtype=float)
-            beta_mle_mean = np.nanmean(beta_mle_arr, axis=0)
-            beta_mle_std = np.nanstd(beta_mle_arr, axis=0)
         except Exception:
             beta_mle_arr = np.array(beta_mle_list, dtype=object)
-            beta_mle_mean = None
-            beta_mle_std = None
+
+        frac_moved = float(np.mean(~fallback_flags)) if fallback_flags.size > 0 else np.nan
+
+        beta_mle_mean = None
+        beta_mle_std = None
+        if isinstance(beta_mle_arr, np.ndarray) and beta_mle_arr.ndim == 2 and beta_mle_arr.shape[0] == fallback_flags.size:
+            mask_non_fallback = ~fallback_flags
+            if np.any(mask_non_fallback):
+                beta_mle_non_fallback = beta_mle_arr[mask_non_fallback]
+                beta_mle_mean = np.nanmean(beta_mle_non_fallback, axis=0)
+                beta_mle_std = np.nanstd(beta_mle_non_fallback, axis=0)
+
+        percent_diff_mean_vs_theory = None
+        if beta_theory_arr is not None and beta_mle_mean is not None:
+            with np.errstate(divide='ignore', invalid='ignore'):
+                percent_diff_mean_vs_theory = 100.0 * ((beta_mle_mean - beta_theory_arr) / beta_theory_arr)
+                percent_diff_mean_vs_theory = np.where(beta_theory_arr == 0.0, np.nan, percent_diff_mean_vs_theory)
+
+                print(
+                    f"      MLE diagnostics for [a={a}, b={b}]: "
+                    f"frac_moved = {frac_moved:.3f}, "
+                    f"mean(beta_mle) = {beta_mle_mean}, "
+                    f"std(beta_mle) = {beta_mle_std}, "
+                    f"beta_theory = {beta_theory_arr}, "
+                    f"% diff mean vs theory = {percent_diff_mean_vs_theory}"
+                )
 
         result = {
             'a': a,
@@ -704,199 +516,105 @@ class GoFDiagnostics:
             'sigma_p': sigma_p,
             'beta_mle_mean': beta_mle_mean,
             'beta_mle_std': beta_mle_std,
+            'beta_theory': beta_theory_arr,
+            'frac_moved': frac_moved,
+            'percent_diff_mean_vs_theory': percent_diff_mean_vs_theory,
         }
         return result
 
-    def scan_over_b(
-        self,
-        net: DirectedHomophilicNetwork,
-        node_type: str,
-        a: int,
-        beta_theory,
-        candidate_bs,
-        N_sims: int,
-    ):
-        """
-        Scan over multiple upper cutoffs b_j for a fixed lower cutoff 'a'
-        and node_type, running the CSN/AD-style Monte Carlo per window.
+    def _build_b_grid(self,net: DirectedHomophilicNetwork,node_type: str,a: int,candidate_bs,b_min,b_max,n_b: int,b_grid_type: str,):
+        if candidate_bs is not None:
+            bs = np.array(candidate_bs, dtype=int)
+            return bs
 
-        Parameters
-        ----------
-        net : DirectedHomophilicNetwork
-            Base network whose parameters define the theoretical model.
-        node_type : str
-            'a' or 'b'.
-        a : int
-            Lower cutoff of the window [a, b_j] (fixed across all windows).
-        beta_theory :
-            Theoretical parameter vector for the window model. Currently
-            stored and returned but not yet wired into the CDF computation,
-            since the model is still parameterised by 'net'.
-        candidate_bs : array-like of int
-            Sequence of upper cutoffs b_j, with a < b_j <= max degree.
-        N_sims : int
-            Number of Monte Carlo simulations to perform per window.
+        degrees = np.array(net._get_degrees(node_type), dtype=int)
+        if degrees.size == 0:
+            return None  # caller handles this
 
-        Returns
-        -------
-        result : dict
-            {
-              'a': a,
-              'beta_theory': beta_theory,
-              'windows': [
-                  {
-                    'b': b_j,
-                    'D_theory': np.ndarray,   # shape (N_sims,)
-                    'D_mle': np.ndarray,      # shape (N_sims,)
-                    'beta_mle': np.ndarray,   # shape (N_sims, 3) if numeric
-                    'p': float,
-                    'sigma_p': float,
-                    'beta_mle_mean': np.ndarray or None,
-                    'beta_mle_std': np.ndarray or None,
-                  },...
-              ]
-            }
-        """
-        candidate_bs = list(candidate_bs)
+        max_deg = int(degrees.max())
+
+        b_min_eff = a + 1 if b_min is None else max(a + 1, b_min)
+        b_max_eff = max_deg if b_max is None else min(max_deg, b_max)
+
+        if b_min_eff > b_max_eff:
+            return None
+
+        if b_grid_type == 'linear':
+            bs = np.linspace(b_min_eff, b_max_eff, n_b, dtype=int)
+            bs = np.unique(bs)
+        elif b_grid_type == 'log':
+            bs = np.logspace(np.log10(b_min_eff), np.log10(b_max_eff), n_b, dtype=int)
+            bs = np.unique(bs)
+        else:
+            raise ValueError(f"Unknown b_grid_type='{b_grid_type}'. Use 'linear' or 'log'.")
+
+        return bs
+    
+    def scan_over_b(self,net: DirectedHomophilicNetwork,node_type: str,a: int,beta_theory,candidate_bs=None,N_sims: int = 20,b_min: int = None,b_max: int = None,n_b: int = 20,b_grid_type: str = 'linear',):
+        bs = self._build_b_grid(net=net,node_type=node_type,a=a,candidate_bs=candidate_bs,b_min=b_min,b_max=b_max,n_b=n_b,b_grid_type=b_grid_type,)
+
         windows_results = []
 
-        for b in candidate_bs:
+        if bs is None or len(bs) == 0:
+            # no valid b range; return empty windows
+            return {
+                'a': a,
+                'beta_theory': beta_theory,
+                'windows': [],
+                'b_grid': None,
+            }
+    
+        print(f"    b-grid (candidate b_j): {bs}")
+
+        for b in bs:
             if b <= a:
-                raise ValueError(
-                    f"Each b_j must satisfy b_j > a. Got a={a}, b_j={b}."
-                )
+                raise ValueError(f"Each b_j must satisfy b_j > a. Got a={a}, b_j={b}.")
 
-            window_result = self.mc_on_window(
-                net=net,
-                node_type=node_type,
-                a=a,
-                b=int(b),
-                beta_theory=beta_theory,
-                N_sims=N_sims,
-            )
+            window_result = self.mc_on_window(net=net,node_type=node_type,a=a,b=int(b),beta_theory=beta_theory,N_sims=N_sims,)
 
-            # Attach b explicitly into the window dict for convenience
             window_result_with_b = dict(window_result)
             window_result_with_b['b'] = int(b)
-
             windows_results.append(window_result_with_b)
 
         result = {
             'a': a,
             'beta_theory': beta_theory,
             'windows': windows_results,
+            'b_grid': np.array(bs, dtype=int),
         }
         return result
 
-    def scan_until_threshold(
-        self,
-        net: DirectedHomophilicNetwork,
-        node_type: str,
-        a: int,
-        beta_theory,
-        candidate_bs,
-        N_sims: int,
-        p_c: float,
-    ):
-        """
-        Scan over upper cutoffs b_j for fixed a and node_type,
-        starting from the largest window and shrinking until we find
-        the smallest truncation that still satisfies p([a,b_j]) >= p_c.
-
-        New behaviour
-        -------------
-        - Let {b_1,..., b_J} be candidate_bs sorted ascending.
-        - We evaluate windows in order: [a, b_J], [a, b_{J-1}],..., [a, b_1].
-        - We stop at the first b_j where p([a,b_j]) >= p_c.
-        - That b_j is the smallest truncation of the range [a, max b_j]
-          that still passes the threshold, i.e. the largest range we can
-          keep while satisfying p >= p_c after removing as much tail as needed.
-
-        Parameters
-        ----------
-        net : DirectedHomophilicNetwork
-            Base network whose parameters define the model.
-        node_type : str
-            'a' or 'b'.
-        a : int
-            Lower cutoff of the window [a, b_j].
-        beta_theory :
-            Theoretical parameter vector (p0, alpha, gamma) for this node_type.
-        candidate_bs : array-like of int
-            Sequence of upper cutoffs b_j (not necessarily sorted).
-        N_sims : int
-            Number of Monte Carlo simulations per window.
-        p_c : float
-            Threshold in [0,1]. We look for the smallest b_j (when scanning
-            from max to min) such that p([a,b_j]) >= p_c.
-
-        Returns
-        -------
-        result : dict
-            {
-              'a': a,
-              'beta_theory': beta_theory,
-              'p_c': p_c,
-              'windows_evaluated': [  # in the order evaluated (from largest to smallest b)
-                  {
-                    'b': b_j,
-                    'D_theory':...,
-                    'D_mle':...,
-                    'beta_mle':...,
-                    'p': p([a,b_j]),
-                    'sigma_p':...,
-                    'beta_mle_mean':...,
-                    'beta_mle_std':...,
-                  },...
-              ],
-              'largest_window': {
-                  'a': a,
-                  'b': b_star,
-                  'p': p_star,
-                  'sigma_p': sigma_p_star,
-                  'index': j_star,    # index into windows_evaluated
-              } or None if no window satisfies p >= p_c
-            }
-        """
+    def scan_until_threshold(self,net: DirectedHomophilicNetwork,node_type: str,a: int,beta_theory,candidate_bs,N_sims: int,p_c: float,):
         # Sort candidate b_j ascending, then we will traverse from largest to smallest
         bs_sorted = sorted(int(b) for b in candidate_bs)
         windows_evaluated = []
         largest_window_info = None  # will hold the first window (from top) with p >= p_c
 
-        # Traverse from largest b downward
         for j_rev, b in enumerate(reversed(bs_sorted)):
             if b <= a:
-                raise ValueError(
-                    f"Each b_j must satisfy b_j > a. Got a={a}, b_j={b}."
-                )
+                raise ValueError(f"Each b_j must satisfy b_j > a. Got a={a}, b_j={b}.")
 
-            # Run MC on this window [a,b]
-            window_result = self.mc_on_window(
-                net=net,
-                node_type=node_type,
-                a=a,
-                b=int(b),
-                beta_theory=beta_theory,
-                N_sims=N_sims,
-            )
-
-            # Attach 'b' explicitly
+            window_result = self.mc_on_window(net=net, node_type=node_type, a=a, b=int(b), beta_theory=beta_theory, N_sims=N_sims)
             window_result['b'] = int(b)
             windows_evaluated.append(window_result)
 
             p_val = window_result['p']
+            sigma_p = window_result['sigma_p']
+            L = b - a + 1
 
-            # We scan from largest to smallest; the first window with p >= p_c
-            # is the *largest range that passes* after truncating as much as needed.
+            status = "ACCEPT" if p_val >= p_c else "REJECT"
+            print(f"      window [a={a}, b={b}] (L={L}): p = {p_val:.3f} ± {sigma_p:.3f} -> {status}")
+
             if p_val >= p_c:
                 largest_window_info = {
                     'a': a,
                     'b': int(b),
                     'p': float(p_val),
-                    'sigma_p': float(window_result['sigma_p']),
+                    'sigma_p': float(sigma_p),
                     'index': j_rev,
                 }
-                break  # stop shrinking once we find a window that passes
+                print(f"      -> stopping at [a={a}, b={b}] as largest acceptable window (p >= p_c={p_c})")
+                break
 
         result = {
             'a': a,
@@ -907,91 +625,9 @@ class GoFDiagnostics:
         }
         return result
 
-    def csn_sweep_m_edges(
-        self,
-        net: DirectedHomophilicNetwork,
-        m_min: int,
-        m_max: int,
-        m_step: int = 1,
-        node_type: str = 'b',
-        a: int = 0,
-        # --- b_j grid control ---
-        candidate_bs=None,
-        b_min: int = None,
-        b_max: int = None,
-        n_b: int = 20,
-        b_grid_type: str = 'linear',  # 'linear' or 'log'
-        # --- Monte Carlo control ---
-        N_sims: int = 20,
-        p_c: float = 0.1,
-        figsize=(12, 6),
-    ):
-        """
-        CSN-based sweep over m_edges.
-
-        For each m in [m_min, m_max] with step m_step:
-            1) Generate a network with that m.
-            2) Build a grid of upper cutoffs b_j according to:
-                 - candidate_bs (if provided), or
-                 - [b_min, b_max, n_b, b_grid_type].
-            3) Run scan_until_threshold on windows [a, b_j], with N_sims MC sims
-               per window, and threshold p_c.
-            4) Record the largest window [a, b*(m)] with p([a,b*(m)]) >= p_c.
-
-        Plots:
-            - Left: window length L*(m) = b*(m) - a + 1 vs m_edges,
-            - Right: p([a,b*(m)]) vs m_edges.
-
-        Parameters
-        ----------
-        net : DirectedHomophilicNetwork
-            Provides base parameters n0, n_nodes, h, f_a, mu_a, mu_b.
-        m_min, m_max : int
-            Range of m_edges values to explore.
-        m_step : int
-            Step in m_edges.
-        node_type : str
-            'a' or 'b'.
-        a : int
-            Lower cutoff of the window [a, b_j] (fixed for all m).
-        candidate_bs : array-like of int or None
-            If not None, use this exact sequence of b_j for all m.
-        b_min, b_max : int or None
-            If candidate_bs is None, these define the range for b_j.
-            Defaults:
-                b_min = a + 1
-                b_max = max degree of node_type in that network.
-        n_b : int
-            Number of b_j points to generate when candidate_bs is None.
-        b_grid_type : {'linear', 'log'}
-            How to space the b_j values between b_min and b_max.
-        N_sims : int
-            Number of Monte Carlo simulations per truncation window.
-        p_c : float
-            Threshold: we enlarge [a,b] until p([a,b]) < p_c.
-        figsize : tuple
-            Figure size for the diagnostic plot.
-
-        Returns
-        -------
-        result : dict
-            {
-              'm_values': np.ndarray,
-              'b_star': list of b*(m) or np.nan,
-              'L_star': list of L*(m) = b*(m) - a + 1 or np.nan,
-              'p_star': list of p([a,b*(m)]) or np.nan,
-              'sigma_p_star': list of sigma_p([a,b*(m)]) or np.nan,
-              'windows_info': list of scan_until_threshold results per m,
-              'fig': matplotlib.figure.Figure,
-              'config': {
-                  'a': a,
-                  'p_c': p_c,
-                  'N_sims': N_sims,
-                  'b_grid_type': b_grid_type,
-                  'n_b': n_b,...
-              }
-            }
-        """
+    def csn_sweep_m_edges(self,net: DirectedHomophilicNetwork,m_min: int,m_max: int,m_step: int = 1,node_type: str = 'b',a: int = 0,
+        candidate_bs=None, b_min: int = None,b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,p_c: float = 0.1,
+        figsize=(12, 6),):
         m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
         b_star_list = []
         L_star_list = []
@@ -1004,84 +640,34 @@ class GoFDiagnostics:
         for m in m_values:
             print(f"\n  m = {m}: generating network and scanning windows...")
 
-            # 1) Generate a network with this m
-            net_temp = DirectedHomophilicNetwork(
-                net.n0,
-                net.n_nodes,
-                int(m),
-                net.h,
-                net.f_a,
-                net.mu['a'],
-                net.mu['b'],
-            )
+            net_temp = DirectedHomophilicNetwork(net.n0,net.n_nodes,int(m),net.h,net.f_a,net.mu['a'],net.mu['b'],)
             net_temp.generate_network()
 
-            # Theory beta from this network's asymptotics for the node_type
             beta_theory = net_temp.get_beta_for_type(node_type)
 
-            # 2) Build the b_j grid
-            if candidate_bs is not None:
-                bs = np.array(candidate_bs, dtype=int)
-            else:
-                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                if degrees.size == 0:
-                    # No nodes of this type; record NaNs and continue
-                    b_star_list.append(np.nan)
-                    L_star_list.append(np.nan)
-                    p_star_list.append(np.nan)
-                    sigma_p_star_list.append(np.nan)
-                    windows_info.append(None)
-                    print("    No nodes of this type; skipping.")
-                    continue
-
-                max_deg = int(degrees.max())
-
-                # Determine b_min and b_max if not provided
-                b_min_eff = a + 1 if b_min is None else max(a + 1, b_min)
-                b_max_eff = max_deg if b_max is None else min(max_deg, b_max)
-
-                if b_min_eff > b_max_eff:
-                    # No valid b range; skip
-                    b_star_list.append(np.nan)
-                    L_star_list.append(np.nan)
-                    p_star_list.append(np.nan)
-                    sigma_p_star_list.append(np.nan)
-                    windows_info.append(None)
-                    print("    No valid b range (b_min_eff > b_max_eff); skipping.")
-                    continue
-
-                if b_grid_type == 'linear':
-                    bs = np.linspace(b_min_eff, b_max_eff, n_b, dtype=int)
-                    bs = np.unique(bs)  # ensure sorted + unique
-                elif b_grid_type == 'log':
-                    # Log grid in [b_min_eff, b_max_eff]
-                    bs = np.logspace(
-                        np.log10(b_min_eff),
-                        np.log10(b_max_eff),
-                        n_b,
-                        dtype=int,
-                    )
-                    bs = np.unique(bs)
-                else:
-                    raise ValueError(
-                        f"Unknown b_grid_type='{b_grid_type}'. Use 'linear' or 'log'."
-                    )
-
-            # 3) Run scan_until_threshold on [a, b_j]
-            scan_res = self.scan_until_threshold(
-                net=net_temp,
-                node_type=node_type,
-                a=a,
-                beta_theory=beta_theory,
-                candidate_bs=bs,
-                N_sims=N_sims,
-                p_c=p_c,
-            )
+            # Use scan_over_b to build bs and run MC for all windows
+            scan_res = self.scan_over_b(net=net_temp,node_type=node_type,a=a,beta_theory=beta_theory,candidate_bs=candidate_bs,
+                N_sims=N_sims,b_min=b_min,b_max=b_max,n_b=n_b,b_grid_type=b_grid_type,)
             windows_info.append(scan_res)
 
-            lw = scan_res['largest_window']
+            # Now apply the threshold logic using scan_until_threshold, but reusing the same b_grid
+            bs = scan_res['b_grid']
+            if bs is None or len(bs) == 0:
+                b_star_list.append(np.nan)
+                L_star_list.append(np.nan)
+                p_star_list.append(np.nan)
+                sigma_p_star_list.append(np.nan)
+                print("    No valid b range; skipping.")
+                continue
+
+            # We still want the "largest window with p >= p_c"
+            scan_thresh_res = self.scan_until_threshold(net=net_temp,node_type=node_type,a=a,beta_theory=beta_theory,candidate_bs=bs,
+                N_sims=N_sims, p_c=p_c,)
+
+            lw = scan_thresh_res['largest_window']
+            windows_info[-1]['scan_until_threshold'] = scan_thresh_res  # keep this too
+
             if lw is None:
-                # No acceptable window (all p < p_c)
                 b_star_list.append(np.nan)
                 L_star_list.append(np.nan)
                 p_star_list.append(np.nan)
@@ -1089,7 +675,7 @@ class GoFDiagnostics:
                 print("    No window with p >= p_c found.")
             else:
                 b_star = lw['b']
-                L_star = b_star - a + 1  # inclusive window length
+                L_star = b_star - a + 1
                 b_star_list.append(b_star)
                 L_star_list.append(L_star)
                 p_star_list.append(lw['p'])
@@ -1099,24 +685,14 @@ class GoFDiagnostics:
                     f"(L={L_star}), p = {lw['p']:.3f} ± {lw['sigma_p']:.3f}"
                 )
 
-        # Convert to arrays for plotting
         b_star_arr = np.array(b_star_list, dtype=float)
         L_star_arr = np.array(L_star_list, dtype=float)
         p_star_arr = np.array(p_star_list, dtype=float)
         sigma_p_star_arr = np.array(sigma_p_star_list, dtype=float)
 
-        # Plot results
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
-        # Left: window length L*(m) vs m
-        ax1.plot(
-            m_values,
-            L_star_arr,
-            marker='o',
-            linestyle='-',
-            linewidth=2,
-            markersize=6,
-        )
+        ax1.plot(m_values, L_star_arr, marker='o', linestyle='-', linewidth=2, markersize=6)
         ax1.set_xlabel('m_edges', fontsize=12)
         ax1.set_ylabel('Window length L* = b* - a + 1', fontsize=12)
         ax1.set_title(
@@ -1126,7 +702,6 @@ class GoFDiagnostics:
         )
         ax1.grid(True, alpha=0.3)
 
-        # Right: corresponding p([a,b*(m)]) vs m
         ax2.errorbar(
             m_values,
             p_star_arr,
@@ -1171,527 +746,7 @@ class GoFDiagnostics:
             'fig': fig,
             'config': config,
         }
-
-
-    def ks_test_and_plot(self, net: DirectedHomophilicNetwork, node_type='b', kmin=0, kmax=25, figsize=(12, 6)):
-        """
-        KS test with visualization over integer degrees in [kmin, kmax].
-        Only the KS test decides the range; theoretical CDF is evaluated at these points.
-        """
-
-        degrees = np.array(net._get_degrees(node_type), dtype=int)
-        if len(degrees) == 0:
-            print("No nodes of this type!")
-            return None, None, None
-
-        if kmax is None:
-            kmax = int(degrees.max())
-
-        # Filter degrees to the test range
-        degrees_filtered = degrees[(degrees >= kmin) & (degrees <= kmax)]
-        if len(degrees_filtered) == 0:
-            print(f"No degrees in range [{kmin}, {kmax}]")
-            return None, None, None
-
-        n = len(degrees_filtered)
-        percent_used = 100 * n / len(degrees)
-
-        # Compute empirical CDF over filtered integers (vectorized)
-        unique_degrees = np.arange(kmin, kmax + 1)
-        sorted_data = np.sort(degrees_filtered)
-        counts = np.searchsorted(sorted_data, unique_degrees, side='right')
-        empirical_cdf = counts / n
-
-        # Theoretical CDF values at unique degrees
-        theoretical_cdf_vals = self.theoretical_cdf_discrete(
-            net, unique_degrees, node_type, kmin=kmin, kmax=kmax
-        )
-
-        # KS statistic
-        discrepancies = np.abs(empirical_cdf - theoretical_cdf_vals)
-        D = discrepancies.max()
-        p_value = ksone.sf(D, n)
-
-        # Plot
-        fig, ax = plt.subplots(figsize=figsize)
-        ax.plot(
-            unique_degrees,
-            empirical_cdf,
-            'o-',
-            label='Empirical CDF',
-            color='blue',
-            alpha=0.7,
-        )
-        ax.plot(
-            unique_degrees,
-            theoretical_cdf_vals,
-            '-',
-            label='Theoretical CDF',
-            color='red',
-            alpha=0.7,
-        )
-
-        ax.set_xlabel('In-degree k')
-        ax.set_ylabel('Cumulative Probability')
-        ax.set_title(
-            f'KS Test: Type "{node_type}" (D={D:.4f}, p={p_value:.2e})'
-        )
-        ax.grid(True, alpha=0.3, linestyle='--')
-        ax.set_xlim(left=kmin, right=kmax)
-        ax.set_ylim(0, 1.05)
-        ax.legend()
-        plt.tight_layout()
-
-        print(
-            f"\nKS Test: Type '{node_type}', k∈[{kmin},{kmax}], {percent_used:.1f}% data"
-        )
-        print(f"  D = {D:.6f}, p = {p_value:.6e}")
-
-        return fig, D, p_value
-
-    def aggregate_pvals_diagnostic(self, pvals):
-        pvals = np.asarray(pvals)
-        R = len(pvals)
-        if R == 0:
-            return np.nan, np.nan, np.nan
-        p_median = np.median(pvals)
-        fisher_stat = -2.0 * np.sum(np.log(pvals))
-        p_fisher = 1.0 - chi2.cdf(fisher_stat, df=2 * R)
-        p_hmp = R / np.sum(1.0 / pvals)
-        return p_median, p_fisher, p_hmp
-
-    def ks_sweep_m_edges(
-        self,
-        net: DirectedHomophilicNetwork,
-        m_min: int,
-        m_max: int,
-        m_step: int = 1,
-        node_type='b',
-        kmin: int = 0,
-        kmax: int = 25,
-        n_runs: int = 3,
-        figsize=(12, 6),
-    ):
-        """
-        Sweep over m_edges, compute KS statistics and diagnostic p-values.
-        Returns dict with D medians, median p, Fisher p, HMP p, and figure.
-        """
-
-        m_values = np.arange(m_min, m_max + 1, m_step)
-        D_medians, p_medians, p_fishers, p_hmps = [], [], [], []
-
-        print(f"\nSweeping m_edges: {m_values}")
-
-        for m in m_values:
-            D_runs, p_runs = [], []
-
-            for _ in range(n_runs):
-                net_temp = DirectedHomophilicNetwork(
-                    net.n0,
-                    net.n_nodes,
-                    int(m),
-                    net.h,
-                    net.f_a,
-                    net.mu['a'],
-                    net.mu['b'],
-                )
-                net_temp.generate_network()
-
-                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                if degrees.size == 0:
-                    continue
-
-                kmax_actual = int(degrees.max()) if kmax is None else kmax
-                degrees = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
-                if degrees.size == 0:
-                    continue
-
-                n = len(degrees)
-                support = np.arange(kmin, kmax_actual + 1)
-                sorted_deg = np.sort(degrees)
-                empirical_cdf = (
-                    np.searchsorted(sorted_deg, support, side='right') / n
-                )
-
-                theoretical_cdf = self.theoretical_cdf_discrete(
-                    net_temp, support, node_type, kmin=kmin, kmax=kmax_actual
-                )
-
-                D = np.max(np.abs(empirical_cdf - theoretical_cdf))
-                p = ksone.sf(D, n)
-
-                D_runs.append(D)
-                p_runs.append(p)
-
-            # Compute diagnostics
-            if D_runs:
-                D_median = np.median(D_runs)
-                p_median, p_fisher, p_hmp = self.aggregate_pvals_diagnostic(p_runs)
-
-                D_medians.append(D_median)
-                p_medians.append(p_median)
-                p_fishers.append(p_fisher)
-                p_hmps.append(p_hmp)
-
-                print(
-                    f"  m={m:2d}: D_med={D_median:.4f}, "
-                    f"p_med={p_median:.3f}, "
-                    f"p_F={p_fisher:.3f}, "
-                    f"p_HMP={p_hmp:.3f}"
-                )
-            else:
-                D_medians.append(np.nan)
-                p_medians.append(np.nan)
-                p_fishers.append(np.nan)
-                p_hmps.append(np.nan)
-
-        # Plot results
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-
-        ax1.plot(m_values[: len(D_medians)], D_medians, marker='o', linewidth=2, markersize=6)
-        ax1.set_xlabel('m_edges', fontsize=12)
-        ax1.set_ylabel('KS Statistic D (median)', fontsize=12)
-        ax1.set_title(
-            f'KS D Statistic Median vs m_edges (Type "{node_type}")',
-            fontsize=13,
-            fontweight='bold',
-        )
-        ax1.grid(True, alpha=0.3)
-
-        ax2.plot(m_values[: len(p_medians)], p_medians, marker='o', label='Median p')
-        ax2.plot(m_values[: len(p_fishers)], p_fishers, marker='s', label='Fisher p')
-        ax2.plot(m_values[: len(p_hmps)], p_hmps, marker='^', label='HMP p')
-        ax2.axhline(0.05, linestyle='--', color='black', alpha=0.5)
-        ax2.set_xlabel('m_edges', fontsize=12)
-        ax2.set_ylabel('p-value', fontsize=12)
-        ax2.set_title(
-            f'p-value Diagnostics vs m_edges (Type "{node_type}")',
-            fontsize=13,
-            fontweight='bold',
-        )
-        ax2.set_ylim(-0.05, 1.05)
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-
-        plt.tight_layout()
-
-        return {
-            'm_values': m_values[: len(D_medians)],
-            'D_medians': D_medians,
-            'p_medians': p_medians,
-            'p_fishers': p_fishers,
-            'p_hmps': p_hmps,
-            'fig': fig,
-        }
-
-    def ks_sweep_n0(
-        self,
-        net: DirectedHomophilicNetwork,
-        n0_min,
-        n0_max,
-        n0_step=1,
-        node_type='b',
-        kmin=0,
-        kmax=25,
-        n_runs=3,
-        figsize=(12, 6),
-    ):
-        """
-        Sweep over initial node count n0 for diagnostic KS testing.
-        Returns median, Fisher, and harmonic mean p-values across runs.
-        """
-        n0_values = np.arange(n0_min, n0_max + 1, n0_step)
-        D_medians, p_medians, p_fishers, p_hmps = [], [], [], []
-
-        print(f"\nSweeping n0: {n0_values}")
-
-        for n0 in n0_values:
-            D_runs, p_runs = [], []
-
-            for _ in range(n_runs):
-                net_temp = DirectedHomophilicNetwork(
-                    int(n0),
-                    net.n_nodes,
-                    net.m_edges,
-                    net.h,
-                    net.f_a,
-                    net.mu['a'],
-                    net.mu['b'],
-                )
-                net_temp.generate_network()
-
-                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                if degrees.size == 0:
-                    continue
-
-                kmax_actual = int(degrees.max()) if kmax is None else kmax
-                degrees = degrees[(degrees >= kmin) & (degrees <= kmax_actual)]
-                if degrees.size == 0:
-                    continue
-
-                n = len(degrees)
-                support = np.arange(kmin, kmax_actual + 1)
-                sorted_deg = np.sort(degrees)
-                empirical_cdf = (
-                    np.searchsorted(sorted_deg, support, side='right') / n
-                )
-
-                theoretical_cdf = self.theoretical_cdf_discrete(
-                    net_temp, support, node_type, kmin=kmin, kmax=kmax_actual
-                )
-
-                D = np.max(np.abs(empirical_cdf - theoretical_cdf))
-                p = ksone.sf(D, n)
-
-                D_runs.append(D)
-                p_runs.append(p)
-
-            if D_runs:
-                D_median = np.median(D_runs)
-                p_median, p_fisher, p_hmp = self.aggregate_pvals_diagnostic(p_runs)
-
-                D_medians.append(D_median)
-                p_medians.append(p_median)
-                p_fishers.append(p_fisher)
-                p_hmps.append(p_hmp)
-
-                print(
-                    f"  n0={n0:3d}: D_med={D_median:.4f}, "
-                    f"p_med={p_median:.3f}, "
-                    f"p_F={p_fisher:.3f}, "
-                    f"p_HMP={p_hmp:.3f}"
-                )
-            else:
-                D_medians.append(np.nan)
-                p_medians.append(np.nan)
-                p_fishers.append(np.nan)
-                p_hmps.append(np.nan)
-
-        # Plotting
-        fig, ax = plt.subplots(figsize=figsize)
-        ax.plot(n0_values[: len(D_medians)], p_medians, marker='o', label='Median p')
-        ax.plot(
-            n0_values[: len(p_fishers)],
-            p_fishers,
-            marker='s',
-            label='Fisher p',
-        )
-        ax.plot(n0_values[: len(p_hmps)], p_hmps, marker='^', label='HMP p')
-        ax.axhline(0.05, linestyle='--', color='black', alpha=0.5, label='p=0.05')
-        ax.set_xlabel('n0 (initial nodes)', fontsize=12)
-        ax.set_ylabel('p-value', fontsize=12)
-        ax.set_title(
-            f'p-value Diagnostics vs n0 (Type "{node_type}")',
-            fontsize=13,
-            fontweight='bold',
-        )
-        ax.set_ylim(-0.05, 1.05)
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-
-        plt.tight_layout()
-
-        return {
-            'n0_values': n0_values[: len(D_medians)],
-            'D_medians': D_medians,
-            'p_medians': p_medians,
-            'p_fishers': p_fishers,
-            'p_hmps': p_hmps,
-            'fig': fig,
-        }
-
-    def ks_surface_n0_m(
-        self,
-        net: DirectedHomophilicNetwork,
-        n0_min,
-        n0_max,
-        n0_step,
-        m_min,
-        m_max,
-        m_step,
-        node_type='b',
-        kmin=0,
-        kmax=25,
-        n_runs=3,
-        figsize=(16, 6),
-    ):
-        """
-        dict : Results containing grid values and p-value/D statistic surfaces
-        """
-        import warnings
-        warnings.filterwarnings('ignore')
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
-        n0_values = np.arange(n0_min, n0_max + 1, n0_step)
-        m_values = np.arange(m_min, m_max + 1, m_step)
-
-        # Create meshgrid for surface
-        N0_grid, M_grid = np.meshgrid(n0_values, m_values, indexing='ij')
-        P_grid = np.zeros_like(N0_grid, dtype=float)
-        D_grid = np.zeros_like(N0_grid, dtype=float)
-
-        print(f"\nCreating surface: n0={n0_values}, m={m_values}")
-        print(f"Fixed: n_nodes={net.n_nodes}, h={net.h}, f_a={net.f_a}")
-        print(f"Total points: {len(n0_values) * len(m_values)}\n")
-
-        point_count = 0
-        total_points = len(n0_values) * len(m_values)
-
-        for i, n0 in enumerate(n0_values):
-            for j, m in enumerate(m_values):
-                D_runs, p_runs = [], []
-
-                for run in range(n_runs):
-                    # Generate network
-                    net_temp = DirectedHomophilicNetwork(
-                        int(n0),
-                        net.n_nodes,
-                        int(m),
-                        net.h,
-                        net.f_a,
-                        net.mu['a'],
-                        net.mu['b'],
-                    )
-                    net_temp.generate_network()
-
-                    # KS test
-                    degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                    if len(degrees) == 0:
-                        continue
-
-                    # Auto-set kmax if None
-                    kmax_actual = int(degrees.max()) if kmax is None else kmax
-
-                    degrees_filtered = degrees[
-                        (degrees >= kmin) & (degrees <= kmax_actual)
-                    ]
-                    if len(degrees_filtered) == 0:
-                        continue
-
-                    n = len(degrees_filtered)
-                    unique_degrees = np.arange(kmin, kmax_actual + 1)
-                    sorted_data = np.sort(degrees_filtered)
-                    counts = np.searchsorted(sorted_data, unique_degrees, side='right')
-                    empirical_cdf = counts / n
-
-                    theoretical_cdf_vals = self.theoretical_cdf_discrete(
-                        net_temp,
-                        unique_degrees,
-                        node_type,
-                        kmin=kmin,
-                        kmax=kmax_actual,
-                    )
-
-                    D = np.abs(empirical_cdf - theoretical_cdf_vals).max()
-                    p_value = ksone.sf(D, n)
-
-                    D_runs.append(D)
-                    p_runs.append(p_value)
-
-                if len(D_runs) > 0:
-                    P_grid[i, j] = np.mean(p_runs)
-                    D_grid[i, j] = np.mean(D_runs)
-                else:
-                    P_grid[i, j] = np.nan
-                    D_grid[i, j] = np.nan
-
-                point_count += 1
-                if point_count % 5 == 0 or point_count == total_points:
-                    print(
-                        f"  Progress: {point_count}/{total_points} "
-                        f"({100*point_count/total_points:.1f}%)"
-                    )
-
-        # Create visualizations
-        fig = plt.figure(figsize=figsize)
-
-        # 3D surface for p-value
-        ax1 = fig.add_subplot(121, projection='3d')
-        surf1 = ax1.plot_surface(
-            N0_grid,
-            M_grid,
-            P_grid,
-            cmap='viridis',
-            edgecolor='none',
-            alpha=0.8,
-        )
-        ax1.set_xlabel('n0', fontsize=11)
-        ax1.set_ylabel('m_edges', fontsize=11)
-        ax1.set_zlabel('p-value', fontsize=11)
-        ax1.set_title(
-            f'KS p-value Surface (Type "{node_type}")',
-            fontsize=12,
-            fontweight='bold',
-        )
-        fig.colorbar(surf1, ax=ax1, shrink=0.5, aspect=5)
-
-        # 3D surface for D statistic
-        ax2 = fig.add_subplot(122, projection='3d')
-        surf2 = ax2.plot_surface(
-            N0_grid,
-            M_grid,
-            D_grid,
-            cmap='plasma',
-            edgecolor='none',
-            alpha=0.8,
-        )
-        ax2.set_xlabel('n0', fontsize=11)
-        ax2.set_ylabel('m_edges', fontsize=11)
-        ax2.set_zlabel('KS Statistic D', fontsize=11)
-        ax2.set_title(
-            f'KS D Statistic Surface (Type "{node_type}")',
-            fontsize=12,
-            fontweight='bold',
-        )
-        fig.colorbar(surf2, ax=ax2, shrink=0.5, aspect=5)
-
-        plt.tight_layout()
-
-        # Create contour plot as well
-        fig2, (ax3, ax4) = plt.subplots(1, 2, figsize=(14, 6))
-
-        # p-value contour
-        contour1 = ax3.contourf(M_grid, N0_grid, P_grid, levels=20, cmap='viridis')
-        ax3.contour(
-            M_grid,
-            N0_grid,
-            P_grid,
-            levels=[0.05],
-            colors='red',
-            linewidths=2,
-            linestyles='--',
-        )
-        ax3.set_xlabel('m_edges', fontsize=12)
-        ax3.set_ylabel('n0', fontsize=12)
-        ax3.set_title(
-            f'p-value Contours (Type "{node_type}")\nRed line: p=0.05',
-            fontsize=12,
-            fontweight='bold',
-        )
-        fig2.colorbar(contour1, ax=ax3)
-
-        # D statistic contour
-        contour2 = ax4.contourf(M_grid, N0_grid, D_grid, levels=20, cmap='plasma')
-        ax4.set_xlabel('m_edges', fontsize=12)
-        ax4.set_ylabel('n0', fontsize=12)
-        ax4.set_title(
-            f'KS D Statistic Contours (Type "{node_type}")',
-            fontsize=12,
-            fontweight='bold',
-        )
-        fig2.colorbar(contour2, ax=ax4)
-
-        plt.tight_layout()
-
-        return {
-            'n0_grid': N0_grid,
-            'm_grid': M_grid,
-            'p_grid': P_grid,
-            'd_grid': D_grid,
-            'fig_3d': fig,
-            'fig_contour': fig2,
-        }
-    
+  
 class NetworkPlotting:
     """
     Plotting utilities for DirectedHomophilicNetwork.
@@ -1990,124 +1045,6 @@ class NetworkPlotting:
         plt.tight_layout()
         return fig
 
-    def plot_degree_distributions_hybrid(
-        self,
-        net: DirectedHomophilicNetwork,
-        figsize: Tuple = (15, 12),
-        max_k_display: int = None,
-    ):
-        """
-        Plot using discrete integer probabilities - TWO VIEWS.
-        Top row: log-log for full range
-        Bottom row: linear scale zoomed to where you have good statistics
-        """
-        fig, axes = plt.subplots(2, 2, figsize=figsize)
-
-        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
-            in_degrees = net._get_degrees(node_type)
-            if len(in_degrees) == 0:
-                continue
-
-            # Empirical PMF at integer values
-            unique_k, counts = np.unique(in_degrees, return_counts=True)
-            empirical_pmf = counts / len(in_degrees)
-
-            # Theoretical curve at integer values
-            k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
-            k_range = np.arange(0, k_max + 1)
-            theo_probs = net.theoretical_distribution(k_range, node_type)
-
-            # TOP ROW: Log-log (full range)
-            ax_log = axes[0, idx]
-            ax_log.scatter(
-                unique_k,
-                empirical_pmf,
-                s=50,
-                alpha=0.7,
-                color=color,
-                edgecolors='black',
-                linewidths=0.5,
-                label='Simulation',
-                zorder=3,
-            )
-            mask = theo_probs > 0
-            ax_log.plot(
-                k_range[mask],
-                theo_probs[mask],
-                '-',
-                linewidth=2.5,
-                color='dark' + color,
-                alpha=0.85,
-                label='Theory',
-                zorder=2,
-            )
-            ax_log.set_xscale('log')
-            ax_log.set_yscale('log')
-            ax_log.set_xlabel(r'In-degree $${k^{\mathrm{(in)}}}$$', fontsize=11)
-            ax_log.set_ylabel(r'Probability $${p(k^{\mathrm{(in)}})}$$', fontsize=11)
-            ax_log.set_title(
-                f'Type "{node_type}" - LOG SCALE (full range)',
-                fontsize=11,
-                fontweight='bold',
-            )
-            ax_log.legend(fontsize=9)
-            ax_log.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
-
-            # BOTTOM ROW: Linear (zoomed to good statistics)
-            ax_lin = axes[1, idx]
-            # Only show k where you have at least 5 observations
-            good_stats_mask = counts >= 5
-            k_cutoff = unique_k[good_stats_mask][-1] if np.any(good_stats_mask) else 50
-            k_cutoff = min(k_cutoff, 100)  # Cap at k=100 for readability
-
-            # Plot empirical
-            plot_mask = unique_k <= k_cutoff
-            ax_lin.scatter(
-                unique_k[plot_mask],
-                empirical_pmf[plot_mask],
-                s=50,
-                alpha=0.7,
-                color=color,
-                edgecolors='black',
-                linewidths=0.5,
-                label='Simulation',
-                zorder=3,
-            )
-
-            # Plot theory up to cutoff
-            k_range_zoom = np.arange(0, k_cutoff + 1)
-            theo_probs_zoom = net.theoretical_distribution(k_range_zoom, node_type)
-            ax_lin.plot(
-                k_range_zoom,
-                theo_probs_zoom,
-                '-',
-                linewidth=2.5,
-                color='dark' + color,
-                alpha=0.85,
-                label='Theory',
-                zorder=2,
-            )
-
-            ax_lin.set_xlabel(r'In-degree $${k^{\mathrm{(in)}}}$$', fontsize=11)
-            ax_lin.set_ylabel(r'Probability $${p(k^{\mathrm{(in)}})}$$', fontsize=11)
-            ax_lin.set_title(
-                f'Type "{node_type}" - LINEAR (k ≤ {k_cutoff}, good stats)',
-                fontsize=11,
-                fontweight='bold',
-            )
-            ax_lin.legend(fontsize=9)
-            ax_lin.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
-            ax_lin.set_xlim(-1, k_cutoff + 5)
-
-        fig.suptitle(
-            f'Directed Homophilic Network: N={net.n0 + net.n_nodes:,}, '
-            f'm={net.m_edges}, h={net.h}, f_a={net.f_a}',
-            fontsize=14,
-            fontweight='bold',
-        )
-        plt.tight_layout()
-        return fig
-    
 class NetworkStatistics:
     """
     Statistical reporting utilities for DirectedHomophilicNetwork.
@@ -2162,16 +1099,7 @@ class NetworkStatistics:
         )
 
 if __name__ == "__main__":
-    net = DirectedHomophilicNetwork(
-        n0=50,
-        n_nodes=2500,
-        m_edges=5,
-        h=0.8,
-        f_a=0.8,
-        mu_a=5,
-        mu_b=1,
-        seed= None,
-    )
+    net = DirectedHomophilicNetwork(n0=50, n_nodes= 5000, m_edges=5, h=0.2, f_a=0.2, mu_a=1, mu_b=5, seed= None,)
 
     # Helper class instances
     gof = GoFDiagnostics()
@@ -2186,7 +1114,6 @@ if __name__ == "__main__":
     if Statistics:
         stats.print_statistics(net)
 
-
     #net visualization
     Log_Binned = False
     if Log_Binned:
@@ -2196,11 +1123,6 @@ if __name__ == "__main__":
     Discrete_Linear = False
     if Discrete_Linear:
         plotting.plot_degree_distributions_discrete(net)
-        plt.show()
-
-    Hybrid_Plot =False
-    if Hybrid_Plot:
-        plotting.plot_degree_distributions_hybrid(net)
         plt.show()
 
     #Theory Diagnostics
@@ -2214,75 +1136,22 @@ if __name__ == "__main__":
         plotting.plot_A_values(net)
         plt.show()
 
-
-    #new ks test.
+    #GoF test.
     sweep_m_edges_csn = True
     if sweep_m_edges_csn:
         node_type = 'b'
-        a = 0             # lhs truncation parameter a (must be < b_j)            
-        p_c = 0.4         # significance threshold
-        N_sims = 50        # MC sims per truncation window
-        b_grid_type = 'linear'  # 'linear' or 'log'
-        n_b = 50           # number of b_j grid points
-        b_min = 1          # minimal b_j (must be > a)
-        b_max = None       # None => auto-use max degree for each network
+        a = 0                     
+        p_c = 0.6         
+        N_sims = 10    
+        b_grid_type = 'linear' 
+        n_b = 20         
+        b_min = None   
+        b_max = None
 
-        results_csn_m = gof.csn_sweep_m_edges(
-            net,
-            m_min=2,
-            m_max=30,
-            m_step=1,
-            node_type=node_type,
-            a=a,
-            candidate_bs=None,      # use automatically built grid
-            b_min=b_min,
-            b_max=b_max,
-            n_b=n_b,
-            b_grid_type=b_grid_type,
-            N_sims=N_sims,
-            p_c=p_c,
-        )
+        results_csn_m = gof.csn_sweep_m_edges(net, m_min=2, m_max=30, m_step=2, node_type=node_type, a=a,
+            candidate_bs=None, b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type, N_sims=N_sims, p_c=p_c,)
         plt.show()
 
-
-
-    KS_test = False
-    if KS_test:
-        fig, D, p = gof.ks_test_and_plot(
-            net, node_type='b', kmin=0, kmax=None
-        )
-        plt.show()
-
-    sweep_m_edges = False
-    if sweep_m_edges:
-        results_m = gof.ks_sweep_m_edges(
-            net,
-            m_min=2,
-            m_max=60,
-            m_step=2,
-            node_type='b',
-            kmin=0,
-            kmax=None,
-            n_runs=10,
-        )
-        plt.show()
-
-    sweep_n0 = False
-    if sweep_n0:
-        results_n0 = gof.ks_sweep_n0(
-            net,
-            n0_min=50,
-            n0_max=500,
-            n0_step=50,
-            node_type='b',
-            kmin=0,
-            kmax=25,
-            n_runs=3,
-        )
-        plt.show()
-
-    surface_n0_m = False
-    if surface_n0_m:
         results_surface = gof.ks_surface_n0_m(
             net,
             n0_min=50,
