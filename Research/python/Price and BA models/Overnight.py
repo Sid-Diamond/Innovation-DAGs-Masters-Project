@@ -1,12 +1,55 @@
 import numpy as np
 import networkx as nx
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt  
 from scipy.special import gamma as gamma_func, beta as beta_func
 from typing import Dict, Tuple, List
 import time
 from scipy.optimize import minimize
 from scipy.special import beta as beta_func
+from pathlib import Path
+import datetime
+import json
 
+
+class FileManager:
+
+    def __init__(self, config: dict, base: str = "runs"):
+        self.config = config
+        self.base = Path(base)
+        self.base.mkdir(exist_ok=True)
+
+        # Use timestamp as directory name for this run
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.run_dir = self.base / f"run_{ts}"
+        self.run_dir.mkdir()
+
+        # Save config / metadata
+        self._save_metadata()
+
+    def _archive_previous_run(self):
+        """If latest exists, rename to timestamped archive."""
+        if self.latest_dir.exists():
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            archive = self.base / f"run_{ts}"
+            self.latest_dir.rename(archive)
+
+    def _create_dirs(self):
+        self.run_dir = self.latest_dir
+        self.run_dir.mkdir()
+
+    def _save_metadata(self):
+        with open(self.run_dir / "metadata.json", "w") as f:
+            json.dump(self.config, f, indent=2)
+
+    def save_fig(self, fig, name: str, dpi: int = 300):
+        path = self.run_dir / f"{name}.png"
+        fig.savefig(path, dpi=dpi, bbox_inches="tight")
+        plt.close(fig)
+
+    def path(self):
+        return self.run_dir
 
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
@@ -769,9 +812,10 @@ class GoFDiagnostics:
             ok_mask = ~nw_arr
             fail_mask = nw_arr
 
+          # line + circle markers for ALL points
             ax1.plot(
-                m_values[ok_mask],
-                fn_arr[ok_mask],
+                m_values,
+                fn_arr,
                 marker='o',
                 linestyle='-',
                 linewidth=2,
@@ -779,13 +823,17 @@ class GoFDiagnostics:
                 color=color,
                 label=f'p_c = {p_c}',
             )
+
+            # overwrite failures with X markers
             ax1.scatter(
                 m_values[fail_mask],
                 fn_arr[fail_mask],
                 marker='x',
-                s=50,
+                s=60,
                 color=color,
+                zorder=3,
             )
+
 
         ax1.axhline(
             frac_new_nodes,
@@ -812,9 +860,10 @@ class GoFDiagnostics:
             ok_mask = ~nw_arr
             fail_mask = nw_arr
 
+            # line + circle markers for all points
             ax2.plot(
-                m_values[ok_mask],
-                fe_arr[ok_mask],
+                m_values,
+                fe_arr,
                 marker='o',
                 linestyle='-',
                 linewidth=2,
@@ -822,21 +871,17 @@ class GoFDiagnostics:
                 color=color,
                 label=f'p_c = {p_c}',
             )
+
+            # overwrite failures with X markers
             ax2.scatter(
                 m_values[fail_mask],
                 fe_arr[fail_mask],
                 marker='x',
                 s=50,
                 color=color,
+                zorder=3,
             )
 
-        ax2.axhline(
-            frac_new_nodes,
-            linestyle='--',
-            color='black',
-            linewidth=1.5,
-            label=f'new nodes fraction = {frac_new_nodes:.2f}',
-        )
         ax2.set_xlabel('m_edges', fontsize=12)
         ax2.set_ylabel('Fraction of edges (in-degree) kept', fontsize=12)
         ax2.set_title(
@@ -982,8 +1027,8 @@ class NetworkPlotting:
             ax.set_xscale('symlog', linthresh=0.1)
             ax.set_yscale('log')
             ax.set_xlim(left=-0.05)
-            ax.set_xlabel(r'In-degree $${k^{\mathrm{(in)}}}$$', fontsize=13)
-            ax.set_ylabel(r'Probability $${p(k^{\mathrm{(in)}})}$$', fontsize=13)
+            ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
+            ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
             ax.set_title(
                 f'Type "{node_type}" (n={len(in_degrees)})',
                 fontsize=13,
@@ -1018,7 +1063,7 @@ class NetworkPlotting:
             (mean_deg_b, 'b', 'blue'),
         ]:
             ax.plot(times, mean_deg, label=f"Type '{type_name}' (data)", color=color)
-            asymptote = net.g_a if type_name == 'a' else net.g_b_asymptotic
+            asymptote = net.g_a if type_name == 'a' else net.g_b
             ax.axhline(
                 asymptote,
                 linestyle='--',
@@ -1149,8 +1194,8 @@ class NetworkPlotting:
             )
 
             # Formatting - LINEAR AXES
-            ax.set_xlabel(r'In-degree $${k^{\mathrm{(in)}}}$$', fontsize=13)
-            ax.set_ylabel(r'Probability $${p(k^{\mathrm{(in)}})}$$', fontsize=13)
+            ax.set_xlabel(r'In-degree ${k^{\mathrm{(in)}}}$', fontsize=13)
+            ax.set_ylabel(r'Probability ${p(k^{\mathrm{(in)}})}$', fontsize=13)
             ax.set_title(
                 f'Type "{node_type}" (n={len(in_degrees)}) - LINEAR SCALE',
                 fontsize=13,
@@ -1222,9 +1267,41 @@ class NetworkStatistics:
         )
 
 if __name__ == "__main__":
-    net = DirectedHomophilicNetwork(n0=50, n_nodes= 1000, m_edges=5, h=0.2, f_a=0.2, mu_a=1, mu_b=5, seed= None,)
 
-    # Helper class instances
+    config = dict(
+        network=dict(
+            n0=50,
+            n_nodes=1000,
+            m_edges=5,
+            h=0.2,
+            f_a=0.2,
+            mu_a=1,
+            mu_b=1,
+            seed=None,
+        ),
+        sweep=dict(
+            m_min=2,
+            m_max=25,
+            m_step=5,
+            node_type='b',
+            a=0,
+            p_c_list=[0.3, 0.4, 0.5],
+            N_sims=20,
+            b_grid_type='linear',
+            n_b=3,
+            b_min=None,
+            b_max=None,
+        ),
+        plots=dict(
+            log_binned=True,
+            discrete_linear=True,
+            asymptotes=True,
+            A_const=True,
+            sweep_m_edges_csn=True,
+        )
+    )
+    fm = FileManager(config)
+    net = DirectedHomophilicNetwork(**config["network"])
     gof = GoFDiagnostics()
     plotting = NetworkPlotting()
     stats = NetworkStatistics()
@@ -1233,43 +1310,28 @@ if __name__ == "__main__":
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
 
-    Statistics = True
-    if Statistics:
-        stats.print_statistics(net)
+    stats.print_statistics(net)
 
-    #net visualization
-    Log_Binned = False
-    if Log_Binned:
-        plotting.plot_degree_distributions(net)
-        plt.show()
+    plots = config["plots"]
 
-    Discrete_Linear = False
-    if Discrete_Linear:
-        plotting.plot_degree_distributions_discrete(net)
-        plt.show()
+    if plots["log_binned"]:
+        fig = plotting.plot_degree_distributions(net)
+        fm.save_fig(fig, "degree_dist_log_binned")
 
-    #Theory Diagnostics
-    plot_asymptotes = False
-    if plot_asymptotes:
-        plotting.plot_in_edge_asymptotes(net)
-        plt.show()
+    if plots["discrete_linear"]:
+        fig = plotting.plot_degree_distributions_discrete(net)
+        fm.save_fig(fig, "degree_dist_discrete")
 
-    plot_A_const = False
-    if plot_A_const:
-        plotting.plot_A_values(net)
-        plt.show()
+    if plots["asymptotes"]:
+        fig = plotting.plot_in_edge_asymptotes(net)
+        fm.save_fig(fig, "asymptotes")
 
-    sweep_m_edges_csn = True
-    if sweep_m_edges_csn:
-        node_type = 'b'
-        a = 0
-        p_c_list = [0.3, 0.4, 0.5]   # <--- choose whatever set you want
-        N_sims = 20
-        b_grid_type = 'linear'
-        n_b = 5
-        b_min = None
-        b_max = None
+    if plots["A_const"]:
+        fig = plotting.plot_A_values(net)
+        fm.save_fig(fig, "A_const")
 
-        results_csn_m = gof.csn_sweep_m_edges(net, m_min=2, m_max=25, m_step=2, node_type=node_type, a=a,
-            candidate_bs=None, b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type, N_sims=N_sims,p_c_list=p_c_list,)
-        plt.show()
+    if plots["sweep_m_edges_csn"]:
+        results = gof.csn_sweep_m_edges(net, **config["sweep"])
+        fm.save_fig(results["fig"], "sweep_m_edges_csn")
+
+    print(f"\nAll outputs saved to: {fm.path()}")
