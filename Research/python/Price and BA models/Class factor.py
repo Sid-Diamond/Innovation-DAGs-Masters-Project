@@ -497,15 +497,6 @@ class GoFDiagnostics:
                 percent_diff_mean_vs_theory = 100.0 * ((beta_mle_mean - beta_theory_arr) / beta_theory_arr)
                 percent_diff_mean_vs_theory = np.where(beta_theory_arr == 0.0, np.nan, percent_diff_mean_vs_theory)
 
-                print(
-                    f"      MLE diagnostics for [a={a}, b={b}]: "
-                    f"frac_moved = {frac_moved:.3f}, "
-                    f"mean(beta_mle) = {beta_mle_mean}, "
-                    f"std(beta_mle) = {beta_mle_std}, "
-                    f"beta_theory = {beta_theory_arr}, "
-                    f"% diff mean vs theory = {percent_diff_mean_vs_theory}"
-                )
-
         result = {
             'a': a,
             'b': b,
@@ -584,17 +575,35 @@ class GoFDiagnostics:
         }
         return result
 
-    def scan_until_threshold(self,net: DirectedHomophilicNetwork,node_type: str,a: int,beta_theory,candidate_bs,N_sims: int,p_c: float,):
-        # Sort candidate b_j ascending, then we will traverse from largest to smallest
+    def scan_until_threshold(
+        self,
+        net: DirectedHomophilicNetwork,
+        node_type: str,
+        a: int,
+        beta_theory,
+        candidate_bs,
+        N_sims: int,
+        p_c: float,
+    ):
         bs_sorted = sorted(int(b) for b in candidate_bs)
         windows_evaluated = []
-        largest_window_info = None  # will hold the first window (from top) with p >= p_c
+        largest_window_info = None
+
+        print_mle_for_first = True
+        print_frac_for_first = True
 
         for j_rev, b in enumerate(reversed(bs_sorted)):
             if b <= a:
                 raise ValueError(f"Each b_j must satisfy b_j > a. Got a={a}, b_j={b}.")
 
-            window_result = self.mc_on_window(net=net, node_type=node_type, a=a, b=int(b), beta_theory=beta_theory, N_sims=N_sims)
+            window_result = self.mc_on_window(
+                net=net,
+                node_type=node_type,
+                a=a,
+                b=int(b),
+                beta_theory=beta_theory,
+                N_sims=N_sims,
+            )
             window_result['b'] = int(b)
             windows_evaluated.append(window_result)
 
@@ -602,8 +611,44 @@ class GoFDiagnostics:
             sigma_p = window_result['sigma_p']
             L = b - a + 1
 
+            # compute node/edge fractions for this window on this net
+            degrees_full = np.array(net._get_degrees(node_type), dtype=int)
+            if degrees_full.size == 0:
+                frac_nodes_kept = np.nan
+                frac_edges_kept = np.nan
+            else:
+                mask_keep = (degrees_full >= a) & (degrees_full <= b)
+                frac_nodes_kept = mask_keep.mean()
+                total_edges = degrees_full.sum()
+                frac_edges_kept = (degrees_full[mask_keep].sum() / total_edges) if total_edges > 0 else np.nan
+
+            # MLE diagnostics only for the largest window (first iteration)
+            if print_mle_for_first:
+                beta_mle_mean = window_result['beta_mle_mean']
+                beta_mle_std = window_result['beta_mle_std']
+                beta_theory_arr = window_result['beta_theory']
+                frac_moved = window_result['frac_moved']
+                percent_diff_mean_vs_theory = window_result['percent_diff_mean_vs_theory']
+                print(
+                    f"      MLE diagnostics (largest window) [a={a}, b={b}]: "
+                    f"frac_moved = {frac_moved:.3f}, "
+                    f"mean(beta_mle) = {beta_mle_mean}, "
+                    f"std(beta_mle) = {beta_mle_std}, "
+                    f"beta_theory = {beta_theory_arr}, "
+                    f"% diff mean vs theory = {percent_diff_mean_vs_theory}"
+                )
+                print_mle_for_first = False
+
             status = "ACCEPT" if p_val >= p_c else "REJECT"
-            print(f"      window [a={a}, b={b}] (L={L}): p = {p_val:.3f} ± {sigma_p:.3f} -> {status}")
+
+            # Only print full line for largest window (first iteration)
+            if print_frac_for_first:
+                print(
+                    f"      window [a={a}, b={b}] (L={L}): "
+                    f"p = {p_val:.3f} ± {sigma_p:.3f} -> {status}, "
+                    f"nodes kept = {frac_nodes_kept:.3f}, edges kept = {frac_edges_kept:.3f}"
+                )
+                print_frac_for_first = False
 
             if p_val >= p_c:
                 largest_window_info = {
@@ -613,65 +658,118 @@ class GoFDiagnostics:
                     'sigma_p': float(sigma_p),
                     'index': j_rev,
                 }
-                print(f"      -> stopping at [a={a}, b={b}] as largest acceptable window (p >= p_c={p_c})")
+
+                # Print full line for the accepted window as well
+                print(
+                    f"      window [a={a}, b={b}] (L={L}): "
+                    f"p = {p_val:.3f} ± {sigma_p:.3f} -> ACCEPT, "
+                    f"nodes kept = {frac_nodes_kept:.3f}, edges kept = {frac_edges_kept:.3f}"
+                )
+                print(
+                    f"      -> stopping at [a={a}, b={b}] as largest acceptable window (p >= p_c={p_c})"
+                )
                 break
 
         result = {
             'a': a,
             'beta_theory': beta_theory,
             'p_c': float(p_c),
-            'windows_evaluated': windows_evaluated,  # note: order is from largest to smaller b's actually tested
+            'windows_evaluated': windows_evaluated,
             'largest_window': largest_window_info,
         }
         return result
 
-    def csn_sweep_m_edges(self,net: DirectedHomophilicNetwork,m_min: int,m_max: int,m_step: int = 1,node_type: str = 'b',a: int = 0,
-        candidate_bs=None, b_min: int = None,b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,p_c: float = 0.1,
-        figsize=(12, 6),):
+    def csn_sweep_m_edges(
+        self,
+        net: DirectedHomophilicNetwork,
+        m_min: int,
+        m_max: int,
+        m_step: int = 1,
+        node_type: str = 'b',
+        a: int = 0,
+        candidate_bs=None,
+        b_min: int = None,
+        b_max: int = None,
+        n_b: int = 20,
+        b_grid_type: str = 'linear',
+        N_sims: int = 20,
+        p_c: float = 0.1,
+        figsize=(12, 6),
+    ):
         m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
         b_star_list = []
         L_star_list = []
         p_star_list = []
         sigma_p_star_list = []
         windows_info = []
+        frac_nodes_kept_list = []   # NEW
+        frac_edges_kept_list = []   # NEW
 
         print(f"\nCSN sweep over m_edges: {m_values}")
 
         for m in m_values:
             print(f"\n  m = {m}: generating network and scanning windows...")
 
-            net_temp = DirectedHomophilicNetwork(net.n0,net.n_nodes,int(m),net.h,net.f_a,net.mu['a'],net.mu['b'],)
+            net_temp = DirectedHomophilicNetwork(
+                net.n0,
+                net.n_nodes,
+                int(m),
+                net.h,
+                net.f_a,
+                net.mu['a'],
+                net.mu['b'],
+            )
             net_temp.generate_network()
 
             beta_theory = net_temp.get_beta_for_type(node_type)
 
-            # Use scan_over_b to build bs and run MC for all windows
-            scan_res = self.scan_over_b(net=net_temp,node_type=node_type,a=a,beta_theory=beta_theory,candidate_bs=candidate_bs,
-                N_sims=N_sims,b_min=b_min,b_max=b_max,n_b=n_b,b_grid_type=b_grid_type,)
+            # Build bs and run MC for all windows
+            scan_res = self.scan_over_b(
+                net=net_temp,
+                node_type=node_type,
+                a=a,
+                beta_theory=beta_theory,
+                candidate_bs=candidate_bs,
+                N_sims=N_sims,
+                b_min=b_min,
+                b_max=b_max,
+                n_b=n_b,
+                b_grid_type=b_grid_type,
+            )
             windows_info.append(scan_res)
 
-            # Now apply the threshold logic using scan_until_threshold, but reusing the same b_grid
             bs = scan_res['b_grid']
             if bs is None or len(bs) == 0:
                 b_star_list.append(np.nan)
                 L_star_list.append(np.nan)
                 p_star_list.append(np.nan)
                 sigma_p_star_list.append(np.nan)
+                frac_nodes_kept_list.append(np.nan)
+                frac_edges_kept_list.append(np.nan)
                 print("    No valid b range; skipping.")
                 continue
 
-            # We still want the "largest window with p >= p_c"
-            scan_thresh_res = self.scan_until_threshold(net=net_temp,node_type=node_type,a=a,beta_theory=beta_theory,candidate_bs=bs,
-                N_sims=N_sims, p_c=p_c,)
+            # Largest window with p >= p_c
+            scan_thresh_res = self.scan_until_threshold(
+                net=net_temp,
+                node_type=node_type,
+                a=a,
+                beta_theory=beta_theory,
+                candidate_bs=bs,
+                N_sims=N_sims,
+                p_c=p_c,
+            )
 
             lw = scan_thresh_res['largest_window']
-            windows_info[-1]['scan_until_threshold'] = scan_thresh_res  # keep this too
+            windows_info[-1]['scan_until_threshold'] = scan_thresh_res
 
             if lw is None:
                 b_star_list.append(np.nan)
                 L_star_list.append(np.nan)
                 p_star_list.append(np.nan)
                 sigma_p_star_list.append(np.nan)
+                frac_nodes_kept_list.append(np.nan)
+                frac_edges_kept_list.append(np.nan)
                 print("    No window with p >= p_c found.")
             else:
                 b_star = lw['b']
@@ -680,49 +778,59 @@ class GoFDiagnostics:
                 L_star_list.append(L_star)
                 p_star_list.append(lw['p'])
                 sigma_p_star_list.append(lw['sigma_p'])
+
+                # NEW: fraction of nodes/edges kept at accepted window
+                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+                if degrees.size == 0:
+                    frac_nodes_kept = np.nan
+                    frac_edges_kept = np.nan
+                else:
+                    mask_keep = (degrees >= a) & (degrees <= b_star)
+                    frac_nodes_kept = mask_keep.mean()
+                    total_edges = degrees.sum()
+                    frac_edges_kept = (
+                        degrees[mask_keep].sum() / total_edges
+                        if total_edges > 0 else np.nan
+                    )
+
+                frac_nodes_kept_list.append(frac_nodes_kept)
+                frac_edges_kept_list.append(frac_edges_kept)
+
                 print(
                     f"    Largest acceptable window: [a={lw['a']}, b={b_star}] "
-                    f"(L={L_star}), p = {lw['p']:.3f} ± {lw['sigma_p']:.3f}"
+                    f"(L={L_star}), p = {lw['p']:.3f} ± {lw['sigma_p']:.3f}, "
+                    f"nodes kept = {frac_nodes_kept:.3f}, edges kept = {frac_edges_kept:.3f}"
                 )
 
         b_star_arr = np.array(b_star_list, dtype=float)
-        L_star_arr = np.array(L_star_list, dtype=float)
-        p_star_arr = np.array(p_star_list, dtype=float)
-        sigma_p_star_arr = np.array(sigma_p_star_list, dtype=float)
+        frac_nodes_kept_arr = np.array(frac_nodes_kept_list, dtype=float)
+        frac_edges_kept_arr = np.array(frac_edges_kept_list, dtype=float)
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
-        ax1.plot(m_values, L_star_arr, marker='o', linestyle='-', linewidth=2, markersize=6)
+        # Left: fraction of nodes kept vs m
+        ax1.plot(m_values, frac_nodes_kept_arr, marker='o', linestyle='-', linewidth=2, markersize=6)
         ax1.set_xlabel('m_edges', fontsize=12)
-        ax1.set_ylabel('Window length L* = b* - a + 1', fontsize=12)
+        ax1.set_ylabel('Fraction of nodes kept', fontsize=12)
         ax1.set_title(
-            f'Largest Window Length vs m_edges (Type "{node_type}")',
+            f'Fraction of nodes with {a} ≤ k ≤ b*(m) (Type "{node_type}")',
             fontsize=13,
             fontweight='bold',
         )
+        ax1.set_ylim(-0.05, 1.05)
         ax1.grid(True, alpha=0.3)
 
-        ax2.errorbar(
-            m_values,
-            p_star_arr,
-            yerr=sigma_p_star_arr,
-            fmt='o-',
-            linewidth=2,
-            markersize=6,
-            capsize=4,
-            label=r'$p([a,b^*])$',
-        )
-        ax2.axhline(p_c, linestyle='--', color='black', alpha=0.5, label=f'p_c = {p_c}')
+        # Right: fraction of edges kept vs m
+        ax2.plot(m_values, frac_edges_kept_arr, marker='o', linestyle='-', linewidth=2, markersize=6)
         ax2.set_xlabel('m_edges', fontsize=12)
-        ax2.set_ylabel(r'$p([a,b^*])$', fontsize=12)
+        ax2.set_ylabel('Fraction of edges (in-degree) kept', fontsize=12)
         ax2.set_title(
-            f'p-value at Largest Window vs m_edges (Type "{node_type}")',
+            f'Fraction of in-edges on nodes with {a} ≤ k ≤ b*(m) (Type "{node_type}")',
             fontsize=13,
             fontweight='bold',
         )
         ax2.set_ylim(-0.05, 1.05)
         ax2.grid(True, alpha=0.3)
-        ax2.legend()
 
         plt.tight_layout()
 
@@ -742,11 +850,14 @@ class GoFDiagnostics:
             'L_star': L_star_list,
             'p_star': p_star_list,
             'sigma_p_star': sigma_p_star_list,
+            'frac_nodes_kept': frac_nodes_kept_list,
+            'frac_edges_kept': frac_edges_kept_list,
             'windows_info': windows_info,
             'fig': fig,
             'config': config,
         }
-  
+
+
 class NetworkPlotting:
     """
     Plotting utilities for DirectedHomophilicNetwork.
@@ -1099,7 +1210,7 @@ class NetworkStatistics:
         )
 
 if __name__ == "__main__":
-    net = DirectedHomophilicNetwork(n0=50, n_nodes= 5000, m_edges=5, h=0.2, f_a=0.2, mu_a=1, mu_b=5, seed= None,)
+    net = DirectedHomophilicNetwork(n0=50, n_nodes= 2500, m_edges=5, h=0.2, f_a=0.2, mu_a=1, mu_b=5, seed= None,)
 
     # Helper class instances
     gof = GoFDiagnostics()
@@ -1150,19 +1261,4 @@ if __name__ == "__main__":
 
         results_csn_m = gof.csn_sweep_m_edges(net, m_min=2, m_max=30, m_step=2, node_type=node_type, a=a,
             candidate_bs=None, b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type, N_sims=N_sims, p_c=p_c,)
-        plt.show()
-
-        results_surface = gof.ks_surface_n0_m(
-            net,
-            n0_min=50,
-            n0_max=500,
-            n0_step=100,
-            m_min=5,
-            m_max=20,
-            m_step=5,
-            node_type='b',
-            kmin=0,
-            kmax=None,
-            n_runs=2,
-        )
         plt.show()

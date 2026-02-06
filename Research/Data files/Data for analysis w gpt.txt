@@ -1,0 +1,641 @@
+ MLE diagnostics for [a=0, b=19]: frac_moved = 1.000, mean(beta_mle) = [ 0.1287241  19.00240793  3.78763989], std(beta_mle) = [1.25176454e-03 1.02183431e+01 1.57672008e+00], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [-1.64642757 21.61541074 12.96499017]
+      MLE diagnostics for [a=0, b=28]: frac_moved = 1.000, mean(beta_mle) = [ 0.12940668 22.22730558  4.33898851], std(beta_mle) = [2.75016200e-03 1.36135392e+01 1.99456002e+00], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [-1.12489544 42.2547557  29.40876335]
+      MLE diagnostics for [a=0, b=37]: frac_moved = 1.000, mean(beta_mle) = [ 0.1283607  19.24661297  3.80135261], std(beta_mle) = [1.53460628e-03 7.67505846e+00 9.85912659e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [-1.92408909 23.17832302 13.37396694]
+      MLE diagnostics for [a=0, b=46]: frac_moved = 1.000, mean(beta_mle) = [ 0.12785684 18.01329125  3.6619742 ], std(beta_mle) = [1.13298757e-03 8.27927708e+00 1.03618615e+00], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [-2.30907384 15.285064    9.21705634]
+      MLE diagnostics for [a=0, b=55]: frac_moved = 1.000, mean(beta_mle) = [ 0.12783502 16.12051239  3.39843414], std(beta_mle) = [1.24373866e-03 4.75249005e+00 6.07930597e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [-2.3257465   3.17127929  1.35706926]
+      MLE diagnostics for [a=0, b=64]: frac_moved = 1.000, mean(beta_mle) = [ 0.12804541 16.79082667  3.47579487], std(beta_mle) = [8.10093602e-04 4.31135832e+00 4.59453741e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [-2.16499459  7.46129071  3.66432505]
+      MLE diagnostics for [a=0, b=73]: frac_moved = 1.000, mean(beta_mle) = [ 0.12822149 12.76586019  2.97837245], std(beta_mle) = [1.25201519e-03 2.99738131e+00 3.59151076e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -2.03045773 -18.29849476 -11.17111861]
+      MLE diagnostics for [a=0, b=82]: frac_moved = 1.000, mean(beta_mle) = [ 0.12955781 11.09288605  2.85711949], std(beta_mle) = [0.00185126 1.54251823 0.14289443], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.00942202 -29.00552926 -14.78744446]
+      MLE diagnostics for [a=0, b=92]: frac_moved = 1.000, mean(beta_mle) = [0.12905223 9.08487104 2.58922628], std(beta_mle) = [0.00168106 1.14700214 0.14036661], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.39571805 -41.85682532 -22.77726237]
+      MLE diagnostics for [a=0, b=101]: frac_moved = 1.000, mean(beta_mle) = [0.12956443 8.41393123 2.50537413], std(beta_mle) = [0.0014789  1.18402989 0.15084353], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.00436181 -46.15084015 -25.27812254]
+      MLE diagnostics for [a=0, b=110]: frac_moved = 1.000, mean(beta_mle) = [0.12878412 6.94958743 2.29582068], std(beta_mle) = [0.00113529 0.60902181 0.08189902], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.60056952 -55.52264045 -31.52797844]
+      MLE diagnostics for [a=0, b=119]: frac_moved = 1.000, mean(beta_mle) = [0.12832864 5.50523778 2.0972823 ], std(beta_mle) = [0.00183084 0.362631   0.04370192], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.94858161 -64.76647818 -37.44931382]
+      MLE diagnostics for [a=0, b=128]: frac_moved = 1.000, mean(beta_mle) = [0.12894665 4.28617645 1.92870522], std(beta_mle) = [0.00143256 0.85389623 0.11339817], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.47638338 -72.5684707  -42.4770643 ]
+      MLE diagnostics for [a=0, b=137]: frac_moved = 1.000, mean(beta_mle) = [0.12886453 3.93649539 1.86985686], std(beta_mle) = [0.0013489  0.3767235  0.05230024], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.5391265  -74.8064295  -44.23219519]
+      MLE diagnostics for [a=0, b=146]: frac_moved = 1.000, mean(beta_mle) = [0.12943233 2.95453882 1.71332191], std(beta_mle) = [0.00106339 0.27862027 0.03014506], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.10529146 -81.09095157 -48.90079353]
+      MLE diagnostics for [a=0, b=155]: frac_moved = 1.000, mean(beta_mle) = [0.12935118 2.74503642 1.67470206], std(beta_mle) = [0.00106541 0.16381922 0.02768402], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.16729948 -82.4317669  -50.0526166 ]
+      MLE diagnostics for [a=0, b=164]: frac_moved = 1.000, mean(beta_mle) = [0.12841149 2.32514719 1.58441786], std(beta_mle) = [0.00153283 0.23012047 0.03524649], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.88528044 -85.11905797 -52.74531033]
+      MLE diagnostics for [a=0, b=174]: frac_moved = 1.000, mean(beta_mle) = [0.12897005 2.30753855 1.58253784], std(beta_mle) = [0.00245376 0.24033898 0.05283102], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.4585091  -85.23175327 -52.80138132]
+      MLE diagnostics for [a=0, b=174]: frac_moved = 1.000, mean(beta_mle) = [0.12877669 2.23753319 1.57508451], std(beta_mle) = [0.0019497  0.17291544 0.04805746], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.60624593 -85.67978756 -53.02367418]
+      window [a=0, b=174] (L=175): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=164]: frac_moved = 1.000, mean(beta_mle) = [0.12890583 2.40738325 1.60825942], std(beta_mle) = [0.00202131 0.27945015 0.04329494], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.50757349 -84.59274723 -52.03424431]
+      window [a=0, b=164] (L=165): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=155]: frac_moved = 1.000, mean(beta_mle) = [0.12877823 2.68824888 1.66100794], std(beta_mle) = [0.00200348 0.2653903  0.04731874], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.60507213 -82.79520715 -50.4610389 ]
+      window [a=0, b=155] (L=156): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=146]: frac_moved = 1.000, mean(beta_mle) = [0.12904186 3.09419134 1.74065174], std(beta_mle) = [0.00161604 0.17388096 0.02652027], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.40364036 -80.19717543 -48.08569129]
+      window [a=0, b=146] (L=147): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=137]: frac_moved = 1.000, mean(beta_mle) = [0.12877666 3.68510706 1.82457046], std(beta_mle) = [0.00137062 0.43293504 0.05485752], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.60626536 -76.41531484 -45.58284598]
+      window [a=0, b=137] (L=138): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=128]: frac_moved = 1.000, mean(beta_mle) = [0.12899197 4.43229102 1.94773449], std(beta_mle) = [0.00125545 0.37287669 0.05454458], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.44176036 -71.6333375  -41.90952313]
+      window [a=0, b=128] (L=129): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=119]: frac_moved = 1.000, mean(beta_mle) = [0.12925257 5.53754063 2.11513073], std(beta_mle) = [0.00184914 0.51603216 0.07948916], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.24263929 -64.55973996 -36.9169909 ]
+      window [a=0, b=119] (L=120): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=110]: frac_moved = 1.000, mean(beta_mle) = [0.12840082 7.7886728  2.37175427], std(beta_mle) = [1.06132239e-03 1.34239081e+00 1.76030719e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.89343141 -50.15249409 -29.26328652]
+      window [a=0, b=110] (L=111): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=101]: frac_moved = 1.000, mean(beta_mle) = [0.12864612 8.98674884 2.56868638], std(beta_mle) = [0.00171331 1.22582467 0.14859428], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.70601337 -42.48480745 -23.38985764]
+      window [a=0, b=101] (L=102): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=92]: frac_moved = 1.000, mean(beta_mle) = [0.12896415 9.85331581 2.66456234], std(beta_mle) = [1.65304372e-03 1.67187709e+00 1.74239223e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.46301247 -36.93877882 -20.5303919 ]
+      window [a=0, b=92] (L=93): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=82]: frac_moved = 1.000, mean(beta_mle) = [ 0.12913876 11.00197173  2.82393577], std(beta_mle) = [0.00191705 1.31294445 0.17334921], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.32959841 -29.58738094 -15.77713691]
+      window [a=0, b=82] (L=83): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=73]: frac_moved = 1.000, mean(beta_mle) = [ 0.1290531  13.43329266  3.10580084], std(beta_mle) = [1.49977551e-03 2.07236518e+00 2.35852708e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [ -1.39505421 -14.026927    -7.37061312]
+      window [a=0, b=73] (L=74): p = 0.300 ± 0.145 -> REJECT
+      MLE diagnostics for [a=0, b=64]: frac_moved = 1.000, mean(beta_mle) = [ 0.1291687  16.56737774  3.46794421], std(beta_mle) = [1.40177245e-03 3.03495141e+00 3.77669755e-01], beta_theory = [ 0.13087893 15.625       3.35293252], % diff mean vs theory = [-1.30672824  6.03121754  3.43018213]
+      window [a=0, b=64] (L=65): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=64] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=64] (L=65), p = 0.700 ± 0.145
+
+  m = 14: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  13  26  39  52  65  78  91 104 117 129 142 155 168 181 194 207 220
+ 233 246]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.12278606 15.63263107  2.20638425], std(beta_mle) = [0.00159512 0.26834135 1.54966427], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.6380349    0.04883888 -29.88891395]
+      MLE diagnostics for [a=0, b=13]: frac_moved = 1.000, mean(beta_mle) = [1.20673722e-01 1.84731155e+02 2.96286938e+01], std(beta_mle) = [4.66117828e-03 3.22705046e+02 4.98249310e+01], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [-1.10481407e-01  1.08227939e+03  8.41495073e+02]
+      MLE diagnostics for [a=0, b=26]: frac_moved = 1.000, mean(beta_mle) = [ 0.12222658 76.31643337 11.45035011], std(beta_mle) = [1.96449836e-03 1.44159709e+02 1.97032794e+01], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.17492212 388.4251736  263.85161953]
+      MLE diagnostics for [a=0, b=39]: frac_moved = 1.000, mean(beta_mle) = [ 0.12132433 21.89000099  3.92894328], std(beta_mle) = [1.47006147e-03 8.28348776e+00 1.00965138e+00], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [ 0.42806526 40.09600632 24.84791827]
+      MLE diagnostics for [a=0, b=52]: frac_moved = 1.000, mean(beta_mle) = [ 0.12168144 15.01905417  3.145907  ], std(beta_mle) = [6.49331365e-04 3.33154818e+00 4.27082089e-01], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [ 0.72367541 -3.87805334 -0.03420438]
+      MLE diagnostics for [a=0, b=65]: frac_moved = 1.000, mean(beta_mle) = [ 0.12258985 14.50345598  3.10450297], std(beta_mle) = [1.95190882e-03 3.64435946e+00 4.43471133e-01], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [ 1.47562089 -7.17788174 -1.34987811]
+      MLE diagnostics for [a=0, b=78]: frac_moved = 1.000, mean(beta_mle) = [ 0.121908   12.75036043  2.88455932], std(beta_mle) = [1.56912535e-03 2.46576522e+00 2.62738948e-01], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.91121412 -18.39769322  -8.33890912]
+      MLE diagnostics for [a=0, b=91]: frac_moved = 1.000, mean(beta_mle) = [ 0.12220557 10.81920997  2.66055157], std(beta_mle) = [0.00278746 1.26494986 0.153362  ], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.15752808 -30.75705618 -15.45708323]
+      MLE diagnostics for [a=0, b=104]: frac_moved = 1.000, mean(beta_mle) = [0.12237689 9.53869342 2.51347846], std(beta_mle) = [0.00221528 1.46761886 0.16527842], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.29934107 -38.95236211 -20.13054637]
+      MLE diagnostics for [a=0, b=117]: frac_moved = 1.000, mean(beta_mle) = [0.12209196 7.98246298 2.32084895], std(beta_mle) = [0.00141836 1.32942636 0.13593368], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.06348634 -48.91223694 -26.25163051]
+      MLE diagnostics for [a=0, b=129]: frac_moved = 1.000, mean(beta_mle) = [0.12253673 6.73444057 2.17656472], std(beta_mle) = [0.00198007 0.80068769 0.08587875], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.43165018 -56.89958038 -30.83647303]
+      MLE diagnostics for [a=0, b=142]: frac_moved = 1.000, mean(beta_mle) = [0.12207556 5.16813829 1.9719692 ], std(beta_mle) = [0.00197213 0.73730918 0.08863321], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.04991053 -66.92391497 -37.33779491]
+      MLE diagnostics for [a=0, b=155]: frac_moved = 1.000, mean(beta_mle) = [0.12357195 3.73735572 1.79473875], std(beta_mle) = [0.00151674 0.35678859 0.05625562], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  2.28857059 -76.0809234  -42.96955161]
+      MLE diagnostics for [a=0, b=168]: frac_moved = 1.000, mean(beta_mle) = [0.12254814 2.91582105 1.64068052], std(beta_mle) = [0.00189779 0.33744785 0.04166482], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.44109349 -81.33874527 -47.86497713]
+      MLE diagnostics for [a=0, b=181]: frac_moved = 1.000, mean(beta_mle) = [0.12186257 2.48998448 1.56216574], std(beta_mle) = [0.00177914 0.30462098 0.04829257], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.87360911 -84.06409934 -50.35989923]
+      MLE diagnostics for [a=0, b=194]: frac_moved = 1.000, mean(beta_mle) = [0.12181195 2.18452098 1.49858119], std(beta_mle) = [0.00230822 0.25552309 0.03300806], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.8317014  -86.01906574 -52.38039127]
+      MLE diagnostics for [a=0, b=207]: frac_moved = 1.000, mean(beta_mle) = [0.12282382 1.94151035 1.46879891], std(beta_mle) = [0.0011623  0.10339963 0.01942588], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.66929855 -87.57433375 -53.32676681]
+      MLE diagnostics for [a=0, b=220]: frac_moved = 1.000, mean(beta_mle) = [0.12148258 1.71908401 1.41604406], std(beta_mle) = [0.001571   0.09460813 0.01987481], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.55906348 -88.99786231 -55.00312909]
+      MLE diagnostics for [a=0, b=233]: frac_moved = 1.000, mean(beta_mle) = [0.12177011 1.66424362 1.39581   ], std(beta_mle) = [0.00172571 0.1375838  0.02615725], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.79707145 -89.3488408  -55.64609616]
+      MLE diagnostics for [a=0, b=246]: frac_moved = 1.000, mean(beta_mle) = [0.12231692 1.64846473 1.40562938], std(beta_mle) = [0.00226928 0.12645186 0.02831648], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.24969776 -89.44982574 -55.33407075]
+      MLE diagnostics for [a=0, b=246]: frac_moved = 1.000, mean(beta_mle) = [0.12154989 1.77680168 1.41602415], std(beta_mle) = [0.00191304 0.13641822 0.02046074], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.61478029 -88.62846927 -55.00376199]
+      window [a=0, b=246] (L=247): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=233]: frac_moved = 1.000, mean(beta_mle) = [0.12247168 1.63439673 1.39899553], std(beta_mle) = [0.00224433 0.13096492 0.03277083], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.37780245 -89.53986093 -55.54487131]
+      window [a=0, b=233] (L=234): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=220]: frac_moved = 1.000, mean(beta_mle) = [0.1222792  1.82781313 1.44433201], std(beta_mle) = [0.00192011 0.13183352 0.02806003], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.21847995 -88.30199594 -54.10423824]
+      window [a=0, b=220] (L=221): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=207]: frac_moved = 1.000, mean(beta_mle) = [0.12283758 1.82610516 1.45023559], std(beta_mle) = [0.00213524 0.1594702  0.02722685], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.68068507 -88.31292695 -53.91664339]
+      window [a=0, b=207] (L=208): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=194]: frac_moved = 1.000, mean(beta_mle) = [0.12308737 2.11578286 1.50729501], std(beta_mle) = [0.00142196 0.15732728 0.02812127], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.88745151 -86.45898969 -52.10349691]
+      window [a=0, b=194] (L=195): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=181]: frac_moved = 1.000, mean(beta_mle) = [0.12170776 2.48073693 1.56173709], std(beta_mle) = [0.00240828 0.24125093 0.04062855], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.74545851 -84.12328364 -50.37351999]
+      window [a=0, b=181] (L=182): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=168]: frac_moved = 0.900, mean(beta_mle) = [0.12351222 2.89113679 1.64670622], std(beta_mle) = [0.00212487 0.31741554 0.04890644], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  2.23912788 -81.49672457 -47.67350186]
+      window [a=0, b=168] (L=169): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=155]: frac_moved = 1.000, mean(beta_mle) = [0.12242524 3.80320784 1.78193848], std(beta_mle) = [0.00146777 0.41898924 0.05255524], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.33936582 -75.6594698  -43.37629888]
+      window [a=0, b=155] (L=156): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=142]: frac_moved = 1.000, mean(beta_mle) = [0.12245375 5.20194149 1.98544541], std(beta_mle) = [0.00156792 0.68808992 0.06882735], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.36296358 -66.70757445 -36.9095686 ]
+      window [a=0, b=142] (L=143): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=129]: frac_moved = 1.000, mean(beta_mle) = [0.12219337 7.04218635 2.18635033], std(beta_mle) = [1.40083947e-03 2.19301358e+00 1.70149285e-01], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.1474281  -54.93000736 -30.52552109]
+      window [a=0, b=129] (L=130): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=117]: frac_moved = 1.000, mean(beta_mle) = [0.12184335 7.92483603 2.29930914], std(beta_mle) = [0.00208522 0.54665712 0.05875792], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.85769615 -49.28104939 -26.93608966]
+      window [a=0, b=117] (L=118): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=104]: frac_moved = 1.000, mean(beta_mle) = [0.12143883 8.64393074 2.41343459], std(beta_mle) = [0.00251501 0.79405976 0.08414551], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.52284477 -44.67884326 -23.30958637]
+      window [a=0, b=104] (L=105): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=91]: frac_moved = 1.000, mean(beta_mle) = [ 0.1224051  11.22078591  2.71084269], std(beta_mle) = [0.00199205 1.69425216 0.18417953], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  1.32269412 -28.18697019 -13.85900918]
+      window [a=0, b=91] (L=92): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=78]: frac_moved = 1.000, mean(beta_mle) = [ 0.12180782 12.5034316   2.85608532], std(beta_mle) = [0.00213221 2.10625001 0.19550887], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [  0.82828363 -19.97803773  -9.24371225]
+      window [a=0, b=78] (L=79): p = 0.200 ± 0.126 -> REJECT
+      MLE diagnostics for [a=0, b=65]: frac_moved = 1.000, mean(beta_mle) = [ 0.12200891 15.52933939  3.20885109], std(beta_mle) = [1.80501514e-03 2.50451591e+00 2.74841810e-01], beta_theory = [ 0.12080719 15.625       3.14698341], % diff mean vs theory = [ 0.99474132 -0.6122279   1.96593608]
+      window [a=0, b=65] (L=66): p = 0.900 ± 0.095 -> ACCEPT
+      -> stopping at [a=0, b=65] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=65] (L=66), p = 0.900 ± 0.095
+
+  m = 16: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  13  26  39  51  64  77  89 102 115 127 140 153 165 178 191 203 216
+ 229 242]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.1171091  15.39891879  3.621916  ], std(beta_mle) = [0.00257703 0.27054035 1.24989693], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-1.76087087 -1.44691976 16.28383076]
+      MLE diagnostics for [a=0, b=13]: frac_moved = 1.000, mean(beta_mle) = [ 0.1169135  25.55236598  4.61080791], std(beta_mle) = [2.42496565e-03 2.72373047e+01 4.31908493e+00], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-1.9249527  63.5351423  48.03281072]
+      MLE diagnostics for [a=0, b=26]: frac_moved = 1.000, mean(beta_mle) = [ 0.11779864 17.4918707   3.33014472], std(beta_mle) = [1.73997406e-03 7.29904517e+00 9.84976594e-01], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-1.18244035 11.94797248  6.91633503]
+      MLE diagnostics for [a=0, b=39]: frac_moved = 1.000, mean(beta_mle) = [ 0.1189449  20.9098666   3.75391247], std(beta_mle) = [1.83829601e-03 1.41386527e+01 1.72343326e+00], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-0.22088094 33.82314626 20.52165811]
+      MLE diagnostics for [a=0, b=51]: frac_moved = 1.000, mean(beta_mle) = [ 0.11738557 16.09387847  3.17271389], std(beta_mle) = [1.91973045e-03 4.30537962e+00 5.12962877e-01], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-1.52894984  3.00082224  1.86192194]
+      MLE diagnostics for [a=0, b=64]: frac_moved = 1.000, mean(beta_mle) = [ 0.11751401 14.86586257  3.01423764], std(beta_mle) = [1.27545289e-03 3.86034460e+00 4.24048149e-01], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-1.42121122 -4.85847956 -3.22605514]
+      MLE diagnostics for [a=0, b=77]: frac_moved = 1.000, mean(beta_mle) = [ 0.11820881 13.73908988  2.89781309], std(beta_mle) = [2.26361820e-03 2.30035951e+00 2.72401664e-01], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -0.83835911 -12.06982475  -6.9639367 ]
+      MLE diagnostics for [a=0, b=89]: frac_moved = 1.000, mean(beta_mle) = [ 0.11729183 11.27303549  2.61556074], std(beta_mle) = [0.00228772 1.40049718 0.1531321 ], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.60758603 -27.85257288 -16.02582104]
+      MLE diagnostics for [a=0, b=102]: frac_moved = 1.000, mean(beta_mle) = [0.11773287 9.2574557  2.41418263], std(beta_mle) = [0.0032291  0.5467646  0.08607037], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.23760909 -40.7522835  -22.49118852]
+      MLE diagnostics for [a=0, b=115]: frac_moved = 0.900, mean(beta_mle) = [0.11622886 8.32622371 2.2720404 ], std(beta_mle) = [0.00221859 1.20549328 0.14107179], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -2.49928062 -46.71216824 -27.05475194]
+      MLE diagnostics for [a=0, b=127]: frac_moved = 1.000, mean(beta_mle) = [0.11762875 7.61482901 2.22019439], std(beta_mle) = [0.00228484 1.14796204 0.12485374], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.32495439 -51.26509436 -28.71929981]
+      MLE diagnostics for [a=0, b=140]: frac_moved = 1.000, mean(beta_mle) = [0.11706206 7.32014608 2.16573124], std(beta_mle) = [0.00236063 1.20612186 0.14302562], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.80033731 -53.15106509 -30.46787268]
+      MLE diagnostics for [a=0, b=153]: frac_moved = 1.000, mean(beta_mle) = [0.11643993 5.74370335 1.98479174], std(beta_mle) = [0.00112824 0.48923906 0.04796626], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -2.32221692 -63.24029858 -36.27704613]
+      MLE diagnostics for [a=0, b=165]: frac_moved = 1.000, mean(beta_mle) = [0.11744685 4.75076149 1.86324197], std(beta_mle) = [0.00253392 0.85885352 0.08936411], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.47754989 -69.59512649 -40.17947587]
+      MLE diagnostics for [a=0, b=178]: frac_moved = 1.000, mean(beta_mle) = [0.11728642 3.85061829 1.73796502], std(beta_mle) = [0.00200652 0.36309811 0.04705013], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.61213001 -75.35604294 -44.20156915]
+      MLE diagnostics for [a=0, b=191]: frac_moved = 1.000, mean(beta_mle) = [0.11808423 2.82038347 1.58192935], std(beta_mle) = [0.00209875 0.28099104 0.03939156], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -0.94287003 -81.94954582 -49.21118981]
+      MLE diagnostics for [a=0, b=203]: frac_moved = 1.000, mean(beta_mle) = [0.11608431 2.57075744 1.51898573], std(beta_mle) = [0.00253513 0.34101407 0.04723323], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -2.62053716 -83.54715241 -51.23203315]
+      MLE diagnostics for [a=0, b=216]: frac_moved = 1.000, mean(beta_mle) = [0.11677155 2.06688616 1.44930308], std(beta_mle) = [0.00243152 0.23914125 0.03507862], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -2.04403145 -86.77192855 -53.46923747]
+      MLE diagnostics for [a=0, b=229]: frac_moved = 1.000, mean(beta_mle) = [0.11709322 1.80070861 1.39620761], std(beta_mle) = [0.00212206 0.18545431 0.0271871 ], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.77419691 -88.47546493 -55.1738999 ]
+      MLE diagnostics for [a=0, b=242]: frac_moved = 1.000, mean(beta_mle) = [0.1161826  1.54238177 1.3387664 ], std(beta_mle) = [0.00151945 0.14202869 0.02057419], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -2.53808965 -90.12875665 -57.01808526]
+      MLE diagnostics for [a=0, b=242]: frac_moved = 1.000, mean(beta_mle) = [0.11781655 1.61622531 1.36516179], std(beta_mle) = [0.0019897  0.08462818 0.01833936], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.16741916 -89.65615799 -56.17064503]
+      window [a=0, b=242] (L=243): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=229]: frac_moved = 1.000, mean(beta_mle) = [0.11817325 1.67390132 1.38559082], std(beta_mle) = [0.0019967  0.15748123 0.02780172], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -0.86819566 -89.28703158 -55.51475855]
+      window [a=0, b=229] (L=230): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=216]: frac_moved = 1.000, mean(beta_mle) = [0.1174156  1.93216551 1.43255387], std(beta_mle) = [0.00211845 0.11726636 0.01571751], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.50376136 -87.63414074 -54.00698089]
+      window [a=0, b=216] (L=217): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=203]: frac_moved = 1.000, mean(beta_mle) = [0.1163625  2.38586119 1.50423358], std(beta_mle) = [0.00246085 0.28361823 0.03227155], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -2.38717504 -84.73048839 -51.70566011]
+      window [a=0, b=203] (L=204): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=191]: frac_moved = 1.000, mean(beta_mle) = [0.1178669  2.79937351 1.57329363], std(beta_mle) = [0.00163513 0.4152057  0.04334694], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.12518152 -82.08400956 -49.48844479]
+      window [a=0, b=191] (L=192): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=178]: frac_moved = 1.000, mean(beta_mle) = [0.11752382 3.68836143 1.71742016], std(beta_mle) = [0.00123756 0.62417478 0.07584554], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.4129774  -76.39448687 -44.86117434]
+      window [a=0, b=178] (L=179): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=165]: frac_moved = 1.000, mean(beta_mle) = [0.11862985 4.50374728 1.83884531], std(beta_mle) = [0.00135786 0.73933345 0.08806305], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -0.48516423 -71.17601743 -40.96274545]
+      window [a=0, b=165] (L=166): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=153]: frac_moved = 1.000, mean(beta_mle) = [0.11780312 5.31786826 1.9513484 ], std(beta_mle) = [0.00157766 0.5849507  0.06923491], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.17867921 -65.96564316 -37.35076508]
+      window [a=0, b=153] (L=154): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=140]: frac_moved = 1.000, mean(beta_mle) = [0.11732755 6.60087579 2.09544702], std(beta_mle) = [0.00253444 0.74153476 0.0784331 ], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.57762567 -57.75439493 -32.72439067]
+      window [a=0, b=140] (L=141): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=127]: frac_moved = 1.000, mean(beta_mle) = [0.1195168  7.65180966 2.24439934], std(beta_mle) = [0.00170451 0.56312336 0.05815845], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [  0.25886742 -51.0284182  -27.94218502]
+      window [a=0, b=127] (L=128): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=115]: frac_moved = 1.000, mean(beta_mle) = [0.11817504 8.19766342 2.28472986], std(beta_mle) = [0.00167899 1.05463375 0.10356746], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -0.8666935  -47.53495414 -26.64734892]
+      window [a=0, b=115] (L=116): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=102]: frac_moved = 1.000, mean(beta_mle) = [0.11701617 9.5107136  2.40363705], std(beta_mle) = [0.00241253 0.91957203 0.09367969], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.8388309  -39.13143298 -22.82976105]
+      window [a=0, b=102] (L=103): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=89]: frac_moved = 1.000, mean(beta_mle) = [ 0.11554468 10.30009243  2.49948064], std(beta_mle) = [0.00247669 1.18048495 0.1045852 ], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -3.07321561 -34.07940846 -19.75264392]
+      window [a=0, b=89] (L=90): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=77]: frac_moved = 1.000, mean(beta_mle) = [ 0.11779838 12.74438772  2.7981318 ], std(beta_mle) = [1.69957510e-03 2.50714539e+00 3.07359617e-01], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [ -1.1826548  -18.43591862 -10.16426556]
+      window [a=0, b=77] (L=78): p = 0.200 ± 0.126 -> REJECT
+      MLE diagnostics for [a=0, b=64]: frac_moved = 1.000, mean(beta_mle) = [ 0.11754631 16.1735536   3.16427854], std(beta_mle) = [1.90883541e-03 2.77259658e+00 2.82708477e-01], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-1.39411119  3.51074301  1.59109962]
+      window [a=0, b=64] (L=65): p = 0.500 ± 0.158 -> REJECT
+      MLE diagnostics for [a=0, b=51]: frac_moved = 1.000, mean(beta_mle) = [ 0.11760313 17.73907     3.34816148], std(beta_mle) = [1.91277520e-03 5.94607998e+00 6.65815353e-01], beta_theory = [ 0.11920821 15.625       3.11472023], % diff mean vs theory = [-1.34645001 13.53004803  7.49477426]
+      window [a=0, b=51] (L=52): p = 0.600 ± 0.155 -> ACCEPT
+      -> stopping at [a=0, b=51] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=51] (L=52), p = 0.600 ± 0.155
+
+  m = 18: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  16  31  46  61  76  91 107 122 137 152 167 182 198 213 228 243 258
+ 273 289]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.11414664 15.36070048  3.71510442], std(beta_mle) = [0.00268868 0.43777779 1.21900761], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-1.04528398 -1.69151692 22.31197959]
+      MLE diagnostics for [a=0, b=16]: frac_moved = 1.000, mean(beta_mle) = [ 0.11302827 18.09421587  3.34804715], std(beta_mle) = [2.20733959e-03 1.46345107e+01 2.25962484e+00], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-2.01480881 15.80298155 10.22739292]
+      MLE diagnostics for [a=0, b=31]: frac_moved = 1.000, mean(beta_mle) = [ 0.1141984  16.00968735  3.02700681], std(beta_mle) = [1.47918511e-03 8.65954588e+00 1.08007049e+00], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-1.00040952  2.46199901 -0.34218322]
+      MLE diagnostics for [a=0, b=46]: frac_moved = 1.000, mean(beta_mle) = [ 0.11438294 15.80019052  3.02072661], std(beta_mle) = [2.03606142e-03 3.70659003e+00 4.61046082e-01], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-0.84043652  1.12121931 -0.54894584]
+      MLE diagnostics for [a=0, b=61]: frac_moved = 1.000, mean(beta_mle) = [ 0.11359966 14.15983605  2.85027188], std(beta_mle) = [2.53942485e-03 3.24903834e+00 3.37758986e-01], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-1.51946623 -9.37704926 -6.16080827]
+      MLE diagnostics for [a=0, b=76]: frac_moved = 1.000, mean(beta_mle) = [ 0.11456861 14.15607065  2.86137381], std(beta_mle) = [0.00265931 2.17242358 0.2179522 ], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-0.67947486 -9.40114786 -5.79530061]
+      MLE diagnostics for [a=0, b=91]: frac_moved = 1.000, mean(beta_mle) = [ 0.11457772 10.68127713  2.49425337], std(beta_mle) = [0.00232843 1.10392627 0.10892263], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.67158083 -31.6398264  -17.88196686]
+      MLE diagnostics for [a=0, b=107]: frac_moved = 1.000, mean(beta_mle) = [0.11430994 9.13120795 2.32291302], std(beta_mle) = [1.14390780e-03 1.15056606e+00 1.20814240e-01], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.90372196 -41.56026914 -23.52298664]
+      MLE diagnostics for [a=0, b=122]: frac_moved = 1.000, mean(beta_mle) = [0.11378119 7.58078984 2.15714492], std(beta_mle) = [0.00254017 0.53725704 0.066453  ], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.36209778 -51.48294502 -28.9805518 ]
+      MLE diagnostics for [a=0, b=137]: frac_moved = 1.000, mean(beta_mle) = [0.11333218 6.65772751 2.05182841], std(beta_mle) = [0.00201649 0.46384978 0.04847434], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.75134407 -57.39054395 -32.44787596]
+      MLE diagnostics for [a=0, b=152]: frac_moved = 1.000, mean(beta_mle) = [0.11500742 6.43915603 2.03298528], std(beta_mle) = [0.00258077 0.67559452 0.06768267], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.29906674 -58.7894014  -33.06824617]
+      MLE diagnostics for [a=0, b=167]: frac_moved = 1.000, mean(beta_mle) = [0.11358494 5.99190093 1.97096925], std(beta_mle) = [0.00206769 0.75241539 0.08722672], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.53222998 -61.65183403 -35.10999341]
+      MLE diagnostics for [a=0, b=182]: frac_moved = 1.000, mean(beta_mle) = [0.11282778 5.04799036 1.84834656], std(beta_mle) = [0.00216236 0.87966626 0.10567153], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -2.1886173  -67.69286172 -39.14708693]
+      MLE diagnostics for [a=0, b=198]: frac_moved = 1.000, mean(beta_mle) = [0.11452516 4.74450072 1.79297637], std(beta_mle) = [0.00255606 2.11835555 0.18445406], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.71714211 -69.6351954  -40.97003351]
+      MLE diagnostics for [a=0, b=213]: frac_moved = 0.900, mean(beta_mle) = [0.11251125 3.14371359 1.58971095], std(beta_mle) = [0.00192408 0.35005231 0.04594775], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -2.46301457 -79.88023304 -47.6621188 ]
+      MLE diagnostics for [a=0, b=228]: frac_moved = 1.000, mean(beta_mle) = [0.11387679 2.25561705 1.46062125], std(beta_mle) = [0.0021835  0.38330012 0.04756874], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.27922115 -85.56405086 -51.91212515]
+      MLE diagnostics for [a=0, b=243]: frac_moved = 1.000, mean(beta_mle) = [0.11392655 1.98714093 1.40901346], std(beta_mle) = [0.00303278 0.19369456 0.03390636], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.23607908 -87.28229807 -53.61120285]
+      MLE diagnostics for [a=0, b=258]: frac_moved = 1.000, mean(beta_mle) = [0.11421018 1.52460148 1.31942463], std(beta_mle) = [0.00218141 0.19406851 0.0219931 ], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.99019855 -90.24255054 -56.56072619]
+      MLE diagnostics for [a=0, b=273]: frac_moved = 1.000, mean(beta_mle) = [0.11444313 1.41966169 1.30353847], std(beta_mle) = [0.00104558 0.07900477 0.0126288 ], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.78825594 -90.91416519 -57.08374444]
+      MLE diagnostics for [a=0, b=289]: frac_moved = 1.000, mean(beta_mle) = [0.11361207 1.3672353  1.27444181], std(beta_mle) = [0.00259462 0.10088009 0.01655538], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.50870595 -91.24969406 -58.04169069]
+      MLE diagnostics for [a=0, b=289]: frac_moved = 1.000, mean(beta_mle) = [0.11351067 1.34748332 1.27349611], std(beta_mle) = [0.00220837 0.13335631 0.01920843], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.59661313 -91.37610672 -58.07282579]
+      window [a=0, b=289] (L=290): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=273]: frac_moved = 1.000, mean(beta_mle) = [0.11332726 1.39507494 1.28916547], std(beta_mle) = [0.00267683 0.1297353  0.01989745], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.75561473 -91.07152037 -57.55694528]
+      window [a=0, b=273] (L=274): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=258]: frac_moved = 1.000, mean(beta_mle) = [0.11347423 1.53147958 1.32882027], std(beta_mle) = [0.00185738 0.11411993 0.02543904], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.62820583 -90.19853071 -56.25139457]
+      window [a=0, b=258] (L=259): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=243]: frac_moved = 1.000, mean(beta_mle) = [0.11397932 1.94915634 1.38832967], std(beta_mle) = [0.00167987 0.24471002 0.03435668], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.19033749 -87.52539945 -54.29217297]
+      window [a=0, b=243] (L=244): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=228]: frac_moved = 1.000, mean(beta_mle) = [0.11447031 2.28727188 1.46050912], std(beta_mle) = [0.00133767 0.32878697 0.04938011], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.76468946 -85.36145997 -51.91581674]
+      window [a=0, b=228] (L=229): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=213]: frac_moved = 1.000, mean(beta_mle) = [0.11398381 3.01330035 1.58332549], std(beta_mle) = [0.00200093 0.4583768  0.06337622], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.18644189 -80.71487777 -47.87234663]
+      window [a=0, b=213] (L=214): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=198]: frac_moved = 1.000, mean(beta_mle) = [0.11453074 3.77019554 1.69137374], std(beta_mle) = [0.00180465 0.58555493 0.0698725 ], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.71230451 -75.87074855 -44.31508587]
+      window [a=0, b=198] (L=199): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=182]: frac_moved = 1.000, mean(beta_mle) = [0.11363961 5.59744815 1.91106956], std(beta_mle) = [0.00219012 1.08186249 0.10912187], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.48483122 -64.17633187 -37.08206444]
+      window [a=0, b=182] (L=183): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=167]: frac_moved = 1.000, mean(beta_mle) = [0.11233462 5.44262671 1.90340038], std(beta_mle) = [0.00308313 0.830025   0.08883269], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -2.61614418 -65.16718904 -37.33455586]
+      window [a=0, b=167] (L=168): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=152]: frac_moved = 1.000, mean(beta_mle) = [0.11467227 7.14656117 2.10454556], std(beta_mle) = [0.00321431 0.64260235 0.10392225], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.5896122  -54.26200853 -30.71227502]
+      window [a=0, b=152] (L=153): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=137]: frac_moved = 1.000, mean(beta_mle) = [0.11374661 7.18542312 2.10096571], std(beta_mle) = [0.00216651 0.6617124  0.07264386], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.39207799 -54.01329205 -30.83013397]
+      window [a=0, b=137] (L=138): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=122]: frac_moved = 1.000, mean(beta_mle) = [0.11382988 7.61036722 2.17718962], std(beta_mle) = [0.00259867 0.61042864 0.06832301], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.31988948 -51.29364978 -28.3206223 ]
+      window [a=0, b=122] (L=123): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=107]: frac_moved = 1.000, mean(beta_mle) = [0.11325921 9.15049031 2.3254713 ], std(beta_mle) = [0.00221452 1.39631326 0.1294813 ], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.81460176 -41.43686199 -23.43876093]
+      window [a=0, b=107] (L=108): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=91]: frac_moved = 1.000, mean(beta_mle) = [ 0.11356177 10.88466099  2.50727267], std(beta_mle) = [0.00203381 1.14948448 0.09814338], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -1.55231532 -30.33816964 -17.45333402]
+      window [a=0, b=91] (L=92): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=76]: frac_moved = 1.000, mean(beta_mle) = [ 0.11422154 12.40515113  2.66643758], std(beta_mle) = [1.86900758e-03 1.92202584e+00 2.28346178e-01], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -0.98035693 -20.60703277 -12.21316499]
+      window [a=0, b=76] (L=77): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=61]: frac_moved = 0.900, mean(beta_mle) = [ 0.11282581 17.41936866  3.18183859], std(beta_mle) = [2.00211430e-03 6.75255853e+00 7.59210558e-01], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-2.19032836 11.48395943  4.75532649]
+      window [a=0, b=61] (L=62): p = 0.300 ± 0.145 -> REJECT
+      MLE diagnostics for [a=0, b=46]: frac_moved = 1.000, mean(beta_mle) = [ 0.11342497 20.86276064  3.55639834], std(beta_mle) = [1.75581625e-03 1.17797210e+01 1.27065212e+00], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-1.67090833 33.5216681  17.0869164 ]
+      window [a=0, b=46] (L=47): p = 0.500 ± 0.158 -> REJECT
+      MLE diagnostics for [a=0, b=31]: frac_moved = 1.000, mean(beta_mle) = [ 0.1130296  17.50223094  3.19684573], std(beta_mle) = [1.82618403e-03 7.21206752e+00 9.17429048e-01], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-2.01366033 12.014278    5.24940514]
+      window [a=0, b=31] (L=32): p = 0.400 ± 0.155 -> REJECT
+      MLE diagnostics for [a=0, b=16]: frac_moved = 1.000, mean(beta_mle) = [ 0.11301899 41.70279203  6.77427815], std(beta_mle) = [8.92190532e-04 6.46664952e+01 9.29294454e+00], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [ -2.02285135 166.89786901 123.02882421]
+      window [a=0, b=16] (L=17): p = 0.400 ± 0.155 -> REJECT
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.11310139 15.43763196  3.00376011], std(beta_mle) = [0.00250846 0.41990448 1.72518974], beta_theory = [ 0.1153524  15.625       3.03740029], % diff mean vs theory = [-1.95142216 -1.19915547 -1.10753195]
+      window [a=0, b=1] (L=2): p = 0.600 ± 0.155 -> ACCEPT
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=1] (L=2), p = 0.600 ± 0.155
+
+  m = 20: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  19  37  55  73  91 109 128 146 164 182 200 218 237 255 273 291 309
+ 327 346]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.11049142 15.57631166  2.16499622], std(beta_mle) = [1.65433317e-03 2.43696651e-01 1.66128233e+00], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.81645719  -0.31160535 -25.39737421]
+      MLE diagnostics for [a=0, b=19]: frac_moved = 1.000, mean(beta_mle) = [ 0.11232075 16.93437853  3.10076034], std(beta_mle) = [1.68547960e-03 7.55620633e+00 1.01781682e+00], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [3.50215798 8.38002262 6.84769815]
+      MLE diagnostics for [a=0, b=37]: frac_moved = 1.000, mean(beta_mle) = [ 0.11014293 17.04336778  3.06490371], std(beta_mle) = [1.58223172e-03 6.48739340e+00 7.74603462e-01], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [1.49532975 9.07755378 5.61213074]
+      MLE diagnostics for [a=0, b=55]: frac_moved = 1.000, mean(beta_mle) = [ 0.10999164 19.75616259  3.3701077 ], std(beta_mle) = [2.50185163e-03 7.26831431e+00 7.38133343e-01], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [ 1.35591609 26.4394406  16.12901718]
+      MLE diagnostics for [a=0, b=73]: frac_moved = 1.000, mean(beta_mle) = [ 0.10935156 15.34243175  2.88360619], std(beta_mle) = [2.55094362e-03 3.24384880e+00 3.18416972e-01], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [ 0.76609506 -1.80843683 -0.63511849]
+      MLE diagnostics for [a=0, b=91]: frac_moved = 1.000, mean(beta_mle) = [ 0.11031133 11.24884535  2.47893858], std(beta_mle) = [0.0023181  1.97904428 0.17300167], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.65050896 -28.00738975 -14.57937657]
+      MLE diagnostics for [a=0, b=109]: frac_moved = 0.900, mean(beta_mle) = [0.11094593 8.26174626 2.17754728], std(beta_mle) = [0.00248105 1.20369073 0.1373218 ], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.2352804  -47.12482392 -24.96488295]
+      MLE diagnostics for [a=0, b=128]: frac_moved = 1.000, mean(beta_mle) = [0.10970697 7.21133316 2.04951386], std(beta_mle) = [0.00247607 0.51447761 0.05714305], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.09360019 -53.8474678  -29.37672862]
+      MLE diagnostics for [a=0, b=146]: frac_moved = 1.000, mean(beta_mle) = [0.11167161 6.38346701 1.98898148], std(beta_mle) = [0.00209712 0.59108093 0.07924851], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.90398659 -59.1458111  -31.46258678]
+      MLE diagnostics for [a=0, b=164]: frac_moved = 1.000, mean(beta_mle) = [0.11005835 6.40651131 1.96664282], std(beta_mle) = [0.00200138 0.6010216  0.05201295], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.4173859  -58.99832762 -32.23234434]
+      MLE diagnostics for [a=0, b=182]: frac_moved = 1.000, mean(beta_mle) = [0.11125257 5.88979521 1.92729976], std(beta_mle) = [0.00116295 0.63007381 0.06706592], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.51784451 -62.30531067 -33.58804933]
+      MLE diagnostics for [a=0, b=200]: frac_moved = 1.000, mean(beta_mle) = [0.10976759 4.90021234 1.79039656], std(beta_mle) = [0.00289432 0.46843017 0.05636906], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.1494555  -68.63864101 -38.30553473]
+      MLE diagnostics for [a=0, b=218]: frac_moved = 1.000, mean(beta_mle) = [0.10983874 4.1343355  1.68901488], std(beta_mle) = [0.00245394 0.47302413 0.03375286], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.21502135 -73.54025283 -41.79899999]
+      MLE diagnostics for [a=0, b=237]: frac_moved = 1.000, mean(beta_mle) = [0.11105255 3.08072927 1.55884329], std(beta_mle) = [0.00198578 0.572047   0.06845515], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.33353126 -80.28333269 -46.28452387]
+      MLE diagnostics for [a=0, b=255]: frac_moved = 1.000, mean(beta_mle) = [0.11081399 2.12411244 1.4185137 ], std(beta_mle) = [0.00224698 0.24804165 0.03354909], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.11370019 -86.40568038 -51.12007801]
+      MLE diagnostics for [a=0, b=273]: frac_moved = 1.000, mean(beta_mle) = [0.11108366 1.73922371 1.34071239], std(beta_mle) = [0.00245911 0.19005145 0.03677805], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.36219487 -88.86896823 -53.800998  ]
+      MLE diagnostics for [a=0, b=291]: frac_moved = 1.000, mean(beta_mle) = [0.11007324 1.42612176 1.26466422], std(beta_mle) = [0.00204913 0.19344352 0.02626342], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.43111397 -90.87282075 -56.42150741]
+      MLE diagnostics for [a=0, b=309]: frac_moved = 1.000, mean(beta_mle) = [0.11006939 1.23979384 1.22520987], std(beta_mle) = [0.0018889  0.11472434 0.01968495], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.42756227 -92.06531942 -57.78104702]
+      MLE diagnostics for [a=0, b=327]: frac_moved = 1.000, mean(beta_mle) = [0.11179188 1.17589352 1.21826856], std(beta_mle) = [0.00163391 0.10962496 0.01661304], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  3.0148151  -92.47428144 -58.0202345 ]
+      MLE diagnostics for [a=0, b=346]: frac_moved = 1.000, mean(beta_mle) = [0.10946403 1.05072369 1.16960847], std(beta_mle) = [0.00263209 0.10178415 0.01542919], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  0.86972894 -93.27536837 -59.69699057]
+      MLE diagnostics for [a=0, b=346]: frac_moved = 1.000, mean(beta_mle) = [0.11146649 1.03771263 1.19140714], std(beta_mle) = [0.00166821 0.10648682 0.02857769], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.71497022 -93.35863917 -58.9458402 ]
+      window [a=0, b=346] (L=347): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=327]: frac_moved = 1.000, mean(beta_mle) = [0.10861806 1.17888736 1.19955256], std(beta_mle) = [0.00173242 0.11277014 0.02202687], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [ 9.01827467e-02 -9.24551209e+01 -5.86651610e+01]
+      window [a=0, b=327] (L=328): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=309]: frac_moved = 0.900, mean(beta_mle) = [0.11125083 1.23961497 1.22713581], std(beta_mle) = [0.00291131 0.07499919 0.01741201], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.51624399 -92.06646418 -57.71468211]
+      window [a=0, b=309] (L=310): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=291]: frac_moved = 1.000, mean(beta_mle) = [0.11018875 1.44473994 1.28612121], std(beta_mle) = [0.00270189 0.15657906 0.02613641], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.53754963 -90.75366439 -55.68213096]
+      window [a=0, b=291] (L=292): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=273]: frac_moved = 1.000, mean(beta_mle) = [0.11002549 1.8488699  1.35442027], std(beta_mle) = [0.00207591 0.20718378 0.03059487], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.38710829 -88.16723265 -53.32864458]
+      window [a=0, b=273] (L=274): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=255]: frac_moved = 1.000, mean(beta_mle) = [0.11047986 2.28505234 1.43575174], std(beta_mle) = [0.00233861 0.29972737 0.04048763], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.80580832 -85.37566501 -50.52608018]
+      window [a=0, b=255] (L=256): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=237]: frac_moved = 1.000, mean(beta_mle) = [0.10947205 2.9098111  1.53634229], std(beta_mle) = [0.0014606  0.25275172 0.03815778], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  0.87711864 -81.37720895 -47.05987572]
+      window [a=0, b=237] (L=238): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=218]: frac_moved = 1.000, mean(beta_mle) = [0.11096704 4.10283163 1.70398659], std(beta_mle) = [0.00211329 0.50099069 0.06172258], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.25473097 -73.74187756 -41.28309686]
+      window [a=0, b=218] (L=219): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=200]: frac_moved = 1.000, mean(beta_mle) = [0.10968801 6.00954601 1.88508195], std(beta_mle) = [0.00223592 1.71078857 0.13216405], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.07612604 -61.53890551 -35.04281357]
+      window [a=0, b=200] (L=201): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=182]: frac_moved = 1.000, mean(beta_mle) = [0.10898927 5.23346309 1.83847034], std(beta_mle) = [0.00281569 0.79115315 0.08947113], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  0.43224883 -66.50583623 -36.64898199]
+      window [a=0, b=182] (L=183): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=164]: frac_moved = 1.000, mean(beta_mle) = [0.11108356 6.4483268  1.98186192], std(beta_mle) = [0.00245026 0.6381384  0.0866006 ], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.36211042 -58.73070848 -31.70791638]
+      window [a=0, b=164] (L=165): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=146]: frac_moved = 1.000, mean(beta_mle) = [0.11168834 6.7287803  2.01871562], std(beta_mle) = [0.00209999 1.24845407 0.12577989], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.91940445 -56.9358061  -30.43799155]
+      window [a=0, b=146] (L=147): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=128]: frac_moved = 1.000, mean(beta_mle) = [0.10971486 7.37520201 2.07252216], std(beta_mle) = [0.00249229 0.59991326 0.06554773], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  1.10086868 -52.79870713 -28.5838962 ]
+      window [a=0, b=128] (L=129): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=109]: frac_moved = 1.000, mean(beta_mle) = [0.11152547 9.78069798 2.34809691], std(beta_mle) = [0.00187741 1.57281961 0.13828894], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.76931822 -37.40353295 -19.08799039]
+      window [a=0, b=109] (L=110): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=91]: frac_moved = 1.000, mean(beta_mle) = [ 0.11083952 11.34773622  2.53057444], std(beta_mle) = [0.00205307 1.87109005 0.17097319], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [  2.13722983 -27.37448818 -12.80007979]
+      window [a=0, b=91] (L=92): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=73]: frac_moved = 1.000, mean(beta_mle) = [ 0.11073517 14.72884449  2.86196989], std(beta_mle) = [2.68484273e-03 3.75749659e+00 3.93368295e-01], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [ 2.04107308 -5.73539524 -1.38067402]
+      window [a=0, b=73] (L=74): p = 0.400 ± 0.155 -> REJECT
+      MLE diagnostics for [a=0, b=55]: frac_moved = 1.000, mean(beta_mle) = [ 0.11038518 16.94172666  3.05415638], std(beta_mle) = [3.00787293e-03 6.33700706e+00 6.61725832e-01], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [1.71855599 8.42705065 5.24179352]
+      window [a=0, b=55] (L=56): p = 0.500 ± 0.158 -> REJECT
+      MLE diagnostics for [a=0, b=37]: frac_moved = 1.000, mean(beta_mle) = [ 0.11078031 17.83961204  3.21364238], std(beta_mle) = [2.20102148e-03 5.50132698e+00 6.71095765e-01], beta_theory = [ 0.1085202  15.625       2.90203756], % diff mean vs theory = [ 2.08266852 14.17351706 10.73744932]
+      window [a=0, b=37] (L=38): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=37] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=37] (L=38), p = 0.700 ± 0.145
+
+  m = 22: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  25  49  73  97 121 145 169 193 217 241 265 289 313 337 361 385 409
+ 433 458]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.10877287 15.49898212  2.65420694], std(beta_mle) = [0.00224814 0.39652173 1.71437802], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [ 4.97344745 -0.80651445 -5.41673072]
+      MLE diagnostics for [a=0, b=25]: frac_moved = 1.000, mean(beta_mle) = [ 0.10761702 16.43220703  2.9117329 ], std(beta_mle) = [2.37185606e-03 1.02826529e+01 1.26751996e+00], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [3.85797711 5.16612498 3.76026541]
+      MLE diagnostics for [a=0, b=49]: frac_moved = 1.000, mean(beta_mle) = [ 0.10796154 16.51582096  2.97127659], std(beta_mle) = [2.52011293e-03 6.19758438e+00 6.44734880e-01], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [4.19046071 5.70125414 5.88211845]
+      MLE diagnostics for [a=0, b=73]: frac_moved = 1.000, mean(beta_mle) = [ 0.10825742 13.44061964  2.63660168], std(beta_mle) = [2.11153947e-03 2.23452149e+00 2.11066546e-01], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.476008   -13.98003432  -6.04409827]
+      MLE diagnostics for [a=0, b=97]: frac_moved = 1.000, mean(beta_mle) = [ 0.10777867 11.25147308  2.42269248], std(beta_mle) = [0.00137561 1.17718304 0.1124641 ], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.01397482 -27.99057231 -13.66680147]
+      MLE diagnostics for [a=0, b=121]: frac_moved = 1.000, mean(beta_mle) = [0.10822554 7.69331402 2.09401097], std(beta_mle) = [0.00208242 1.00117887 0.09336739], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.44524006 -50.76279027 -25.379442  ]
+      MLE diagnostics for [a=0, b=145]: frac_moved = 1.000, mean(beta_mle) = [0.10690284 6.7702836  1.96462491], std(beta_mle) = [0.00276782 0.7771695  0.07656268], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.16874003 -56.67018493 -29.9901437 ]
+      MLE diagnostics for [a=0, b=169]: frac_moved = 1.000, mean(beta_mle) = [0.10844955 5.80788425 1.87398071], std(beta_mle) = [0.00203979 0.68609543 0.08521573], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.66142475 -62.82954082 -33.22027027]
+      MLE diagnostics for [a=0, b=193]: frac_moved = 0.900, mean(beta_mle) = [0.1059747  5.34041676 1.78868245], std(beta_mle) = [0.00257044 0.61240558 0.06260668], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  2.27301861 -65.82133273 -36.25989322]
+      MLE diagnostics for [a=0, b=217]: frac_moved = 1.000, mean(beta_mle) = [0.10774305 5.30027546 1.79353723], std(beta_mle) = [0.0021472  0.74749873 0.07249273], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.97960686 -66.07823706 -36.08689216]
+      MLE diagnostics for [a=0, b=241]: frac_moved = 1.000, mean(beta_mle) = [0.10760439 4.33527731 1.6756046 ], std(beta_mle) = [0.00277084 0.47977412 0.05781025], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.8457809  -72.25422524 -40.28944815]
+      MLE diagnostics for [a=0, b=265]: frac_moved = 1.000, mean(beta_mle) = [0.10697241 3.15390047 1.53446247], std(beta_mle) = [0.00280946 0.3602383  0.05570489], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.23588388 -79.81503701 -45.31908023]
+      MLE diagnostics for [a=0, b=289]: frac_moved = 1.000, mean(beta_mle) = [0.10738993 2.34966606 1.40380577], std(beta_mle) = [0.00322612 0.52546539 0.06868988], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.6388132  -84.96213721 -49.97506147]
+      MLE diagnostics for [a=0, b=313]: frac_moved = 1.000, mean(beta_mle) = [0.10764566 1.5686698  1.27480173], std(beta_mle) = [0.00171188 0.19804395 0.02693764], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.88560942 -89.96051327 -54.57214984]
+      MLE diagnostics for [a=0, b=337]: frac_moved = 1.000, mean(beta_mle) = [0.10741012 1.13981711 1.19044339], std(beta_mle) = [0.00204167 0.16444457 0.02957232], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.65830446 -92.70517048 -57.57827847]
+      MLE diagnostics for [a=0, b=361]: frac_moved = 1.000, mean(beta_mle) = [0.10921505 1.04390524 1.16870969], std(beta_mle) = [0.0021854  0.15562677 0.01946268], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  5.40018542 -93.31900643 -58.35276369]
+      MLE diagnostics for [a=0, b=385]: frac_moved = 1.000, mean(beta_mle) = [0.10690787 0.99929277 1.13864136], std(beta_mle) = [0.00194083 0.10656649 0.02140265], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.17359579 -93.60452627 -59.42425578]
+      MLE diagnostics for [a=0, b=409]: frac_moved = 1.000, mean(beta_mle) = [0.10798902 0.95462957 1.13775862], std(beta_mle) = [0.00139968 0.06649783 0.0179586 ], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.21698206 -93.89037074 -59.45571235]
+      MLE diagnostics for [a=0, b=433]: frac_moved = 1.000, mean(beta_mle) = [0.10819465 0.97736556 1.13127661], std(beta_mle) = [0.0021796  0.08924271 0.02018531], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.41542557 -93.74486042 -59.68670019]
+      MLE diagnostics for [a=0, b=458]: frac_moved = 1.000, mean(beta_mle) = [0.10955045 0.95262161 1.14055064], std(beta_mle) = [0.00254912 0.07927823 0.02779996], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  5.72387228 -93.9032217  -59.35621795]
+      MLE diagnostics for [a=0, b=458]: frac_moved = 1.000, mean(beta_mle) = [0.10790226 0.92529713 1.12343736], std(beta_mle) = [0.00207209 0.14657482 0.02364982], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.13325335 -94.07809838 -59.96605371]
+      window [a=0, b=458] (L=459): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=433]: frac_moved = 1.000, mean(beta_mle) = [0.10730822 0.92858405 1.11857133], std(beta_mle) = [0.00249478 0.09828425 0.02153467], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.55996043 -94.05706211 -60.13945586]
+      window [a=0, b=433] (L=434): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=409]: frac_moved = 1.000, mean(beta_mle) = [0.10841231 0.94651459 1.13758643], std(beta_mle) = [0.00257483 0.09305771 0.02369283], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.62548919 -93.94230663 -59.46184827]
+      window [a=0, b=409] (L=410): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=385]: frac_moved = 1.000, mean(beta_mle) = [0.10886566 0.98715018 1.14280776], std(beta_mle) = [0.0037455  0.12640145 0.0321191 ], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  5.06299928 -93.68223882 -59.27578515]
+      window [a=0, b=385] (L=386): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=361]: frac_moved = 1.000, mean(beta_mle) = [0.10823362 1.00224088 1.15933813], std(beta_mle) = [0.00223758 0.09986512 0.01609864], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.45303721 -93.58565834 -58.68672167]
+      window [a=0, b=361] (L=362): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=337]: frac_moved = 1.000, mean(beta_mle) = [0.10681916 1.19393199 1.20099704], std(beta_mle) = [0.00262998 0.16604236 0.02713818], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.08798385 -92.35883525 -57.20219688]
+      window [a=0, b=337] (L=338): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=313]: frac_moved = 0.900, mean(beta_mle) = [0.10633376 1.6976814  1.29752462], std(beta_mle) = [0.00210782 0.26996809 0.03655455], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  2.61954187 -89.13483907 -53.76241445]
+      window [a=0, b=313] (L=314): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=289]: frac_moved = 1.000, mean(beta_mle) = [0.10783766 2.14510401 1.39312205], std(beta_mle) = [0.00251731 0.38590991 0.05082675], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.07091213 -86.27133433 -50.35577821]
+      window [a=0, b=289] (L=290): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=265]: frac_moved = 1.000, mean(beta_mle) = [0.10716221 3.1427417  1.53714989], std(beta_mle) = [0.00268077 0.50075908 0.05114707], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.41904982 -79.88645313 -45.22331336]
+      window [a=0, b=265] (L=266): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=241]: frac_moved = 1.000, mean(beta_mle) = [0.10764345 4.49294532 1.69584883], std(beta_mle) = [0.00168816 0.53103017 0.05344536], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.8834827  -71.24514993 -39.56804056]
+      window [a=0, b=241] (L=242): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=217]: frac_moved = 1.000, mean(beta_mle) = [0.10790582 5.10625684 1.77026768], std(beta_mle) = [0.00230979 0.54468965 0.04554251], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.13668615 -67.31995622 -36.91610788]
+      window [a=0, b=217] (L=218): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=193]: frac_moved = 1.000, mean(beta_mle) = [0.10817506 5.61462171 1.83461219], std(beta_mle) = [0.00287286 0.49341953 0.05550739], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.39652238 -64.06642103 -34.6231765 ]
+      window [a=0, b=193] (L=194): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=169]: frac_moved = 1.000, mean(beta_mle) = [0.10723034 5.56194612 1.84070193], std(beta_mle) = [0.00221212 0.42449175 0.06303037], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.48479821 -64.40354485 -34.40616723]
+      window [a=0, b=169] (L=170): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=145]: frac_moved = 1.000, mean(beta_mle) = [0.10750614 6.30215674 1.92515098], std(beta_mle) = [0.00299717 0.50930083 0.04729352], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.75096354 -59.66619684 -31.39680603]
+      window [a=0, b=145] (L=146): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=121]: frac_moved = 1.000, mean(beta_mle) = [0.10743302 7.36165685 2.03452379], std(beta_mle) = [0.00186121 0.87120339 0.07689747], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  3.68040343 -52.88539617 -27.49928119]
+      window [a=0, b=121] (L=122): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=97]: frac_moved = 1.000, mean(beta_mle) = [0.10799695 9.73264562 2.28731218], std(beta_mle) = [0.00210215 1.49948766 0.15303459], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [  4.22462904 -37.711068   -18.49110912]
+      window [a=0, b=97] (L=98): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=73]: frac_moved = 1.000, mean(beta_mle) = [ 0.10824382 14.51556853  2.76249523], std(beta_mle) = [1.85713140e-03 3.66915601e+00 3.43893732e-01], beta_theory = [ 0.10361941 15.625       2.80621188], % diff mean vs theory = [ 4.46288082 -7.10036141 -1.55785281]
+      window [a=0, b=73] (L=74): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=73] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=73] (L=74), p = 0.700 ± 0.145
+
+  m = 24: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  25  49  74  98 123 147 172 196 221 245 270 294 319 343 368 392 417
+ 441 466]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.10728867 15.54611458  2.60949215], std(beta_mle) = [0.0016135  0.30291319 1.40000672], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ 1.96328556 -0.50486668 -8.03385014]
+      MLE diagnostics for [a=0, b=25]: frac_moved = 1.000, mean(beta_mle) = [ 0.10511037 21.64244626  3.49206951], std(beta_mle) = [2.19008378e-03 1.08980811e+01 1.34835190e+00], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [-0.10689351 38.51165605 23.07076223]
+      MLE diagnostics for [a=0, b=49]: frac_moved = 1.000, mean(beta_mle) = [ 0.10421039 17.13539002  2.92440818], std(beta_mle) = [2.73861742e-03 6.59861491e+00 6.62324587e-01], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [-0.96219709  9.66649611  3.06471366]
+      MLE diagnostics for [a=0, b=74]: frac_moved = 1.000, mean(beta_mle) = [ 0.10554255 16.39723095  2.86039529], std(beta_mle) = [2.42186418e-03 4.95242478e+00 4.41254267e-01], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [0.30383593 4.9422781  0.80871194]
+      MLE diagnostics for [a=0, b=98]: frac_moved = 1.000, mean(beta_mle) = [ 0.10546464 11.52922735  2.41726538], std(beta_mle) = [2.12529961e-03 2.82705541e+00 2.60134194e-01], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.22978902 -26.21294493 -14.80848458]
+      MLE diagnostics for [a=0, b=123]: frac_moved = 1.000, mean(beta_mle) = [0.10534998 8.4971998  2.11026121], std(beta_mle) = [0.00175355 1.00295711 0.10317156], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.12082553 -45.61792131 -25.62821135]
+      MLE diagnostics for [a=0, b=147]: frac_moved = 1.000, mean(beta_mle) = [0.10570161 6.12624191 1.88778481], std(beta_mle) = [0.00214812 0.75869404 0.06232856], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.45500257 -60.79205179 -33.46893145]
+      MLE diagnostics for [a=0, b=172]: frac_moved = 1.000, mean(beta_mle) = [0.10577542 5.34848164 1.79101158], std(beta_mle) = [0.00220917 0.59899113 0.05694266], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.525147   -65.76971753 -36.8795038 ]
+      MLE diagnostics for [a=0, b=196]: frac_moved = 1.000, mean(beta_mle) = [0.1058454  5.24844495 1.77322028], std(beta_mle) = [0.0012807  0.4831987  0.04861126], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.59165294 -66.40995233 -37.50652119]
+      MLE diagnostics for [a=0, b=221]: frac_moved = 0.900, mean(beta_mle) = [0.10502652 4.50240844 1.68731805], std(beta_mle) = [0.00227943 0.43315971 0.06075798], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ -0.18658194 -71.18458598 -40.53396746]
+      MLE diagnostics for [a=0, b=245]: frac_moved = 1.000, mean(beta_mle) = [0.10604121 4.46086487 1.70182068], std(beta_mle) = [0.00247663 0.29279927 0.03426636], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.7777465  -71.45046483 -40.02285225]
+      MLE diagnostics for [a=0, b=270]: frac_moved = 1.000, mean(beta_mle) = [0.10509638 4.04672805 1.63064979], std(beta_mle) = [0.00177039 0.6664679  0.0624462 ], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ -0.12018885 -74.10094051 -42.53112319]
+      MLE diagnostics for [a=0, b=294]: frac_moved = 1.000, mean(beta_mle) = [0.10627551 3.08905419 1.50474997], std(beta_mle) = [0.002636   0.50170464 0.05817607], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  1.00041744 -80.23005317 -46.9682017 ]
+      MLE diagnostics for [a=0, b=319]: frac_moved = 1.000, mean(beta_mle) = [0.1059244  1.97080076 1.3389426 ], std(beta_mle) = [0.00187554 0.3855695  0.0586301 ], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.66673534 -87.38687513 -52.81173912]
+      MLE diagnostics for [a=0, b=343]: frac_moved = 1.000, mean(beta_mle) = [0.1060682  1.43491539 1.24415898], std(beta_mle) = [0.00224368 0.19165979 0.02673276], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.80339399 -90.8165415  -56.15219192]
+      MLE diagnostics for [a=0, b=368]: frac_moved = 1.000, mean(beta_mle) = [0.10458838 1.12693768 1.17271526], std(beta_mle) = [0.00209215 0.08166869 0.02586137], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ -0.60296868 -92.78759886 -58.67007783]
+      MLE diagnostics for [a=0, b=392]: frac_moved = 1.000, mean(beta_mle) = [0.10566832 0.95464491 1.11967761], std(beta_mle) = [0.00217079 0.11092231 0.01912479], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.42335955 -93.89027258 -60.53928019]
+      MLE diagnostics for [a=0, b=417]: frac_moved = 1.000, mean(beta_mle) = [0.10605979 0.91054282 1.10039827], std(beta_mle) = [0.00305332 0.10177243 0.02690265], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.79540131 -94.17252594 -61.2187406 ]
+      MLE diagnostics for [a=0, b=441]: frac_moved = 1.000, mean(beta_mle) = [0.10546137 0.84036176 1.08355134], std(beta_mle) = [0.00140862 0.11537698 0.01169385], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.22669004 -94.62168473 -61.81247571]
+      MLE diagnostics for [a=0, b=466]: frac_moved = 1.000, mean(beta_mle) = [0.10712309 0.85749781 1.09204622], std(beta_mle) = [0.0028464  0.07839347 0.02684965], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  1.80592002 -94.51201401 -61.51309112]
+      MLE diagnostics for [a=0, b=466]: frac_moved = 1.000, mean(beta_mle) = [0.10483215 0.85470068 1.07371184], std(beta_mle) = [0.00191228 0.09987414 0.01854226], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ -0.3713065  -94.52991566 -62.15924842]
+      window [a=0, b=466] (L=467): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=441]: frac_moved = 1.000, mean(beta_mle) = [0.1056226  0.81898522 1.08964088], std(beta_mle) = [0.00269678 0.06775956 0.02465853], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.37991584 -94.75849461 -61.59786248]
+      window [a=0, b=441] (L=442): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=417]: frac_moved = 1.000, mean(beta_mle) = [0.10575653 0.91270368 1.1051176 ], std(beta_mle) = [0.00281321 0.08022856 0.01760915], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.50719787 -94.15869643 -61.05241731]
+      window [a=0, b=417] (L=418): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=392]: frac_moved = 1.000, mean(beta_mle) = [0.10594788 0.97434354 1.13130497], std(beta_mle) = [0.00205266 0.08898756 0.00853848], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.68904354 -93.76420132 -60.12949768]
+      window [a=0, b=392] (L=393): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=368]: frac_moved = 1.000, mean(beta_mle) = [0.10613754 1.13336967 1.17669158], std(beta_mle) = [0.00216405 0.0801891  0.01685121], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.86928932 -92.74643413 -58.52994084]
+      window [a=0, b=368] (L=369): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=343]: frac_moved = 1.000, mean(beta_mle) = [0.10624139 1.42550456 1.25340987], std(beta_mle) = [0.00192917 0.17293855 0.03008353], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.96798947 -90.87677085 -55.82616345]
+      window [a=0, b=343] (L=344): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=319]: frac_moved = 1.000, mean(beta_mle) = [0.10552943 2.13642645 1.37172907], std(beta_mle) = [0.00237537 0.35589489 0.05329106], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.2913651  -86.32687074 -51.65624808]
+      window [a=0, b=319] (L=320): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=294]: frac_moved = 1.000, mean(beta_mle) = [0.10621515 3.11731081 1.51771896], std(beta_mle) = [0.00299633 0.49000003 0.07249534], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.94304888 -80.04921079 -46.51113646]
+      window [a=0, b=294] (L=295): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=270]: frac_moved = 1.000, mean(beta_mle) = [0.1044647  3.86088368 1.60803424], std(beta_mle) = [0.00198644 0.54095794 0.05731219], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ -0.72050967 -75.29034447 -43.32816148]
+      window [a=0, b=270] (L=271): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=245]: frac_moved = 1.000, mean(beta_mle) = [0.10699821 4.7983591  1.73275274], std(beta_mle) = [0.00127706 0.38071094 0.04696913], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  1.68723924 -69.29050177 -38.93271589]
+      window [a=0, b=245] (L=246): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=221]: frac_moved = 1.000, mean(beta_mle) = [0.10668308 4.65342306 1.71505913], std(beta_mle) = [0.00211825 0.37895262 0.04401245], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  1.3877553  -70.21809243 -39.55629066]
+      window [a=0, b=221] (L=222): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=196]: frac_moved = 1.000, mean(beta_mle) = [0.10600709 5.55451835 1.79805185], std(beta_mle) = [0.00234197 0.59201712 0.0492135 ], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.74531976 -64.45108255 -36.63138399]
+      window [a=0, b=196] (L=197): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=172]: frac_moved = 1.000, mean(beta_mle) = [0.10524087 5.3451167  1.78403722], std(beta_mle) = [0.00264671 0.40347627 0.04644242], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ 1.71346012e-02 -6.57912531e+01 -3.71253005e+01]
+      window [a=0, b=172] (L=173): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=147]: frac_moved = 1.000, mean(beta_mle) = [0.10621442 5.9651991  1.86407867], std(beta_mle) = [0.00249304 0.57326673 0.03689405], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.94235577 -61.82272576 -34.30440548]
+      window [a=0, b=147] (L=148): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=123]: frac_moved = 1.000, mean(beta_mle) = [0.10573264 7.68003376 2.0352283 ], std(beta_mle) = [0.00238763 1.0696629  0.11281601], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.48449332 -50.84778391 -28.27259084]
+      window [a=0, b=123] (L=124): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=98]: frac_moved = 0.900, mean(beta_mle) = [ 0.10539527 11.01474296  2.37708272], std(beta_mle) = [0.00162411 1.45134856 0.12670999], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [  0.16387024 -29.50564508 -16.22463945]
+      window [a=0, b=98] (L=99): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=74]: frac_moved = 1.000, mean(beta_mle) = [ 0.10530339 15.82790207  2.81701248], std(beta_mle) = [2.70660920e-03 4.50506839e+00 4.07990371e-01], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ 0.07654804  1.29857325 -0.72022564]
+      window [a=0, b=74] (L=75): p = 0.400 ± 0.155 -> REJECT
+      MLE diagnostics for [a=0, b=49]: frac_moved = 1.000, mean(beta_mle) = [ 0.1058104  20.72983826  3.33813529], std(beta_mle) = [2.60923184e-03 7.64221652e+00 7.71744262e-01], beta_theory = [ 0.10522284 15.625       2.83744851], % diff mean vs theory = [ 0.55839253 32.67096489 17.64566941]
+      window [a=0, b=49] (L=50): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=49] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=49] (L=50), p = 0.700 ± 0.145
+
+  m = 26: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  27  54  81 107 134 161 188 214 241 268 295 321 348 375 402 428 455
+ 482 509]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.10282633 15.44970681  2.92627126], std(beta_mle) = [0.00197097 0.29460697 1.55580653], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [ 1.94633198 -1.1218764   6.3024699 ]
+      MLE diagnostics for [a=0, b=27]: frac_moved = 1.000, mean(beta_mle) = [ 0.10344243 25.81929598  3.89622589], std(beta_mle) = [2.60907046e-03 2.29147857e+01 2.71015499e+00], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [ 2.5571633  65.24349425 41.53795012]
+      MLE diagnostics for [a=0, b=54]: frac_moved = 1.000, mean(beta_mle) = [ 0.10375162 17.20540307  2.9080448 ], std(beta_mle) = [1.86297996e-03 4.60647365e+00 4.28447701e-01], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [ 2.86371023 10.11457962  5.6403585 ]
+      MLE diagnostics for [a=0, b=81]: frac_moved = 1.000, mean(beta_mle) = [ 0.10296487 14.58812133  2.63409538], std(beta_mle) = [2.11747146e-03 4.18079486e+00 3.66761307e-01], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [ 2.08368705 -6.63602352 -4.31138451]
+      MLE diagnostics for [a=0, b=107]: frac_moved = 1.000, mean(beta_mle) = [ 0.10284952 10.15113932  2.24292408], std(beta_mle) = [0.00150205 1.11085118 0.08778718], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.96932885 -35.03270837 -18.5214397 ]
+      MLE diagnostics for [a=0, b=134]: frac_moved = 1.000, mean(beta_mle) = [0.10340304 7.15636119 1.95501968], std(beta_mle) = [0.00198803 0.92229284 0.07012909], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.51811243 -54.19928836 -28.9801245 ]
+      MLE diagnostics for [a=0, b=161]: frac_moved = 1.000, mean(beta_mle) = [0.10320051 5.25546792 1.75293953], std(beta_mle) = [0.00245631 0.52168898 0.06291449], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.31731201 -66.36500533 -36.32107734]
+      MLE diagnostics for [a=0, b=188]: frac_moved = 1.000, mean(beta_mle) = [0.10397451 4.94865816 1.71756187], std(beta_mle) = [0.00170235 0.60129627 0.05747969], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.08468354 -68.32858781 -37.60623912]
+      MLE diagnostics for [a=0, b=214]: frac_moved = 1.000, mean(beta_mle) = [0.10398196 4.53430369 1.66854739], std(beta_mle) = [0.00271636 0.41169679 0.04323863], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.09207148 -70.98045641 -39.38678506]
+      MLE diagnostics for [a=0, b=241]: frac_moved = 1.000, mean(beta_mle) = [0.10330061 4.46657129 1.65757063], std(beta_mle) = [0.00120458 0.479915   0.05114059], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.41655442 -71.41394372 -39.78553727]
+      MLE diagnostics for [a=0, b=268]: frac_moved = 1.000, mean(beta_mle) = [0.10521277 4.25819545 1.6231031 ], std(beta_mle) = [0.00246767 0.36672294 0.05345539], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  4.31235471 -72.74754914 -41.0376369 ]
+      MLE diagnostics for [a=0, b=295]: frac_moved = 1.000, mean(beta_mle) = [0.1027309  3.99683901 1.58958961], std(beta_mle) = [0.0026864  0.46430115 0.05295921], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.85172123 -74.42023032 -42.25507932]
+      MLE diagnostics for [a=0, b=321]: frac_moved = 1.000, mean(beta_mle) = [0.1030567  3.35122025 1.51058003], std(beta_mle) = [0.0028672  0.49122635 0.0583068 ], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.17473593 -78.55219042 -45.12525529]
+      MLE diagnostics for [a=0, b=348]: frac_moved = 1.000, mean(beta_mle) = [0.10282186 2.33658952 1.37474035], std(beta_mle) = [0.00158767 0.2247002  0.03849391], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.94189862 -85.0458271  -50.05989465]
+      MLE diagnostics for [a=0, b=375]: frac_moved = 0.900, mean(beta_mle) = [0.10271973 1.69879285 1.27173709], std(beta_mle) = [0.0024263  0.43065723 0.06871265], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.84064278 -89.12772576 -53.80168754]
+      MLE diagnostics for [a=0, b=402]: frac_moved = 1.000, mean(beta_mle) = [0.10253991 1.23429796 1.18125768], std(beta_mle) = [0.00192621 0.24403151 0.03235821], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.66236622 -92.10049303 -57.08852744]
+      MLE diagnostics for [a=0, b=428]: frac_moved = 1.000, mean(beta_mle) = [0.1036583  0.92891666 1.0949249 ], std(beta_mle) = [0.0017013  0.05541337 0.00872729], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.77118176 -94.05493335 -60.22473265]
+      MLE diagnostics for [a=0, b=455]: frac_moved = 1.000, mean(beta_mle) = [0.10160256 0.79169155 1.05675646], std(beta_mle) = [0.00238339 0.12268048 0.01643525], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  0.73303629 -94.93317406 -61.61127537]
+      MLE diagnostics for [a=0, b=482]: frac_moved = 1.000, mean(beta_mle) = [0.10381093 0.74862896 1.05199054], std(beta_mle) = [0.00170909 0.07916499 0.01514178], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.92251209 -95.20877463 -61.78440653]
+      MLE diagnostics for [a=0, b=509]: frac_moved = 1.000, mean(beta_mle) = [0.10477926 0.83108076 1.04694703], std(beta_mle) = [0.00345015 0.12556943 0.02551681], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.8825507  -94.68108312 -61.967622  ]
+      MLE diagnostics for [a=0, b=509]: frac_moved = 1.000, mean(beta_mle) = [0.1041529  0.75876534 1.04432065], std(beta_mle) = [0.00241221 0.06938735 0.02174063], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.26154695 -95.14390184 -62.06303015]
+      window [a=0, b=509] (L=510): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=482]: frac_moved = 1.000, mean(beta_mle) = [0.10301457 0.77213564 1.04743591], std(beta_mle) = [0.00259782 0.08123759 0.01873138], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.13296047 -95.05833194 -61.94986224]
+      window [a=0, b=482] (L=483): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=455]: frac_moved = 1.000, mean(beta_mle) = [0.10476885 0.85212348 1.08032112], std(beta_mle) = [0.00269868 0.08725069 0.01739069], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.87222989 -94.54640974 -60.75524351]
+      window [a=0, b=455] (L=456): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=428]: frac_moved = 1.000, mean(beta_mle) = [0.10332542 0.90292095 1.094584  ], std(beta_mle) = [0.00199153 0.12055594 0.01889292], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.44114834 -94.22130594 -60.23711647]
+      window [a=0, b=428] (L=429): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=402]: frac_moved = 1.000, mean(beta_mle) = [0.10358753 1.16232314 1.15766881], std(beta_mle) = [0.00249769 0.18639802 0.03509252], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.70102094 -92.56113189 -57.94543872]
+      window [a=0, b=402] (L=403): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=375]: frac_moved = 1.000, mean(beta_mle) = [0.10226324 1.67861263 1.26860148], std(beta_mle) = [0.00208372 0.3281603  0.0575791 ], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.38806131 -89.25687919 -53.91559477]
+      window [a=0, b=375] (L=376): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=348]: frac_moved = 1.000, mean(beta_mle) = [0.10460051 2.23044407 1.36826692], std(beta_mle) = [0.00220022 0.4562715  0.06799949], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.70532603 -85.72515795 -50.29505445]
+      window [a=0, b=348] (L=349): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=321]: frac_moved = 1.000, mean(beta_mle) = [0.10359646 3.17901021 1.49506467], std(beta_mle) = [0.00367933 0.68643362 0.06754625], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.70987069 -79.65433466 -45.68888094]
+      window [a=0, b=321] (L=322): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=295]: frac_moved = 1.000, mean(beta_mle) = [0.10264037 3.94686231 1.58127745], std(beta_mle) = [0.00246117 0.45240283 0.0484801 ], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.76196076 -74.74008119 -42.55703452]
+      window [a=0, b=295] (L=296): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=268]: frac_moved = 1.000, mean(beta_mle) = [0.10297457 4.23316633 1.62599549], std(beta_mle) = [0.00188681 0.42061048 0.05704335], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  2.09330515 -72.90773548 -40.93256527]
+      window [a=0, b=268] (L=269): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=241]: frac_moved = 1.000, mean(beta_mle) = [0.1020952  4.60430923 1.65704952], std(beta_mle) = [0.00319295 0.43397686 0.05168708], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  1.22145658 -70.53242093 -39.80446752]
+      window [a=0, b=241] (L=242): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=214]: frac_moved = 1.000, mean(beta_mle) = [0.10470584 4.97644346 1.72265474], std(beta_mle) = [0.00187398 0.52007207 0.05947014], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.80975745 -68.15076183 -37.42123088]
+      window [a=0, b=214] (L=215): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=188]: frac_moved = 1.000, mean(beta_mle) = [0.10452478 4.93114626 1.72255458], std(beta_mle) = [0.00228164 0.47213959 0.0528053 ], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.63025302 -68.44066394 -37.42486928]
+      window [a=0, b=188] (L=189): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=161]: frac_moved = 1.000, mean(beta_mle) = [0.10436973 5.74003623 1.80047182], std(beta_mle) = [0.00230139 0.61403197 0.06871792], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.47652455 -63.26376815 -34.59437467]
+      window [a=0, b=161] (L=162): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=134]: frac_moved = 1.000, mean(beta_mle) = [0.10447663 6.98193165 1.93714997], std(beta_mle) = [0.00155227 0.54006179 0.05299442], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.58250901 -55.31563746 -29.62927631]
+      window [a=0, b=134] (L=135): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=107]: frac_moved = 1.000, mean(beta_mle) = [ 0.10400072 10.38664066  2.25813358], std(beta_mle) = [0.00300193 1.78238053 0.1480783 ], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [  3.110671   -33.52549975 -17.96892523]
+      window [a=0, b=107] (L=108): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=81]: frac_moved = 1.000, mean(beta_mle) = [ 0.10388233 14.94831834  2.67099855], std(beta_mle) = [2.99412672e-03 3.52627213e+00 2.98005712e-01], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [ 2.99329932 -4.33076261 -2.97080556]
+      window [a=0, b=81] (L=82): p = 0.200 ± 0.126 -> REJECT
+      MLE diagnostics for [a=0, b=54]: frac_moved = 1.000, mean(beta_mle) = [ 0.10392537 18.98291857  3.11160742], std(beta_mle) = [2.03431007e-03 3.63421979e+00 3.45075722e-01], beta_theory = [ 0.1008632  15.625       2.75277824], % diff mean vs theory = [ 3.03597112 21.49067887 13.03516485]
+      window [a=0, b=54] (L=55): p = 0.900 ± 0.095 -> ACCEPT
+      -> stopping at [a=0, b=54] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=54] (L=55), p = 0.900 ± 0.095
+
+  m = 28: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  29  57  86 114 143 171 200 228 257 285 314 342 371 399 428 456 485
+ 513 542]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.10030911 15.27121598  2.88543849], std(beta_mle) = [1.93651512e-03 7.33132081e-01 2.33864829e+00], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [-1.327943   -2.26421776  4.23616231]
+      MLE diagnostics for [a=0, b=29]: frac_moved = 1.000, mean(beta_mle) = [ 0.10236614 15.95223641  2.70867109], std(beta_mle) = [1.41356486e-03 6.21375164e+00 7.05858005e-01], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ 0.6955188   2.09431305 -2.14954155]
+      MLE diagnostics for [a=0, b=57]: frac_moved = 1.000, mean(beta_mle) = [ 0.10295741 16.38980417  2.78482807], std(beta_mle) = [1.81067640e-03 4.52011757e+00 4.50552141e-01], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [1.27713745 4.89474666 0.60162131]
+      MLE diagnostics for [a=0, b=86]: frac_moved = 1.000, mean(beta_mle) = [ 0.10266373 12.53621137  2.43693716], std(beta_mle) = [0.0032137  3.07529637 0.25447532], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.9882508  -19.76824725 -11.9659013 ]
+      MLE diagnostics for [a=0, b=114]: frac_moved = 1.000, mean(beta_mle) = [0.10212654 8.60077678 2.07847522], std(beta_mle) = [0.00194592 1.01629605 0.09416371], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.45983096 -44.95502861 -24.91530131]
+      MLE diagnostics for [a=0, b=143]: frac_moved = 1.000, mean(beta_mle) = [0.10195633 6.7905597  1.88502544], std(beta_mle) = [0.0028013  0.35330126 0.05625981], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.29239065 -56.54041794 -31.903654  ]
+      MLE diagnostics for [a=0, b=171]: frac_moved = 1.000, mean(beta_mle) = [0.10177634 5.50846737 1.74424024], std(beta_mle) = [0.0024503  0.73952124 0.05414387], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.11533849 -64.74580886 -36.98950454]
+      MLE diagnostics for [a=0, b=200]: frac_moved = 1.000, mean(beta_mle) = [0.10193959 4.50967779 1.64882683], std(beta_mle) = [0.00233951 0.4146464  0.04814264], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.27592818 -71.13806216 -40.43630401]
+      MLE diagnostics for [a=0, b=228]: frac_moved = 1.000, mean(beta_mle) = [0.10241925 4.52476136 1.64046712], std(beta_mle) = [0.00208217 0.6311844  0.07742423], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.7477588  -71.04152731 -40.73829755]
+      MLE diagnostics for [a=0, b=257]: frac_moved = 1.000, mean(beta_mle) = [0.10282074 4.39248469 1.62341309], std(beta_mle) = [0.0029573  0.3456326  0.03576118], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  1.14269975 -71.88809797 -41.35437285]
+      MLE diagnostics for [a=0, b=285]: frac_moved = 1.000, mean(beta_mle) = [0.10218653 4.16798757 1.59432098], std(beta_mle) = [0.00267327 0.51133486 0.06353206], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.51883894 -73.32487958 -42.40532199]
+      MLE diagnostics for [a=0, b=314]: frac_moved = 1.000, mean(beta_mle) = [0.10177464 4.11792268 1.59098183], std(beta_mle) = [0.00245167 0.46787839 0.04872083], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.11367164 -73.64529485 -42.52594878]
+      MLE diagnostics for [a=0, b=342]: frac_moved = 1.000, mean(beta_mle) = [0.10101112 3.63300232 1.52467294], std(beta_mle) = [0.0037908 0.5001897 0.0560585], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.63739143 -76.74878516 -44.92135012]
+      MLE diagnostics for [a=0, b=371]: frac_moved = 1.000, mean(beta_mle) = [0.10232809 2.50416103 1.38592542], std(beta_mle) = [0.00301309 0.53643297 0.06116855], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.65808374 -83.97336943 -49.93358989]
+      MLE diagnostics for [a=0, b=399]: frac_moved = 1.000, mean(beta_mle) = [0.10241877 1.7699957  1.26495446], std(beta_mle) = [0.00114361 0.22976003 0.03601161], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.74729218 -88.67202751 -54.30365307]
+      MLE diagnostics for [a=0, b=428]: frac_moved = 1.000, mean(beta_mle) = [0.10230891 1.18369172 1.15747869], std(beta_mle) = [0.00272796 0.2412755  0.03755327], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.63922553 -92.42437301 -58.1862039 ]
+      MLE diagnostics for [a=0, b=456]: frac_moved = 1.000, mean(beta_mle) = [0.10111054 0.88374771 1.08608657], std(beta_mle) = [0.00278575 0.09701954 0.01702761], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.53959421 -94.34401464 -60.7652367 ]
+      MLE diagnostics for [a=0, b=485]: frac_moved = 1.000, mean(beta_mle) = [0.10179385 0.79173718 1.05961277], std(beta_mle) = [0.0026738  0.05920402 0.01757642], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.13257144 -94.93288206 -61.72160011]
+      MLE diagnostics for [a=0, b=513]: frac_moved = 1.000, mean(beta_mle) = [0.10105889 0.71996635 1.02048094], std(beta_mle) = [0.00208626 0.08342523 0.01870806], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.59040154 -95.39221534 -63.1352333 ]
+      MLE diagnostics for [a=0, b=542]: frac_moved = 1.000, mean(beta_mle) = [0.10077073 0.68600896 1.00915229], std(beta_mle) = [0.00151763 0.05700627 0.02180234], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.87385818 -95.60954265 -63.54447951]
+      MLE diagnostics for [a=0, b=542]: frac_moved = 1.000, mean(beta_mle) = [0.10173938 0.70650715 1.01986969], std(beta_mle) = [0.00334322 0.05977197 0.0202679 ], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ 7.89822550e-02 -9.54783543e+01 -6.31573145e+01]
+      window [a=0, b=542] (L=543): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=513]: frac_moved = 1.000, mean(beta_mle) = [0.10102315 0.74707348 1.02066358], std(beta_mle) = [0.003263   0.06570232 0.01135863], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.62555967 -95.21872971 -63.12863537]
+      window [a=0, b=513] (L=514): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=485]: frac_moved = 1.000, mean(beta_mle) = [0.10259042 0.82311254 1.0496941 ], std(beta_mle) = [0.00320797 0.09776436 0.01421629], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.91613926 -94.73207977 -62.07991084]
+      window [a=0, b=485] (L=486): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=456]: frac_moved = 1.000, mean(beta_mle) = [0.10201996 0.90040882 1.09078609], std(beta_mle) = [0.00168453 0.10468407 0.01543436], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.35498934 -94.23738355 -60.59546715]
+      window [a=0, b=456] (L=457): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=428]: frac_moved = 1.000, mean(beta_mle) = [0.10217205 1.11739802 1.14933168], std(beta_mle) = [0.00299897 0.16036296 0.03949977], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.50459891 -92.8486527  -58.48051377]
+      window [a=0, b=428] (L=429): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=399]: frac_moved = 1.000, mean(beta_mle) = [0.10123613 1.72555873 1.26938661], std(beta_mle) = [0.00264374 0.24985071 0.04083364], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.41605314 -88.95642411 -54.14354219]
+      window [a=0, b=399] (L=400): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=371]: frac_moved = 1.000, mean(beta_mle) = [0.10059999 2.64165353 1.40708244], std(beta_mle) = [0.0032678  0.78522419 0.09051164], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -1.04180647 -83.09341739 -49.16929479]
+      window [a=0, b=371] (L=372): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=342]: frac_moved = 1.000, mean(beta_mle) = [0.10202369 3.58365774 1.5164027 ], std(beta_mle) = [0.00251418 0.41255733 0.04634625], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.35865557 -77.06459043 -45.22011181]
+      window [a=0, b=342] (L=343): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=314]: frac_moved = 1.000, mean(beta_mle) = [0.10122529 4.06670877 1.56622261], std(beta_mle) = [0.00182038 0.51186618 0.05355912], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.42671443 -73.97306386 -43.42037294]
+      window [a=0, b=314] (L=315): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=285]: frac_moved = 0.900, mean(beta_mle) = [0.10295266 4.29875279 1.61137385], std(beta_mle) = [0.0032938  0.47210356 0.05198688], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  1.27246179 -72.48798217 -41.78928887]
+      window [a=0, b=285] (L=286): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=257]: frac_moved = 1.000, mean(beta_mle) = [0.10164023 4.30888195 1.61855393], std(beta_mle) = [0.00273701 0.62149154 0.07403562], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [-1.85480438e-02 -7.24231555e+01 -4.15299093e+01]
+      window [a=0, b=257] (L=258): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=228]: frac_moved = 1.000, mean(beta_mle) = [0.10201526 4.14098782 1.60662145], std(beta_mle) = [0.00285005 0.57863032 0.07752155], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.35036012 -73.49767798 -41.96096914]
+      window [a=0, b=228] (L=229): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=200]: frac_moved = 1.000, mean(beta_mle) = [0.10284577 4.52904002 1.65145566], std(beta_mle) = [0.00319988 0.81130607 0.0905492 ], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  1.16732349 -71.01414385 -40.34133775]
+      window [a=0, b=200] (L=201): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=171]: frac_moved = 1.000, mean(beta_mle) = [0.10133756 5.42701017 1.73020176], std(beta_mle) = [0.00235489 0.74213868 0.06403593], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.31627582 -65.26713489 -37.49664322]
+      window [a=0, b=171] (L=172): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=143]: frac_moved = 1.000, mean(beta_mle) = [0.10240502 6.44055001 1.84702959], std(beta_mle) = [0.00314389 0.76163073 0.07746808], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.73376134 -58.78047994 -33.27625015]
+      window [a=0, b=143] (L=144): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=114]: frac_moved = 1.000, mean(beta_mle) = [0.10205385 8.88725804 2.06209956], std(beta_mle) = [0.00182292 1.29905379 0.1243843 ], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.38831902 -43.12154856 -25.50687001]
+      window [a=0, b=114] (L=115): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=86]: frac_moved = 1.000, mean(beta_mle) = [ 0.10155143 13.1838499   2.49311708], std(beta_mle) = [2.65903944e-03 2.79890826e+00 2.54287122e-01], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ -0.10590062 -15.62336063  -9.93640736]
+      window [a=0, b=86] (L=87): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=57]: frac_moved = 1.000, mean(beta_mle) = [ 0.10060744 18.54161822  2.98453564], std(beta_mle) = [2.69740010e-03 5.59214098e+00 5.61147304e-01], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [-1.03448524 18.66635662  7.81603617]
+      window [a=0, b=57] (L=58): p = 0.500 ± 0.158 -> REJECT
+      MLE diagnostics for [a=0, b=29]: frac_moved = 1.000, mean(beta_mle) = [ 0.10167696 14.55104787  2.5670623 ], std(beta_mle) = [2.27804833e-03 3.57921077e+00 4.49020105e-01], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [ 0.01758401 -6.87329365 -7.26514433]
+      window [a=0, b=29] (L=30): p = 0.200 ± 0.126 -> REJECT
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.1023665  15.61569906  2.07348643], std(beta_mle) = [0.00249474 0.1692921  1.38820667], beta_theory = [ 0.10165908 15.625       2.76817414], % diff mean vs theory = [  0.69587345  -0.05952604 -25.09552074]
+      window [a=0, b=1] (L=2): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=1] (L=2), p = 0.700 ± 0.145
+
+  m = 30: generating network and scanning windows...
+    b-grid (candidate b_j): [  1  28  55  83 110 138 165 192 220 247 275 302 330 357 384 412 439 467
+ 494 522]
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.1003285  15.49961527  2.18017449], std(beta_mle) = [0.00223651 0.38860322 1.8811214 ], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.5640219   -0.80246229 -21.95729729]
+      MLE diagnostics for [a=0, b=28]: frac_moved = 1.000, mean(beta_mle) = [ 0.09848407 17.37493095  2.80196464], std(beta_mle) = [2.71724550e-03 8.69226094e+00 1.01547762e+00], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [-4.35527501 11.1995581   0.30063844]
+      MLE diagnostics for [a=0, b=55]: frac_moved = 1.000, mean(beta_mle) = [ 0.09943225 18.10466377  2.88727984], std(beta_mle) = [1.21018973e-03 5.30550095e+00 4.72729135e-01], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [-3.43443554 15.86984815  3.35462731]
+      MLE diagnostics for [a=0, b=83]: frac_moved = 1.000, mean(beta_mle) = [ 0.09919996 13.97169017  2.51087008], std(beta_mle) = [0.00254964 2.37580561 0.19829545], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.66003171 -10.58118293 -10.11953949]
+      MLE diagnostics for [a=0, b=110]: frac_moved = 1.000, mean(beta_mle) = [0.10023869 9.48380487 2.12791807], std(beta_mle) = [0.00221914 0.8673634  0.07921879], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.65124724 -39.30364882 -23.82789646]
+      MLE diagnostics for [a=0, b=138]: frac_moved = 1.000, mean(beta_mle) = [0.10211664 7.03162031 1.89807317], std(beta_mle) = [0.00297718 0.71942809 0.05873718], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -0.82743727 -54.99763003 -32.05554825]
+      MLE diagnostics for [a=0, b=165]: frac_moved = 1.000, mean(beta_mle) = [0.09846396 5.69198006 1.73577538], std(beta_mle) = [0.0021953  0.80736361 0.07909076], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -4.37481245 -63.57132761 -37.86524781]
+      MLE diagnostics for [a=0, b=192]: frac_moved = 1.000, mean(beta_mle) = [0.10090459 4.57932016 1.63718114], std(beta_mle) = [0.00237948 0.37173551 0.04624419], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.00454752 -70.69235095 -41.39458036]
+      MLE diagnostics for [a=0, b=220]: frac_moved = 1.000, mean(beta_mle) = [0.09976629 4.22298507 1.58668291], std(beta_mle) = [0.00166301 0.48299883 0.05202752], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.11003064 -72.97289553 -43.20224231]
+      MLE diagnostics for [a=0, b=247]: frac_moved = 1.000, mean(beta_mle) = [0.10049701 3.97643209 1.56924537], std(beta_mle) = [0.00213433 0.4426181  0.05668202], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.40037826 -74.55083464 -43.82644597]
+      MLE diagnostics for [a=0, b=275]: frac_moved = 1.000, mean(beta_mle) = [0.10114703 3.61916683 1.52996728], std(beta_mle) = [0.00209813 0.28391194 0.04002051], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -1.76909541 -76.83733228 -45.23246552]
+      MLE diagnostics for [a=0, b=302]: frac_moved = 1.000, mean(beta_mle) = [0.10150503 3.97266187 1.55887893], std(beta_mle) = [0.00278792 0.47789977 0.04980955], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -1.4214169  -74.57496406 -44.19752856]
+      MLE diagnostics for [a=0, b=330]: frac_moved = 1.000, mean(beta_mle) = [0.09913844 3.59530324 1.50286599], std(beta_mle) = [0.00312803 0.33472862 0.04311522], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.71977889 -76.99005926 -46.20259779]
+      MLE diagnostics for [a=0, b=357]: frac_moved = 1.000, mean(beta_mle) = [0.10001347 3.8825553  1.53338514], std(beta_mle) = [0.00320286 0.33110897 0.05287919], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.86997076 -75.1516461  -45.11011781]
+      MLE diagnostics for [a=0, b=384]: frac_moved = 1.000, mean(beta_mle) = [0.10075633 3.16297468 1.4539393 ], std(beta_mle) = [0.00241547 0.42689698 0.05420437], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.14852563 -79.75696203 -47.95400393]
+      MLE diagnostics for [a=0, b=412]: frac_moved = 1.000, mean(beta_mle) = [0.10146951 2.24314611 1.3271041 ], std(beta_mle) = [0.00195307 0.40531047 0.05030341], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -1.45591412 -85.64386487 -52.49426553]
+      MLE diagnostics for [a=0, b=439]: frac_moved = 1.000, mean(beta_mle) = [0.10014342 1.84995257 1.26807848], std(beta_mle) = [0.00305505 0.43548416 0.06002021], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.74377351 -88.16030355 -54.60717824]
+      MLE diagnostics for [a=0, b=467]: frac_moved = 1.000, mean(beta_mle) = [0.09956888 1.29629406 1.1534402 ], std(beta_mle) = [0.00241036 0.21648675 0.03838923], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.30174969 -91.70371802 -58.7108319 ]
+      MLE diagnostics for [a=0, b=494]: frac_moved = 1.000, mean(beta_mle) = [0.09934073 0.87676207 1.06766119], std(beta_mle) = [0.00188189 0.08909346 0.01604434], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.52331856 -94.38872278 -61.78142398]
+      MLE diagnostics for [a=0, b=522]: frac_moved = 1.000, mean(beta_mle) = [0.10104015 0.75937281 1.03108568], std(beta_mle) = [0.00229435 0.09085635 0.01344415], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -1.87288848 -95.14001403 -63.09070056]
+      MLE diagnostics for [a=0, b=522]: frac_moved = 1.000, mean(beta_mle) = [0.10042219 0.74574673 1.02149007], std(beta_mle) = [0.00196572 0.05708532 0.02037057], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.47303288 -95.22722094 -63.43419005]
+      window [a=0, b=522] (L=523): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=494]: frac_moved = 1.000, mean(beta_mle) = [0.09970588 0.97783437 1.08481904], std(beta_mle) = [0.00306573 0.20012407 0.03869008], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.16869682 -93.74186003 -61.16723218]
+      window [a=0, b=494] (L=495): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=467]: frac_moved = 1.000, mean(beta_mle) = [0.10067898 1.15355344 1.13798036], std(beta_mle) = [0.00257277 0.26211289 0.04365904], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.22365129 -92.617258   -59.26424087]
+      window [a=0, b=467] (L=468): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=439]: frac_moved = 1.000, mean(beta_mle) = [0.10003587 1.74501443 1.25057949], std(beta_mle) = [0.00325711 0.45395621 0.07292172], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.84822376 -88.83190766 -55.2335817 ]
+      window [a=0, b=439] (L=440): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=412]: frac_moved = 1.000, mean(beta_mle) = [0.10090157 2.53912847 1.38093148], std(beta_mle) = [0.00262192 0.6122003  0.08469764], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.00748235 -83.74957782 -50.56743129]
+      window [a=0, b=412] (L=413): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=384]: frac_moved = 1.000, mean(beta_mle) = [0.09925778 3.11432101 1.45094464], std(beta_mle) = [0.00124704 0.20177277 0.02924607], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.60387474 -80.06834553 -48.06120247]
+      window [a=0, b=384] (L=385): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=357]: frac_moved = 1.000, mean(beta_mle) = [0.09919758 3.44301998 1.48940467], std(beta_mle) = [0.00207397 0.46482664 0.05456352], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -3.6623396  -77.96467212 -46.68446643]
+      window [a=0, b=357] (L=358): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=330]: frac_moved = 0.900, mean(beta_mle) = [0.10022871 3.81152686 1.52654161], std(beta_mle) = [0.00192418 0.59299596 0.0683769 ], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.66093862 -75.60622812 -45.35509263]
+      window [a=0, b=330] (L=331): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=302]: frac_moved = 1.000, mean(beta_mle) = [0.10123024 3.87035529 1.5439207 ], std(beta_mle) = [0.00266584 0.53253995 0.05520651], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -1.68828527 -75.22972615 -44.73298143]
+      window [a=0, b=302] (L=303): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=275]: frac_moved = 1.000, mean(beta_mle) = [0.10089597 3.92668896 1.55201365], std(beta_mle) = [0.00273013 0.23987113 0.04907409], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.01291856 -74.86919062 -44.4432817 ]
+      window [a=0, b=275] (L=276): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=247]: frac_moved = 1.000, mean(beta_mle) = [0.09989321 3.89070481 1.55581363], std(beta_mle) = [0.00240895 0.57569053 0.06412202], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.98676155 -75.09948923 -44.30725556]
+      window [a=0, b=247] (L=248): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=220]: frac_moved = 1.000, mean(beta_mle) = [0.09988781 3.88594839 1.5569753 ], std(beta_mle) = [0.00233302 0.40406162 0.04391854], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.9920068  -75.1299303  -44.26567195]
+      window [a=0, b=220] (L=221): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=192]: frac_moved = 1.000, mean(beta_mle) = [0.10003882 4.57397802 1.6322039 ], std(beta_mle) = [0.0018002  0.52032073 0.05198059], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.84535043 -70.72654066 -41.5727481 ]
+      window [a=0, b=192] (L=193): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=165]: frac_moved = 1.000, mean(beta_mle) = [0.10061382 5.58513883 1.73875162], std(beta_mle) = [0.0019167  0.72809197 0.07217751], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.28693069 -64.2551115  -37.75870856]
+      window [a=0, b=165] (L=166): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=138]: frac_moved = 1.000, mean(beta_mle) = [0.10033054 7.02061726 1.8934195 ], std(beta_mle) = [0.00259595 0.83162159 0.0805237 ], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.5620427  -55.06804954 -32.22213351]
+      window [a=0, b=138] (L=139): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=110]: frac_moved = 1.000, mean(beta_mle) = [0.10051444 9.90174239 2.14299918], std(beta_mle) = [0.00269033 1.56839353 0.15036649], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.38344681 -36.62884871 -23.2880449 ]
+      window [a=0, b=110] (L=111): p = 0.000 ± 0.000 -> REJECT
+      MLE diagnostics for [a=0, b=83]: frac_moved = 1.000, mean(beta_mle) = [ 0.10133894 14.64237551  2.58432587], std(beta_mle) = [2.28654536e-03 3.44416298e+00 3.10314738e-01], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [-1.58271785 -6.28879672 -7.49007648]
+      window [a=0, b=83] (L=84): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=55]: frac_moved = 1.000, mean(beta_mle) = [ 0.10062266 15.64659177  2.67678043], std(beta_mle) = [2.45300651e-03 3.05313444e+00 2.92517352e-01], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [-2.27834456  0.13818732 -4.18052301]
+      window [a=0, b=55] (L=56): p = 0.100 ± 0.095 -> REJECT
+      MLE diagnostics for [a=0, b=28]: frac_moved = 1.000, mean(beta_mle) = [ 0.1027906 20.868233   3.2864102], std(beta_mle) = [1.72356638e-03 1.28199422e+01 1.47753025e+00], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [-0.17290737 33.55669118 17.64211325]
+      window [a=0, b=28] (L=29): p = 0.300 ± 0.145 -> REJECT
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.09991154 15.5488514   2.26481011], std(beta_mle) = [0.00242479 0.29808365 1.54749917], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.96896518  -0.48735102 -18.92763512]
+      window [a=0, b=1] (L=2): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=1] (L=2), p = 0.700 ± 0.145
+Traceback (most recent call last):
+      window [a=0, b=28] (L=29): p = 0.300 ± 0.145 -> REJECT
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.09991154 15.5488514   2.26481011], std(beta_mle) = [0.00242479 0.29808365 1.54749917], beta_theo      window [a=0, b=28] (L=29): p = 0.300 ± 0.145 -> REJECT
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.09991154 15.5488514   2.26481011], std(beta_mle) = [0.00242479 0.29808365 1.54749917], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.96896518  -0.48735102 -18.92763512]
+      window [a=0, b=1] (L=2): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=1] (L=2), p = 0.700 ± 0.145
+      window [a=0, b=28] (L=29): p = 0.300 ± 0.145 -> REJECT
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.09991154 15.5488514   2.26481011], std(beta_mle) = [0.00242479 0.29808365 1.54749917], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.96896518  -0.48735102 -18.92763512]
+      window [a=0, b=1] (L=2): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=1] (L=2), p = 0.700 ± 0.145
+      window [a=0, b=28] (L=29): p = 0.300 ± 0.145 -> REJECT
+      MLE diagnostics for [a=0, b=1]: frac_moved = 1.000, mean(beta_mle) = [ 0.09991154 15.5488514   2.26481011], std(beta_mle) = [0.00242479 0.29808365 1.54749917], beta_theory = [ 0.10296864 15.625       2.7935661 ], % diff mean vs theory = [ -2.96896518  -0.48735102 -18.92763512]
+      window [a=0, b=1] (L=2): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+      window [a=0, b=1] (L=2): p = 0.700 ± 0.145 -> ACCEPT
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+      -> stopping at [a=0, b=1] as largest acceptable window (p >= p_c=0.6)
+    Largest acceptable window: [a=0, b=1] (L=2), p = 0.700 ± 0.145
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
