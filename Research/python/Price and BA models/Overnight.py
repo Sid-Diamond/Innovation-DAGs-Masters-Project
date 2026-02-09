@@ -7,11 +7,9 @@ from scipy.special import gamma as gamma_func, beta as beta_func
 from typing import Dict, Tuple, List
 import time
 from scipy.optimize import minimize
-from scipy.special import beta as beta_func
 from pathlib import Path
 import datetime
 import json
-
 
 class FileManager:
 
@@ -342,6 +340,29 @@ class GoFDiagnostics:
             beta = net.get_beta_for_type(node_type)
 
         return net.cdf_from_beta_truncated(k, beta, kmin, kmax)
+
+    def _p_from_D_theory(self, d_e: float, N: int, j_max: int = 1000) -> float:
+        """
+        Compute p(d_e, N) from the CSN-type approximation:
+
+            p(d_e, N) = 2 sum_{j=1}^∞ (-1)^{j-1}
+                         exp(-2 j^2 (d_e sqrt{N} + 0.12 d_e + 0.11 d_e / sqrt{N})^2)
+        """
+
+        if N <= 0 or d_e <= 0:
+            return 0.0
+
+        rootN = np.sqrt(N)
+        term_base = d_e * rootN + 0.12 * d_e + 0.11 * d_e / rootN
+        arg = -2.0 * (term_base ** 2)
+
+        j = np.arange(1, j_max + 1, dtype=float)
+        signs = (-1.0) ** (j - 1.0)
+        exponents = np.exp(arg * (j ** 2))
+
+        p_val = 2.0 * np.sum(signs * exponents)
+        # clip to [0,1] for numerical safety
+        return float(np.clip(p_val, 0.0, 1.0))
 
     def empirical_cdf_integers(self, data):
         """
@@ -741,6 +762,9 @@ class GoFDiagnostics:
             )
             net_temp.generate_network()
 
+            # degrees for this node_type for this sweep point
+            degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+
             beta_theory = net_temp.get_beta_for_type(node_type)
 
             scan_res = self.scan_over_b(
@@ -756,7 +780,10 @@ class GoFDiagnostics:
                 b_grid_type=b_grid_type,
             )
 
+            # store degrees so diagnostics can reconstruct N(b)
+            scan_res['degrees_for_node_type'] = degrees.copy()
             windows_info.append(scan_res)
+
             windows = scan_res['windows']
             bs = scan_res['b_grid']
 
@@ -779,14 +806,13 @@ class GoFDiagnostics:
                 f"    no truncation: p = {last_w['p']:.4f} ± {last_w['sigma_p']:.4f}"
             )
 
-            degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
             total_edges = degrees.sum() if degrees.size > 0 else 0
 
             pcs_results = self.select_largest_window_for_pcs(
                 windows=windows,
                 a=a,
                 p_c_list=p_c_list,
-            )
+            )           
 
             for p_c in p_c_list:
                 lw = pcs_results[p_c]['largest_window']
@@ -1025,10 +1051,8 @@ class GoFDiagnostics:
         z: float = 1.0,
         title_prefix: str = "",
         figsize=(8, 5),
+        x_context: str = None, 
     ):
-        import matplotlib.pyplot as plt
-        import numpy as np
-
         windows = scan_res.get('windows', [])
         if not windows:
             print("No windows to plot in p_vs_b diagnostic.")
@@ -1041,18 +1065,40 @@ class GoFDiagnostics:
 
         fig, ax = plt.subplots(figsize=figsize)
 
-        # All p(b_j) with error bars
+        # Base vertical error 'bar' as a gray line (no caps)
         ax.errorbar(
             bs,
             ps,
             yerr=sigmas,
-            fmt='o',
-            color='C0',
-            ecolor='lightgray',
+            fmt='none',
+            ecolor='0.6',
             elinewidth=1.5,
-            capsize=3,
-            label=r'$p(b)$ with $\pm\sigma_p$',
+            capsize=0,
+            zorder=1,
         )
+
+        # Three small orange ticks (top, middle, bottom) at each b
+        tick_color = 'orange'
+        tick_size = 0.01  # relative vertical length for ticks
+
+        for b, p_val, s in zip(bs, ps, sigmas):
+            top = p_val + s
+            mid = p_val
+            bot = p_val - s
+
+            # vertical size of a tick in data coordinates
+            # use fraction of the full y-range
+            y_min, y_max = -0.05, 1.05
+            tick_half = tick_size * (y_max - y_min) / 2.0
+
+            for y in (top, mid, bot):
+                ax.plot(
+                    [b - 0.1, b + 0.1],
+                    [y, y],
+                    color=tick_color,
+                    linewidth=1.5,
+                    zorder=2,
+                )
 
         # Lower bound curve
         ax.plot(
@@ -1063,9 +1109,10 @@ class GoFDiagnostics:
             linewidth=2,
             markersize=5,
             label=fr'Lower bound $p(b) - {z}\,\sigma_p$',
+            zorder=3,
         )
 
-        # p_c lines and chosen b* markers
+        # p_c horizontal lines (NO vertical lines at chosen b*)
         colors_pc = plt.cm.plasma(np.linspace(0, 1, len(p_c_list)))
         for color_pc, p_c in zip(colors_pc, p_c_list):
             ax.axhline(
@@ -1076,23 +1123,19 @@ class GoFDiagnostics:
                 label=fr'$p_c = {p_c}$',
             )
 
-            lw = pcs_results[p_c].get('largest_window', None)
-            if lw is not None:
-                b_star = lw['b']
-                ax.axvline(
-                    x=b_star,
-                    color=color_pc,
-                    linestyle='-.',
-                    linewidth=1.5,
-                )
-
+        # Title: modified CSN P value vs data truncation for m =... or n_0 =...
         a = scan_res.get('a', None)
-        parts = []
-        if title_prefix:
-            parts.append(title_prefix)
-        parts.append("CSN Diagnostic: p(b) vs b")
+        if x_context is not None:
+            main_title = f"modified CSN  P value vs data truncation for {x_context}"
+        else:
+            main_title = "modified CSN  P value vs data truncation"
+
+        parts = [main_title]
         if a is not None:
             parts.append(f"[a = {a}]")
+        if title_prefix:
+            parts.append(title_prefix)
+
         ax.set_title(" | ".join(parts))
 
         ax.set_xlabel(r'$b$ (upper truncation)')
@@ -1103,6 +1146,48 @@ class GoFDiagnostics:
 
         plt.tight_layout()
         return fig
+
+    def _p_from_D_theory_over_b(
+        self,
+        scan_res,
+        net: DirectedHomophilicNetwork,
+        node_type: str,
+    ):
+        """
+        For each window in scan_res['windows'], compute p(d_e, N)
+        where d_e is D_theory for that window and N is the effective
+        sample size (number of degrees in [a, b]) for that truncation.
+        """
+        windows = scan_res.get('windows', [])
+        if not windows:
+            return np.array([]), np.array([])
+
+        a = scan_res.get('a', 0)
+
+        degrees = np.array(net._get_degrees(node_type), dtype=int)
+        if degrees.size == 0:
+            return np.array([]), np.array([])
+
+        bs = []
+        p_vals = []
+
+        for w in windows:
+            b = int(w['b'])
+            D_theory_arr = np.asarray(w['D_theory'], dtype=float)
+            if D_theory_arr.size == 0:
+                continue
+
+            # Use the mean D_theory across MC simulations for this window
+            d_e = float(np.mean(D_theory_arr))
+
+            mask = (degrees >= a) & (degrees <= b)
+            N_eff = int(np.sum(mask))
+
+            p_de = self._p_from_D_theory(d_e=d_e, N=N_eff)
+            bs.append(b)
+            p_vals.append(p_de)
+
+        return np.asarray(bs, dtype=int), np.asarray(p_vals, dtype=float)
 
     def csn_diagnostic_plots_over_sweep(
         self,
@@ -1115,8 +1200,7 @@ class GoFDiagnostics:
         z: float = 1.0,
         a: int = 0,
     ):
-        import numpy as np
-
+    
         if num_p_vs_b <= 0:
             return
 
@@ -1145,19 +1229,58 @@ class GoFDiagnostics:
                 p_c_list=p_c_list,
             )
 
+            # Determine context for title: m or n_0
+            if sweep_label == 'm_edges':
+                x_context = rf"$m = {x_val}$"
+            else:
+                x_context = rf"$n_0 = {x_val}$"
+
+            # Build figure without overlay first
             fig_diag = self.plot_p_vs_b_diagnostic_combined(
                 scan_res=scan_res,
                 pcs_results=pcs_results,
                 p_c_list=p_c_list,
                 z=z,
-                title_prefix=f"{sweep_label}={x_val}, node_type={node_type}",
+                title_prefix=f"node_type={node_type}",
                 figsize=(8, 5),
+                x_context=x_context,
             )
+
+            # ---- NEW: overlay p(d_e, N) curve from D_theory ----
+            degrees_arr = scan_res.get('degrees_for_node_type', None)
+            if degrees_arr is not None and fig_diag is not None:
+                # minimal dummy "net" with only _get_degrees implemented
+                class _DummyNet:
+                    def __init__(self, degrees):
+                        self._degrees = np.asarray(degrees, dtype=int)
+                    def _get_degrees(self, nt):
+                        return self._degrees
+
+                dummy_net = _DummyNet(degrees_arr)
+                bs_extra, p_extra = self._p_from_D_theory_over_b(
+                    scan_res=scan_res,
+                    net=dummy_net,
+                    node_type=node_type,
+                )
+                if bs_extra.size > 0:
+                    ax = fig_diag.axes[0]
+                    ax.plot(
+                        bs_extra,
+                        p_extra,
+                        '-^',
+                        color='C3',
+                        linewidth=2,
+                        markersize=4,
+                        label=r'$p(d_e, N)$ from $D_{\mathrm{theory}}$',
+                    )
+                    ax.legend(loc='best')
+            # ---- END NEW ----
+
             if fig_diag is not None:
                 fm.save_fig(
                     fig_diag,
                     f"p_vs_b_{sweep_label}{x_val}",
-                )
+                ) 
 class NetworkPlotting:
     """
     Plotting utilities for DirectedHomophilicNetwork.
@@ -1513,7 +1636,7 @@ if __name__ == "__main__":
     config = dict(
         network=dict(
             n0=100,
-            n_nodes=2000,
+            n_nodes=1000,
             m_edges=3,
             h=0.2,
             f_a=0.2,
@@ -1523,27 +1646,27 @@ if __name__ == "__main__":
         ),
         sweep_m=dict(
             m_min=2,
-            m_max=40,
-            m_step=2,
+            m_max=35,
+            m_step=5,
             node_type='b',
             a=0,
             p_c_list=[0.2, 0.4, 0.6],
-            N_sims=20,
+            N_sims=5,
             b_grid_type='linear',
-            n_b=25,
+            n_b=5,
             b_min=None,
             b_max=None,
         ),
         sweep_n0=dict(
             n0_min=10,
-            n0_max=150,
+            n0_max=100,
             n0_step=10,
             node_type='b',
             a=0,
             p_c_list=[0.2, 0.4, 0.6],
-            N_sims=20,
+            N_sims=5,
             b_grid_type='linear',
-            n_b=25,
+            n_b=5,
             b_min=None,
             b_max=None,
         ),
@@ -1554,8 +1677,8 @@ if __name__ == "__main__":
             A_const=True,
             sweep_m_edges_csn=True,
             sweep_n0_csn=True,
-            csn_p_vs_b_m=10,  
-            csn_p_vs_b_n0=10,
+            csn_p_vs_b_m=3,  
+            csn_p_vs_b_n0=3,
         )
     )
     fm = FileManager(config)
