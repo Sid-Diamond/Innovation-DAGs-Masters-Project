@@ -1,0 +1,56 @@
+{
+  "network": {
+    "n0": 100,
+    "n_nodes": 2000,
+    "m_edges": 3,
+    "h": 0.2,
+    "f_a": 0.2,
+    "mu_a": 1,
+    "mu_b": 5,
+    "seed": null
+  },
+  "sweep_m": {
+    "m_min": 2,
+    "m_max": 40,
+    "m_step": 2,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.2,
+      0.4,
+      0.6
+    ],
+    "N_sims": 20,
+    "b_grid_type": "linear",
+    "n_b": 25,
+    "b_min": null,
+    "b_max": null
+  },
+  "sweep_n0": {
+    "n0_min": 10,
+    "n0_max": 150,
+    "n0_step": 10,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.2,
+      0.4,
+      0.6
+    ],
+    "N_sims": 20,
+    "b_grid_type": "linear",
+    "n_b": 25,
+    "b_min": null,
+    "b_max": null
+  },
+  "plots": {
+    "log_binned": true,
+    "discrete_linear": true,
+    "asymptotes": true,
+    "A_const": true,
+    "sweep_m_edges_csn": true,
+    "sweep_n0_csn": true,
+    "csn_p_vs_b_m": 10,
+    "csn_p_vs_b_n0": 10
+  }
+}

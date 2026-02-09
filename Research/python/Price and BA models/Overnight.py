@@ -50,7 +50,6 @@ class FileManager:
 
     def path(self):
         return self.run_dir
-
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
@@ -303,8 +302,7 @@ class DirectedHomophilicNetwork:
             self.graph.in_degree(n)
             for n in self.graph.nodes()
             if self.node_types[n] == type_val
-        ]
-    
+        ]   
 class GoFDiagnostics:
     """
     Goodness-of-Fit and diagnostic methods for DirectedHomophilicNetwork.
@@ -624,13 +622,16 @@ class GoFDiagnostics:
         windows,
         a: int,
         p_c: float,
+        z: float = 1.0,   # NEW: CI multiplier
     ):
         """
-        Given a list of window results (as produced in scan_over_b['windows']),
-        and a threshold p_c, find the largest b where p >= p_c.
+        Find largest b such that
 
-        windows: list of dicts, each with keys 'b', 'p', 'sigma_p', etc.
+            p(b) - z * sigma_p(b) >= p_c
+
+        i.e. lower confidence bound exceeds threshold.
         """
+
         if not windows:
             return {
                 'a': a,
@@ -639,24 +640,27 @@ class GoFDiagnostics:
                 'largest_window': None,
             }
 
-        # sort windows by b ascending, then traverse from largest to smallest
         windows_sorted = sorted(windows, key=lambda w: w['b'])
+
         windows_evaluated = []
         largest_window_info = None
 
-        for j_rev, w in enumerate(reversed(windows_sorted)):
+        for w in reversed(windows_sorted):
             b = int(w['b'])
             p_val = float(w['p'])
             sigma_p = float(w['sigma_p'])
+
+            lower_bound = p_val - z * sigma_p  # ← THE ONLY REAL CHANGE
+
             windows_evaluated.append(w)
 
-            if p_val >= p_c:
+            if lower_bound >= p_c:
                 largest_window_info = {
                     'a': a,
                     'b': b,
                     'p': p_val,
                     'sigma_p': sigma_p,
-                    'index': j_rev,
+                    'index': 0,
                 }
                 break
 
@@ -686,6 +690,233 @@ class GoFDiagnostics:
             results[p_c] = res
         return results
 
+    def _csn_sweep_core(
+        self,
+        base_net: DirectedHomophilicNetwork,
+        sweep_param_values: np.ndarray,
+        vary: str,                  
+        node_type: str,
+        a: int,
+        candidate_bs,
+        b_min: int,
+        b_max: int,
+        n_b: int,
+        b_grid_type: str,
+        N_sims: int,
+        p_c_list,
+        figsize=(12, 6),
+    ):
+        plt.rcParams['font.family'] = 'Times New Roman'
+
+        windows_info = []
+        frac_nodes_kept = {p_c: [] for p_c in p_c_list}
+        frac_edges_kept = {p_c: [] for p_c in p_c_list}
+        no_window = {p_c: [] for p_c in p_c_list}
+
+        label = 'm_edges' if vary == 'm_edges' else 'n0'
+        print(f"\nCSN sweep over {label}: {sweep_param_values}")
+
+        for val in sweep_param_values:
+            if vary == 'm_edges':
+                n0 = base_net.n0
+                n_nodes = base_net.n_nodes
+                m_edges = int(val)
+            elif vary == 'n0':
+                n0 = int(val)
+                n_nodes = base_net.n_nodes
+                m_edges = base_net.m_edges
+            else:
+                raise ValueError("vary must be 'm_edges' or 'n0'")
+
+            print(f"\n  {label} = {val}: generating network and scanning windows...")
+
+            net_temp = DirectedHomophilicNetwork(
+                n0=n0,
+                n_nodes=n_nodes,
+                m_edges=m_edges,
+                h=base_net.h,
+                f_a=base_net.f_a,
+                mu_a=base_net.mu['a'],
+                mu_b=base_net.mu['b'],
+            )
+            net_temp.generate_network()
+
+            beta_theory = net_temp.get_beta_for_type(node_type)
+
+            scan_res = self.scan_over_b(
+                net=net_temp,
+                node_type=node_type,
+                a=a,
+                beta_theory=beta_theory,
+                candidate_bs=candidate_bs,
+                N_sims=N_sims,
+                b_min=b_min,
+                b_max=b_max,
+                n_b=n_b,
+                b_grid_type=b_grid_type,
+            )
+
+            windows_info.append(scan_res)
+            windows = scan_res['windows']
+            bs = scan_res['b_grid']
+
+            if bs is None or len(bs) == 0 or not windows:
+                print("    No valid b range; skipping.")
+                for p_c in p_c_list:
+                    frac_nodes_kept[p_c].append(0.0)
+                    frac_edges_kept[p_c].append(0.0)
+                    no_window[p_c].append(True)
+                continue
+
+            if len(bs) > 6:
+                grid_str = f"[{bs[0]}, {bs[1]},... {bs[-2]}, {bs[-1]}]"
+            else:
+                grid_str = str(bs.tolist())
+            print(f"    b-grid (candidate b_j): {grid_str}")
+
+            last_w = windows[-1]
+            print(
+                f"    no truncation: p = {last_w['p']:.4f} ± {last_w['sigma_p']:.4f}"
+            )
+
+            degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+            total_edges = degrees.sum() if degrees.size > 0 else 0
+
+            pcs_results = self.select_largest_window_for_pcs(
+                windows=windows,
+                a=a,
+                p_c_list=p_c_list,
+            )
+
+            for p_c in p_c_list:
+                lw = pcs_results[p_c]['largest_window']
+
+                if lw is None:
+                    frac_nodes_kept[p_c].append(0.0)
+                    frac_edges_kept[p_c].append(0.0)
+                    no_window[p_c].append(True)
+                    print(f"    No window with p >= p_c={p_c} found.")
+                    continue
+
+                b_star = lw['b']
+                p_val = lw['p']
+                sigma_p = lw['sigma_p']
+
+                mask_keep = (degrees >= a) & (degrees <= b_star)
+
+                fn = mask_keep.mean()
+                fe = degrees[mask_keep].sum() / total_edges if total_edges > 0 else 0.0
+
+                frac_nodes_kept[p_c].append(fn)
+                frac_edges_kept[p_c].append(fe)
+                no_window[p_c].append(False)
+
+                print(
+                    f"    p_c={p_c}: largest acceptable window "
+                    f"[a={a}, b={b_star}] "
+                    f"nodes kept = {fn:.3f}, edges kept = {fe:.3f}, "
+                    f"(p = {p_val:.4f} ± {sigma_p:.4f})"
+                )
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
+        if vary == 'm_edges':
+            x_values = sweep_param_values
+            x_label = 'm_edges'
+            frac_new_nodes = base_net.n_nodes / (base_net.n_nodes + base_net.n0)
+        else:
+            x_values = sweep_param_values
+            x_label = 'n0'
+            frac_new_nodes = base_net.n_nodes / (base_net.n_nodes + sweep_param_values)
+
+        colors = plt.cm.viridis(np.linspace(0, 1, len(p_c_list)))
+
+        for color, p_c in zip(colors, p_c_list):
+            fn_arr = np.array(frac_nodes_kept[p_c], dtype=float)
+            nw_arr = np.array(no_window[p_c], dtype=bool)
+
+            ok_mask = ~nw_arr
+            fail_mask = nw_arr
+
+            ax1.plot(
+                x_values[ok_mask],
+                fn_arr[ok_mask],
+                marker='o',
+                linestyle='-',
+                linewidth=2,
+                markersize=5,
+                color=color,
+                label=f'p_c = {p_c}',
+            )
+
+            ax1.scatter(
+                x_values[fail_mask],
+                np.zeros_like(fn_arr[fail_mask]),
+                marker='x',
+                s=60,
+                color=color,
+                zorder=3,
+            )
+
+        if np.isscalar(frac_new_nodes):
+            ax1.axhline(
+                frac_new_nodes,
+                linestyle='--',
+                color='black',
+                linewidth=1.5,
+            )
+
+        ax1.set_xlabel(x_label)
+        ax1.set_ylabel('Fraction of nodes kept')
+        ax1.set_ylim(-0.05, 1.05)
+        ax1.grid(True, alpha=0.3)
+        ax1.legend()
+
+        for color, p_c in zip(colors, p_c_list):
+            fe_arr = np.array(frac_edges_kept[p_c], dtype=float)
+            nw_arr = np.array(no_window[p_c], dtype=bool)
+
+            ok_mask = ~nw_arr
+            fail_mask = nw_arr
+
+            ax2.plot(
+                x_values[ok_mask],
+                fe_arr[ok_mask],
+                marker='o',
+                linestyle='-',
+                linewidth=2,
+                markersize=5,
+                color=color,
+                label=f'p_c = {p_c}',
+            )
+
+            ax2.scatter(
+                x_values[fail_mask],
+                np.zeros_like(fe_arr[fail_mask]),
+                marker='x',
+                s=50,
+                color=color,
+                zorder=3,
+            )
+
+        ax2.set_xlabel(x_label)
+        ax2.set_ylabel('Fraction of edges kept')
+        ax2.set_ylim(-0.05, 1.05)
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+
+        plt.tight_layout()
+
+        return {
+            'x_values': x_values,
+            'frac_nodes_kept': frac_nodes_kept,
+            'frac_edges_kept': frac_edges_kept,
+            'no_window': no_window,
+            'windows_info': windows_info,
+            'fig': fig,
+            'vary': vary,
+        }
+
     def csn_sweep_m_edges(
         self,
         net: DirectedHomophilicNetwork,
@@ -703,218 +934,230 @@ class GoFDiagnostics:
         p_c_list=(0.1, 0.2, 0.4, 0.6),
         figsize=(12, 6),
     ):
-        # global style
-        plt.rcParams['font.family'] = 'Times New Roman'
-
         m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
-        windows_info = []
 
-        # per p_c, store frac_nodes_kept and frac_edges_kept and no-window flag
-        frac_nodes_kept = {p_c: [] for p_c in p_c_list}
-        frac_edges_kept = {p_c: [] for p_c in p_c_list}
-        no_window = {p_c: [] for p_c in p_c_list}
+        res = self._csn_sweep_core(
+            base_net=net,
+            sweep_param_values=m_values,
+            vary='m_edges',
+            node_type=node_type,
+            a=a,
+            candidate_bs=candidate_bs,
+            b_min=b_min,
+            b_max=b_max,
+            n_b=n_b,
+            b_grid_type=b_grid_type,
+            N_sims=N_sims,
+            p_c_list=p_c_list,
+            figsize=figsize,
+        )
 
-        print(f"\nCSN sweep over m_edges: {m_values}")
+        return {
+            'm_values': res['x_values'],
+            'frac_nodes_kept': res['frac_nodes_kept'],
+            'frac_edges_kept': res['frac_edges_kept'],
+            'no_window': res['no_window'],
+            'windows_info': res['windows_info'],
+            'fig': res['fig'],
+        }
 
-        for m in m_values:
-            print(f"\n  m = {m}: generating network and scanning windows...")
+    def csn_sweep_n0(
+        self,
+        net: DirectedHomophilicNetwork,
+        n0_min: int,
+        n0_max: int,
+        n0_step: int = 1,
+        node_type: str = 'b',
+        a: int = 0,
+        candidate_bs=None,
+        b_min: int = None,
+        b_max: int = None,
+        n_b: int = 20,
+        b_grid_type: str = 'linear',
+        N_sims: int = 20,
+        p_c_list=(0.1, 0.2, 0.4, 0.6),
+        figsize=(12, 6),
+    ):
+        n0_values = np.arange(n0_min, n0_max + 1, n0_step, dtype=int)
 
-            net_temp = DirectedHomophilicNetwork(
-                net.n0,
-                net.n_nodes,
-                int(m),
-                net.h,
-                net.f_a,
-                net.mu['a'],
-                net.mu['b'],
+        res = self._csn_sweep_core(
+            base_net=net,
+            sweep_param_values=n0_values,
+            vary='n0',
+            node_type=node_type,
+            a=a,
+            candidate_bs=candidate_bs,
+            b_min=b_min,
+            b_max=b_max,
+            n_b=n_b,
+            b_grid_type=b_grid_type,
+            N_sims=N_sims,
+            p_c_list=p_c_list,
+            figsize=figsize,
+        )
+
+        return {
+            'n0_values': res['x_values'],
+            'frac_nodes_kept': res['frac_nodes_kept'],
+            'frac_edges_kept': res['frac_edges_kept'],
+            'no_window': res['no_window'],
+            'windows_info': res['windows_info'],
+            'fig': res['fig'],
+        }
+    
+    def _select_indices_for_diagnostics(self, n: int, k: int):
+
+        if k <= 0 or n <= 0:
+            return []
+
+        if k >= n:
+            return list(range(n))
+
+        positions = np.linspace(0, n - 1, k)
+        indices = sorted(set(int(round(p)) for p in positions))
+        return indices
+
+    def plot_p_vs_b_diagnostic_combined(
+        self,
+        scan_res,
+        pcs_results,
+        p_c_list,
+        z: float = 1.0,
+        title_prefix: str = "",
+        figsize=(8, 5),
+    ):
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        windows = scan_res.get('windows', [])
+        if not windows:
+            print("No windows to plot in p_vs_b diagnostic.")
+            return None
+
+        bs = np.array([w['b'] for w in windows], dtype=int)
+        ps = np.array([w['p'] for w in windows], dtype=float)
+        sigmas = np.array([w['sigma_p'] for w in windows], dtype=float)
+        p_lower = ps - z * sigmas
+
+        fig, ax = plt.subplots(figsize=figsize)
+
+        # All p(b_j) with error bars
+        ax.errorbar(
+            bs,
+            ps,
+            yerr=sigmas,
+            fmt='o',
+            color='C0',
+            ecolor='lightgray',
+            elinewidth=1.5,
+            capsize=3,
+            label=r'$p(b)$ with $\pm\sigma_p$',
+        )
+
+        # Lower bound curve
+        ax.plot(
+            bs,
+            p_lower,
+            '-s',
+            color='C1',
+            linewidth=2,
+            markersize=5,
+            label=fr'Lower bound $p(b) - {z}\,\sigma_p$',
+        )
+
+        # p_c lines and chosen b* markers
+        colors_pc = plt.cm.plasma(np.linspace(0, 1, len(p_c_list)))
+        for color_pc, p_c in zip(colors_pc, p_c_list):
+            ax.axhline(
+                y=p_c,
+                color=color_pc,
+                linestyle='--',
+                linewidth=1.5,
+                label=fr'$p_c = {p_c}$',
             )
-            net_temp.generate_network()
 
-            beta_theory = net_temp.get_beta_for_type(node_type)
+            lw = pcs_results[p_c].get('largest_window', None)
+            if lw is not None:
+                b_star = lw['b']
+                ax.axvline(
+                    x=b_star,
+                    color=color_pc,
+                    linestyle='-.',
+                    linewidth=1.5,
+                )
 
-            # Build bs and run MC for all windows once
-            scan_res = self.scan_over_b(
-                net=net_temp,
-                node_type=node_type,
-                a=a,
-                beta_theory=beta_theory,
-                candidate_bs=candidate_bs,
-                N_sims=N_sims,
-                b_min=b_min,
-                b_max=b_max,
-                n_b=n_b,
-                b_grid_type=b_grid_type,
-            )
-            windows_info.append(scan_res)
-            windows = scan_res['windows']
-            bs = scan_res['b_grid']
+        a = scan_res.get('a', None)
+        parts = []
+        if title_prefix:
+            parts.append(title_prefix)
+        parts.append("CSN Diagnostic: p(b) vs b")
+        if a is not None:
+            parts.append(f"[a = {a}]")
+        ax.set_title(" | ".join(parts))
 
-            if bs is None or len(bs) == 0 or not windows:
-                print("    No valid b range; skipping.")
-                for p_c in p_c_list:
-                    frac_nodes_kept[p_c].append(0.0)
-                    frac_edges_kept[p_c].append(0.0)
-                    no_window[p_c].append(True)
+        ax.set_xlabel(r'$b$ (upper truncation)')
+        ax.set_ylabel(r'$p(b)$ and lower bounds')
+        ax.set_ylim(-0.05, 1.05)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.legend(loc='best')
+
+        plt.tight_layout()
+        return fig
+
+    def csn_diagnostic_plots_over_sweep(
+        self,
+        sweep_results: dict,
+        p_c_list,
+        num_p_vs_b: int,
+        fm: "FileManager",
+        node_type: str,
+        sweep_label: str,   # 'm_edges' or 'n0'
+        z: float = 1.0,
+        a: int = 0,
+    ):
+        import numpy as np
+
+        if num_p_vs_b <= 0:
+            return
+
+        if sweep_label == 'm_edges':
+            x_values = np.asarray(sweep_results['m_values'], dtype=int)
+        else:
+            x_values = np.asarray(sweep_results['n0_values'], dtype=int)
+
+        windows_info = sweep_results['windows_info']
+        n = len(x_values)
+        if n == 0:
+            return
+
+        diag_indices = self._select_indices_for_diagnostics(n=n, k=num_p_vs_b)
+
+        for idx in diag_indices:
+            x_val = int(x_values[idx])
+            scan_res = windows_info[idx]
+            windows = scan_res.get('windows', [])
+            if not windows:
                 continue
 
-            # Precompute degrees for this m
-            degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-            total_edges = degrees.sum() if degrees.size > 0 else 0
-
-            # For each p_c, select largest window from stored windows
             pcs_results = self.select_largest_window_for_pcs(
                 windows=windows,
                 a=a,
                 p_c_list=p_c_list,
             )
 
-            for p_c in p_c_list:
-                res_pc = pcs_results[p_c]
-                lw = res_pc['largest_window']
-
-                if lw is None:
-                    frac_nodes_kept[p_c].append(0.0)
-                    frac_edges_kept[p_c].append(0.0)
-                    no_window[p_c].append(True)
-                    print(f"    No window with p >= p_c={p_c} found.")
-                else:
-                    b_star = lw['b']
-                    # compute fractions
-                    if degrees.size == 0 or total_edges == 0:
-                        fn = 0.0
-                        fe = 0.0
-                    else:
-                        mask_keep = (degrees >= a) & (degrees <= b_star)
-                        fn = mask_keep.mean()
-                        fe = degrees[mask_keep].sum() / total_edges
-
-                    frac_nodes_kept[p_c].append(fn)
-                    frac_edges_kept[p_c].append(fe)
-                    no_window[p_c].append(False)
-
-                    print(
-                        f"    p_c={p_c}: largest acceptable window [a={a}, b={b_star}] "
-                        f"nodes kept = {fn:.3f}, edges kept = {fe:.3f}"
-                    )
-
-        # Prepare figure
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-
-        # horizontal reference line at fraction of new nodes
-        frac_new_nodes = net.n_nodes / (net.n_nodes + net.n0)
-
-        colors = plt.cm.viridis(np.linspace(0, 1, len(p_c_list)))
-
-        # Nodes plot
-        for color, p_c in zip(colors, p_c_list):
-            fn_arr = np.array(frac_nodes_kept[p_c], dtype=float)
-            nw_arr = np.array(no_window[p_c], dtype=bool)
-            ok_mask = ~nw_arr
-            fail_mask = nw_arr
-
-          # line + circle markers for ALL points
-            ax1.plot(
-                m_values,
-                fn_arr,
-                marker='o',
-                linestyle='-',
-                linewidth=2,
-                markersize=5,
-                color=color,
-                label=f'p_c = {p_c}',
+            fig_diag = self.plot_p_vs_b_diagnostic_combined(
+                scan_res=scan_res,
+                pcs_results=pcs_results,
+                p_c_list=p_c_list,
+                z=z,
+                title_prefix=f"{sweep_label}={x_val}, node_type={node_type}",
+                figsize=(8, 5),
             )
-
-            # overwrite failures with X markers
-            ax1.scatter(
-                m_values[fail_mask],
-                fn_arr[fail_mask],
-                marker='x',
-                s=60,
-                color=color,
-                zorder=3,
-            )
-
-
-        ax1.axhline(
-            frac_new_nodes,
-            linestyle='--',
-            color='black',
-            linewidth=1.5,
-            label=f'new nodes fraction = {frac_new_nodes:.2f}',
-        )
-        ax1.set_xlabel('m_edges', fontsize=12)
-        ax1.set_ylabel('Fraction of nodes kept', fontsize=12)
-        ax1.set_title(
-            f'Fraction of nodes with {a} ≤ k ≤ b*(m) (Type "{node_type}")',
-            fontsize=13,
-            fontweight='bold',
-        )
-        ax1.set_ylim(-0.05, 1.05)
-        ax1.grid(True, alpha=0.3)
-        ax1.legend()
-
-        # Edges plot
-        for color, p_c in zip(colors, p_c_list):
-            fe_arr = np.array(frac_edges_kept[p_c], dtype=float)
-            nw_arr = np.array(no_window[p_c], dtype=bool)
-            ok_mask = ~nw_arr
-            fail_mask = nw_arr
-
-            # line + circle markers for all points
-            ax2.plot(
-                m_values,
-                fe_arr,
-                marker='o',
-                linestyle='-',
-                linewidth=2,
-                markersize=5,
-                color=color,
-                label=f'p_c = {p_c}',
-            )
-
-            # overwrite failures with X markers
-            ax2.scatter(
-                m_values[fail_mask],
-                fe_arr[fail_mask],
-                marker='x',
-                s=50,
-                color=color,
-                zorder=3,
-            )
-
-        ax2.set_xlabel('m_edges', fontsize=12)
-        ax2.set_ylabel('Fraction of edges (in-degree) kept', fontsize=12)
-        ax2.set_title(
-            f'Fraction of in-edges on nodes with {a} ≤ k ≤ b*(m) (Type "{node_type}")',
-            fontsize=13,
-            fontweight='bold',
-        )
-        ax2.set_ylim(-0.05, 1.05)
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-
-        plt.tight_layout()
-
-        config = {
-            'a': a,
-            'p_c_list': p_c_list,
-            'N_sims': N_sims,
-            'b_grid_type': b_grid_type,
-            'n_b': n_b,
-            'b_min': b_min,
-            'b_max': b_max,
-        }
-
-        return {
-            'm_values': m_values,
-            'frac_nodes_kept': frac_nodes_kept,
-            'frac_edges_kept': frac_edges_kept,
-            'no_window': no_window,
-            'windows_info': windows_info,
-            'fig': fig,
-            'config': config,
-        }
-
+            if fig_diag is not None:
+                fm.save_fig(
+                    fig_diag,
+                    f"p_vs_b_{sweep_label}{x_val}",
+                )
 class NetworkPlotting:
     """
     Plotting utilities for DirectedHomophilicNetwork.
@@ -1212,7 +1455,6 @@ class NetworkPlotting:
         )
         plt.tight_layout()
         return fig
-
 class NetworkStatistics:
     """
     Statistical reporting utilities for DirectedHomophilicNetwork.
@@ -1270,8 +1512,8 @@ if __name__ == "__main__":
 
     config = dict(
         network=dict(
-            n0=50,
-            n_nodes= 4000,
+            n0=100,
+            n_nodes=2000,
             m_edges=3,
             h=0.2,
             f_a=0.2,
@@ -1279,16 +1521,29 @@ if __name__ == "__main__":
             mu_b=5,
             seed=None,
         ),
-        sweep=dict(
-            m_min=1,
-            m_max=35,
-            m_step=1,
+        sweep_m=dict(
+            m_min=2,
+            m_max=40,
+            m_step=2,
             node_type='b',
             a=0,
             p_c_list=[0.2, 0.4, 0.6],
-            N_sims=25,
+            N_sims=20,
             b_grid_type='linear',
-            n_b= 30,
+            n_b=25,
+            b_min=None,
+            b_max=None,
+        ),
+        sweep_n0=dict(
+            n0_min=10,
+            n0_max=150,
+            n0_step=10,
+            node_type='b',
+            a=0,
+            p_c_list=[0.2, 0.4, 0.6],
+            N_sims=20,
+            b_grid_type='linear',
+            n_b=25,
             b_min=None,
             b_max=None,
         ),
@@ -1298,6 +1553,9 @@ if __name__ == "__main__":
             asymptotes=True,
             A_const=True,
             sweep_m_edges_csn=True,
+            sweep_n0_csn=True,
+            csn_p_vs_b_m=10,  
+            csn_p_vs_b_n0=10,
         )
     )
     fm = FileManager(config)
@@ -1331,7 +1589,37 @@ if __name__ == "__main__":
         fm.save_fig(fig, "A_const")
 
     if plots["sweep_m_edges_csn"]:
-        results = gof.csn_sweep_m_edges(net, **config["sweep"])
-        fm.save_fig(results["fig"], "sweep_m_edges_csn")
+        results_m = gof.csn_sweep_m_edges(net, **config["sweep_m"])
+        fm.save_fig(results_m["fig"], "sweep_m_edges_csn")
+
+        num_p_vs_b_m = plots.get("csn_p_vs_b_m", 0)
+        if num_p_vs_b_m > 0:
+            gof.csn_diagnostic_plots_over_sweep(
+                sweep_results=results_m,
+                p_c_list=config["sweep_m"]["p_c_list"],
+                num_p_vs_b=num_p_vs_b_m,
+                fm=fm,
+                node_type=config["sweep_m"]["node_type"],
+                sweep_label='m_edges',
+                z=1.0,
+                a=config["sweep_m"]["a"],
+            )
+
+    if plots["sweep_n0_csn"]:
+        results_n0 = gof.csn_sweep_n0(net, **config["sweep_n0"])
+        fm.save_fig(results_n0["fig"], "sweep_n0_csn")
+
+        num_p_vs_b_n0 = plots.get("csn_p_vs_b_n0", 0)
+        if num_p_vs_b_n0 > 0:
+            gof.csn_diagnostic_plots_over_sweep(
+                sweep_results=results_n0,
+                p_c_list=config["sweep_n0"]["p_c_list"],
+                num_p_vs_b=num_p_vs_b_n0,
+                fm=fm,
+                node_type=config["sweep_n0"]["node_type"],
+                sweep_label='n0',
+                z=1.0,
+                a=config["sweep_n0"]["a"],
+            )
 
     print(f"\nAll outputs saved to: {fm.path()}")
