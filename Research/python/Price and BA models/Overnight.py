@@ -302,38 +302,8 @@ class DirectedHomophilicNetwork:
             if self.node_types[n] == type_val
         ]   
 class GoFDiagnostics:
-    """
-    Goodness-of-Fit and diagnostic methods for DirectedHomophilicNetwork.
-    Holds only cosmetic separation of concerns; methods still expect to
-    receive a `DirectedHomophilicNetwork` instance as `net`.
-    """
 
-    def theoretical_cdf_discrete(
-        self,
-        net: DirectedHomophilicNetwork,
-        k,
-        node_type: str,
-        kmin: int,
-        kmax: int,
-        beta=None,
-    ):
-        """
-        Discrete CDF F(k | beta, kmin <= K <= kmax) on integers kmin,...,kmax.
-
-        Parameters
-        ----------
-        net : DirectedHomophilicNetwork
-            Provides pmf_from_beta and get_beta_for_type.
-        k : scalar or array-like
-            Points at which to evaluate the CDF.
-        node_type : str
-            'a' or 'b'; used only if beta is None.
-        kmin, kmax : int
-            Truncation window [kmin, kmax].
-        beta : (p0, alpha, gamma) or None
-            If provided, use this beta.
-            If None, use the network's beta for this node_type.
-        """
+    def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None,):
         k = np.atleast_1d(k)
 
         if beta is None:
@@ -341,27 +311,44 @@ class GoFDiagnostics:
 
         return net.cdf_from_beta_truncated(k, beta, kmin, kmax)
 
-    def _p_from_D_theory(self, d_e: float, N: int, j_max: int = 1000) -> float:
+    def _p_from_D_theory(self, d_e: float, N: int, j_max: int = 100) -> float:
         """
-        Compute p(d_e, N) from the CSN-type approximation:
-
-            p(d_e, N) = 2 sum_{j=1}^∞ (-1)^{j-1}
-                         exp(-2 j^2 (d_e sqrt{N} + 0.12 d_e + 0.11 d_e / sqrt{N})^2)
+        Compute p(d_e, N) from the CSN-type approximation (Eq. 29 from paper).
         """
-
         if N <= 0 or d_e <= 0:
             return 0.0
 
         rootN = np.sqrt(N)
         term_base = d_e * rootN + 0.12 * d_e + 0.11 * d_e / rootN
-        arg = -2.0 * (term_base ** 2)
-
+        
+        # Check if term_base is too large (would cause underflow)
+        # exp(-700) ≈ 1e-304 is near machine precision limit
+        threshold = np.sqrt(350)  # so that -2 * threshold^2 ≈ -700
+        
+        if term_base > threshold:
+            # All exponential terms will underflow to 0, so p ≈ 0
+            return 0.0
+        
+        arg_base = -2.0 * (term_base ** 2)
+        
         j = np.arange(1, j_max + 1, dtype=float)
         signs = (-1.0) ** (j - 1.0)
-        exponents = np.exp(arg * (j ** 2))
-
+        
+        # Only compute for j where exp(arg_base * j^2) won't underflow
+        # We want arg_base * j^2 > -700
+        max_j_safe = int(np.sqrt(-700 / arg_base)) if arg_base < 0 else j_max
+        max_j_safe = min(max_j_safe, j_max)
+        
+        if max_j_safe < 1:
+            return 0.0
+        
+        j = j[:max_j_safe]
+        signs = signs[:max_j_safe]
+        exponents = np.exp(arg_base * (j ** 2))
+        
         p_val = 2.0 * np.sum(signs * exponents)
-        # clip to [0,1] for numerical safety
+        
+        # Clamp to [0, 1] to handle numerical issues
         return float(np.clip(p_val, 0.0, 1.0))
 
     def empirical_cdf_integers(self, data):
@@ -374,7 +361,7 @@ class GoFDiagnostics:
             return np.array([]), np.array([])
 
         unique_vals = np.arange(data.min(), data.max() + 1)
-        # Vectorized: use searchsorted to count how many elements <= each unique value
+
         sorted_data = np.sort(data)
         counts = np.searchsorted(sorted_data, unique_vals, side='right')
         cdf_vals = counts / n
@@ -384,20 +371,10 @@ class GoFDiagnostics:
     def csn_distance(self,net: DirectedHomophilicNetwork,data,a: int,b: int, beta, node_type: str,) -> float:
         """
         CSN/AD-style distance on a truncated window [a,b]:
-
             D(data; beta; [a,b]) = max_{n = a,...,b}
                 | (N_n / N_a) - S(n; beta; [a,b]) |
                 / sqrt( S(n; beta; [a,b]) * (1 - S(n; beta; [a,b])) )
-
-        where:
-          - data is already truncated so that a <= x <= b
-          - N_a = len(data)
-          - N_n = # of data points with x >= n
-          - S(n; beta; [a,b]) is the theoretical CDF conditional on [a,b]
-            **under the parameter vector beta = (p0, alpha, gamma)**.
         """
-
-        # By assumption, all data lie in [a,b]
         N_a = data.size
 
         # Support n = a,..., b
@@ -430,6 +407,7 @@ class GoFDiagnostics:
         return D
 
     def _fit_beta_mle(self, net: DirectedHomophilicNetwork, data, a: int, b: int, node_type: str, beta_init,):
+        
         data = np.asarray(data, dtype=int)
         if data.size == 0:
             params0 = net._get_params(node_type)
@@ -638,21 +616,10 @@ class GoFDiagnostics:
         }
         return result
 
-    def scan_until_threshold(
-        self,
-        windows,
-        a: int,
-        p_c: float,
-        z: float = 1.0,   # NEW: CI multiplier
-    ):
+    def scan_until_threshold(self, windows, a: int,p_c: float,z: float = 1.0,):
         """
-        Find largest b such that
-
-            p(b) - z * sigma_p(b) >= p_c
-
-        i.e. lower confidence bound exceeds threshold.
+        Find largest b such that p(b) - z * sigma_p(b) >= p_c i.e. lower confidence bound exceeds threshold.
         """
-
         if not windows:
             return {
                 'a': a,
@@ -671,8 +638,7 @@ class GoFDiagnostics:
             p_val = float(w['p'])
             sigma_p = float(w['sigma_p'])
 
-            lower_bound = p_val - z * sigma_p  # ← THE ONLY REAL CHANGE
-
+            lower_bound = p_val - z * sigma_p
             windows_evaluated.append(w)
 
             if lower_bound >= p_c:
@@ -692,18 +658,10 @@ class GoFDiagnostics:
             'largest_window': largest_window_info,
         }
 
-    def select_largest_window_for_pcs(
-        self,
-        windows,
-        a: int,
-        p_c_list,
-    ):
+    def select_largest_window_for_pcs(self, windows, a: int, p_c_list,):
         """
         For a given list of windows (from scan_over_b['windows']) and
-        a list of p_c values, return a dict:
-        {
-            p_c_value: scan_until_threshold_result_for_that_p_c,...
-        }
+        a list of p_c values, return a dict: p_c_value: {scan_until_threshold_result_for_that_p_c,...}
         """
         results = {}
         for p_c in p_c_list:
@@ -711,22 +669,9 @@ class GoFDiagnostics:
             results[p_c] = res
         return results
 
-    def _csn_sweep_core(
-        self,
-        base_net: DirectedHomophilicNetwork,
-        sweep_param_values: np.ndarray,
-        vary: str,                  
-        node_type: str,
-        a: int,
-        candidate_bs,
-        b_min: int,
-        b_max: int,
-        n_b: int,
-        b_grid_type: str,
-        N_sims: int,
-        p_c_list,
-        figsize=(12, 6),
-    ):
+    def _csn_sweep_core(self, base_net: DirectedHomophilicNetwork, sweep_param_values: np.ndarray, vary: str, node_type: str, a: int,
+        candidate_bs,b_min: int, b_max: int, n_b: int, b_grid_type: str, N_sims: int, p_c_list,figsize=(12, 6),):
+        
         plt.rcParams['font.family'] = 'Times New Roman'
 
         windows_info = []
@@ -751,34 +696,15 @@ class GoFDiagnostics:
 
             print(f"\n  {label} = {val}: generating network and scanning windows...")
 
-            net_temp = DirectedHomophilicNetwork(
-                n0=n0,
-                n_nodes=n_nodes,
-                m_edges=m_edges,
-                h=base_net.h,
-                f_a=base_net.f_a,
-                mu_a=base_net.mu['a'],
-                mu_b=base_net.mu['b'],
-            )
+            net_temp = DirectedHomophilicNetwork(n0=n0, n_nodes=n_nodes, m_edges=m_edges, h=base_net.h, f_a=base_net.f_a, mu_a=base_net.mu['a'],
+                mu_b=base_net.mu['b'],)
+            
             net_temp.generate_network()
-
-            # degrees for this node_type for this sweep point
             degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-
             beta_theory = net_temp.get_beta_for_type(node_type)
 
-            scan_res = self.scan_over_b(
-                net=net_temp,
-                node_type=node_type,
-                a=a,
-                beta_theory=beta_theory,
-                candidate_bs=candidate_bs,
-                N_sims=N_sims,
-                b_min=b_min,
-                b_max=b_max,
-                n_b=n_b,
-                b_grid_type=b_grid_type,
-            )
+            scan_res = self.scan_over_b(net=net_temp, node_type=node_type, a=a, beta_theory=beta_theory, candidate_bs=candidate_bs,
+                N_sims=N_sims, b_min=b_min, b_max=b_max,n_b=n_b, b_grid_type=b_grid_type,)
 
             # store degrees so diagnostics can reconstruct N(b)
             scan_res['degrees_for_node_type'] = degrees.copy()
@@ -802,17 +728,10 @@ class GoFDiagnostics:
             print(f"    b-grid (candidate b_j): {grid_str}")
 
             last_w = windows[-1]
-            print(
-                f"    no truncation: p = {last_w['p']:.4f} ± {last_w['sigma_p']:.4f}"
-            )
+            print(f"    no truncation: p = {last_w['p']:.4f} ± {last_w['sigma_p']:.4f}")
 
             total_edges = degrees.sum() if degrees.size > 0 else 0
-
-            pcs_results = self.select_largest_window_for_pcs(
-                windows=windows,
-                a=a,
-                p_c_list=p_c_list,
-            )           
+            pcs_results = self.select_largest_window_for_pcs(windows=windows, a=a,p_c_list=p_c_list,)           
 
             for p_c in p_c_list:
                 lw = pcs_results[p_c]['largest_window']
@@ -837,12 +756,12 @@ class GoFDiagnostics:
                 frac_edges_kept[p_c].append(fe)
                 no_window[p_c].append(False)
 
-                print(
-                    f"    p_c={p_c}: largest acceptable window "
-                    f"[a={a}, b={b_star}] "
-                    f"nodes kept = {fn:.3f}, edges kept = {fe:.3f}, "
-                    f"(p = {p_val:.4f} ± {sigma_p:.4f})"
-                )
+            print(
+                f"    p_c={p_c}: largest acceptable window "
+                f"[a={a}, b={b_star}] "
+                f"nodes kept = {fn:.4f}, edges kept = {fe:.4f}, "
+                f"(p = {p_val:.4f} ± {sigma_p:.4f})"
+            )
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
@@ -943,40 +862,13 @@ class GoFDiagnostics:
             'vary': vary,
         }
 
-    def csn_sweep_m_edges(
-        self,
-        net: DirectedHomophilicNetwork,
-        m_min: int,
-        m_max: int,
-        m_step: int = 1,
-        node_type: str = 'b',
-        a: int = 0,
-        candidate_bs=None,
-        b_min: int = None,
-        b_max: int = None,
-        n_b: int = 20,
-        b_grid_type: str = 'linear',
-        N_sims: int = 20,
-        p_c_list=(0.1, 0.2, 0.4, 0.6),
-        figsize=(12, 6),
-    ):
+    def csn_sweep_m_edges(self, net: DirectedHomophilicNetwork, m_min: int, m_max: int, m_step: int = 1, node_type: str = 'b', a: int = 0,
+        candidate_bs=None, b_min: int = None, b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,
+        p_c_list=(0.1, 0.2, 0.4, 0.6), figsize=(12, 6),):
         m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
 
-        res = self._csn_sweep_core(
-            base_net=net,
-            sweep_param_values=m_values,
-            vary='m_edges',
-            node_type=node_type,
-            a=a,
-            candidate_bs=candidate_bs,
-            b_min=b_min,
-            b_max=b_max,
-            n_b=n_b,
-            b_grid_type=b_grid_type,
-            N_sims=N_sims,
-            p_c_list=p_c_list,
-            figsize=figsize,
-        )
+        res = self._csn_sweep_core( base_net=net, sweep_param_values=m_values, vary='m_edges',node_type=node_type, a=a, candidate_bs=candidate_bs,
+            b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type, N_sims=N_sims, p_c_list=p_c_list, figsize=figsize,)
 
         return {
             'm_values': res['x_values'],
@@ -987,40 +879,14 @@ class GoFDiagnostics:
             'fig': res['fig'],
         }
 
-    def csn_sweep_n0(
-        self,
-        net: DirectedHomophilicNetwork,
-        n0_min: int,
-        n0_max: int,
-        n0_step: int = 1,
-        node_type: str = 'b',
-        a: int = 0,
-        candidate_bs=None,
-        b_min: int = None,
-        b_max: int = None,
-        n_b: int = 20,
-        b_grid_type: str = 'linear',
-        N_sims: int = 20,
-        p_c_list=(0.1, 0.2, 0.4, 0.6),
-        figsize=(12, 6),
-    ):
+    def csn_sweep_n0(self, net: DirectedHomophilicNetwork, n0_min: int, n0_max: int, n0_step: int = 1, node_type: str = 'b', a: int = 0,
+        candidate_bs=None, b_min: int = None, b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,
+        p_c_list=(0.1, 0.2, 0.4, 0.6), figsize=(12, 6),):
         n0_values = np.arange(n0_min, n0_max + 1, n0_step, dtype=int)
 
-        res = self._csn_sweep_core(
-            base_net=net,
-            sweep_param_values=n0_values,
-            vary='n0',
-            node_type=node_type,
-            a=a,
-            candidate_bs=candidate_bs,
-            b_min=b_min,
-            b_max=b_max,
-            n_b=n_b,
-            b_grid_type=b_grid_type,
-            N_sims=N_sims,
-            p_c_list=p_c_list,
-            figsize=figsize,
-        )
+        res = self._csn_sweep_core(base_net=net, sweep_param_values=n0_values, vary='n0', node_type=node_type, a=a,
+            candidate_bs=candidate_bs, b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type,N_sims=N_sims, p_c_list=p_c_list,
+            figsize=figsize,)
 
         return {
             'n0_values': res['x_values'],
@@ -1035,7 +901,6 @@ class GoFDiagnostics:
 
         if k <= 0 or n <= 0:
             return []
-
         if k >= n:
             return list(range(n))
 
@@ -1043,16 +908,7 @@ class GoFDiagnostics:
         indices = sorted(set(int(round(p)) for p in positions))
         return indices
 
-    def plot_p_vs_b_diagnostic_combined(
-        self,
-        scan_res,
-        pcs_results,
-        p_c_list,
-        z: float = 1.0,
-        title_prefix: str = "",
-        figsize=(8, 5),
-        x_context: str = None, 
-    ):
+    def plot_p_vs_b_diagnostic_combined(self, scan_res, p_c_list, z: float = 1.0, title_prefix: str = "", figsize=(8, 5), x_context: str = None, ):
         windows = scan_res.get('windows', [])
         if not windows:
             print("No windows to plot in p_vs_b diagnostic.")
@@ -1077,17 +933,14 @@ class GoFDiagnostics:
             zorder=1,
         )
 
-        # Three small orange ticks (top, middle, bottom) at each b
         tick_color = 'orange'
-        tick_size = 0.01  # relative vertical length for ticks
+        tick_size = 0.01  # 
 
         for b, p_val, s in zip(bs, ps, sigmas):
             top = p_val + s
             mid = p_val
             bot = p_val - s
 
-            # vertical size of a tick in data coordinates
-            # use fraction of the full y-range
             y_min, y_max = -0.05, 1.05
             tick_half = tick_size * (y_max - y_min) / 2.0
 
@@ -1100,7 +953,6 @@ class GoFDiagnostics:
                     zorder=2,
                 )
 
-        # Lower bound curve
         ax.plot(
             bs,
             p_lower,
@@ -1112,7 +964,6 @@ class GoFDiagnostics:
             zorder=3,
         )
 
-        # p_c horizontal lines (NO vertical lines at chosen b*)
         colors_pc = plt.cm.plasma(np.linspace(0, 1, len(p_c_list)))
         for color_pc, p_c in zip(colors_pc, p_c_list):
             ax.axhline(
@@ -1123,7 +974,6 @@ class GoFDiagnostics:
                 label=fr'$p_c = {p_c}$',
             )
 
-        # Title: modified CSN P value vs data truncation for m =... or n_0 =...
         a = scan_res.get('a', None)
         if x_context is not None:
             main_title = f"modified CSN  P value vs data truncation for {x_context}"
@@ -1147,12 +997,7 @@ class GoFDiagnostics:
         plt.tight_layout()
         return fig
 
-    def _p_from_D_theory_over_b(
-        self,
-        scan_res,
-        net: DirectedHomophilicNetwork,
-        node_type: str,
-    ):
+    def _p_from_D_theory_over_b(self, scan_res, net: DirectedHomophilicNetwork, node_type: str,):
         """
         For each window in scan_res['windows'], compute p(d_e, N)
         where d_e is D_theory for that window and N is the effective
@@ -1189,17 +1034,7 @@ class GoFDiagnostics:
 
         return np.asarray(bs, dtype=int), np.asarray(p_vals, dtype=float)
 
-    def csn_diagnostic_plots_over_sweep(
-        self,
-        sweep_results: dict,
-        p_c_list,
-        num_p_vs_b: int,
-        fm: "FileManager",
-        node_type: str,
-        sweep_label: str,   # 'm_edges' or 'n0'
-        z: float = 1.0,
-        a: int = 0,
-    ):
+    def csn_diagnostic_plots_over_sweep(self, sweep_results: dict, p_c_list, num_p_vs_b: int, fm: "FileManager", node_type: str, sweep_label: str,  z: float = 1.0, a: int = 0,):
     
         if num_p_vs_b <= 0:
             return
@@ -1228,25 +1063,16 @@ class GoFDiagnostics:
                 a=a,
                 p_c_list=p_c_list,
             )
-
-            # Determine context for title: m or n_0
             if sweep_label == 'm_edges':
                 x_context = rf"$m = {x_val}$"
             else:
                 x_context = rf"$n_0 = {x_val}$"
 
             # Build figure without overlay first
-            fig_diag = self.plot_p_vs_b_diagnostic_combined(
-                scan_res=scan_res,
-                pcs_results=pcs_results,
-                p_c_list=p_c_list,
-                z=z,
-                title_prefix=f"node_type={node_type}",
-                figsize=(8, 5),
-                x_context=x_context,
-            )
+            fig_diag = self.plot_p_vs_b_diagnostic_combined(scan_res=scan_res, p_c_list=p_c_list,
+            z=z, title_prefix=f"node_type={node_type}", figsize=(8, 5), x_context=x_context,)
 
-            # ---- NEW: overlay p(d_e, N) curve from D_theory ----
+            # overlay p(d_e, N) curve from D_theory
             degrees_arr = scan_res.get('degrees_for_node_type', None)
             if degrees_arr is not None and fig_diag is not None:
                 # minimal dummy "net" with only _get_degrees implemented
@@ -1274,13 +1100,156 @@ class GoFDiagnostics:
                         label=r'$p(d_e, N)$ from $D_{\mathrm{theory}}$',
                     )
                     ax.legend(loc='best')
-            # ---- END NEW ----
-
+     
             if fig_diag is not None:
                 fm.save_fig(
                     fig_diag,
                     f"p_vs_b_{sweep_label}{x_val}",
                 ) 
+
+    def csn_sweep_2d_grid(self, net: DirectedHomophilicNetwork, m_min: int, m_max: int, m_step: int, n0_min: int, n0_max: int, n0_step: int, 
+                          node_type: str = 'b', a: int = 0, candidate_bs=None, b_min: int = None, b_max: int = None, n_b: int = 20, 
+                          b_grid_type: str = 'linear', N_sims: int = 20, p_c_list=(0.1, 0.2, 0.4, 0.6), z: float = 1.0,):
+        """2D sweep over m_edges and n0. Skips invalid region where n0 <= m."""
+        m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
+        n0_values = np.arange(n0_min, n0_max + 1, n0_step, dtype=int)
+        
+        frac_nodes_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
+        frac_edges_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
+        b_star_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
+        p_value_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
+        
+        print(f"\n2D Grid: m ∈ [{m_min}, {m_max}], n0 ∈ [{n0_min}, {n0_max}]")
+        
+        total_points = len(n0_values) * len(m_values)
+        valid_points = 0
+        
+        for i, n0 in enumerate(n0_values):
+            for j, m in enumerate(m_values):
+                if n0 <= m:
+                    continue
+                
+                valid_points += 1
+                print(f"\n  Point {valid_points}/{total_points}: (m={m}, n0={n0})")
+                
+                net_temp = DirectedHomophilicNetwork(n0=n0, n_nodes=net.n_nodes, m_edges=m, h=net.h, f_a=net.f_a, mu_a=net.mu['a'], mu_b=net.mu['b'])
+                net_temp.generate_network()
+                
+                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+                if degrees.size == 0:
+                    continue
+                
+                beta_theory = net_temp.get_beta_for_type(node_type)
+                scan_res = self.scan_over_b(net=net_temp, node_type=node_type, a=a, beta_theory=beta_theory, candidate_bs=candidate_bs,
+                                           N_sims=N_sims, b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type)
+                
+                windows = scan_res['windows']
+                if not windows:
+                    continue
+                
+                pcs_results = self.select_largest_window_for_pcs(windows=windows, a=a, p_c_list=p_c_list)
+                total_edges = degrees.sum() if degrees.size > 0 else 0
+                
+                for p_c in p_c_list:
+                    lw = pcs_results[p_c]['largest_window']
+                    if lw is None:
+                        frac_nodes_grid[p_c][i, j] = 0.0
+                        frac_edges_grid[p_c][i, j] = 0.0
+                        continue
+                    
+                    b_star = lw['b']
+                    p_val = lw['p']
+                    sigma_p = lw['sigma_p']
+                    lower_bound = p_val - z * sigma_p
+                    
+                    mask_keep = (degrees >= a) & (degrees <= b_star)
+                    fn = mask_keep.mean()
+                    fe = degrees[mask_keep].sum() / total_edges if total_edges > 0 else 0.0
+                    
+                    frac_nodes_grid[p_c][i, j] = fn
+                    frac_edges_grid[p_c][i, j] = fe
+                    b_star_grid[p_c][i, j] = b_star
+                    p_value_grid[p_c][i, j] = lower_bound
+                    
+                    print(f"    p_c={p_c}: b*={b_star}, p-z*σ={lower_bound:.4f}, nodes={fn:.4f}, edges={fe:.4f}")
+        
+        return {'m_values': m_values, 'n0_values': n0_values, 'frac_nodes_grid': frac_nodes_grid, 'frac_edges_grid': frac_edges_grid,
+                'b_star_grid': b_star_grid, 'p_value_grid': p_value_grid, 'p_c_list': p_c_list, 'z': z, 'a': a, 'node_type': node_type}
+
+    def plot_2d_grid_results(self, grid_results: dict, metric: str = 'nodes', figsize_per_plot: tuple = (8, 6)):
+        """Create contour and 3D surface plots for 2D grid sweep."""
+        from mpl_toolkits.mplot3d import Axes3D
+        
+        m_values = grid_results['m_values']
+        n0_values = grid_results['n0_values']
+        p_c_list = grid_results['p_c_list']
+        z = grid_results['z']
+        a = grid_results['a']
+        node_type = grid_results['node_type']
+        
+        if metric == 'nodes':
+            data_grids = grid_results['frac_nodes_grid']
+            metric_label = 'Fraction of nodes kept'
+            cbar_label = 'Nodes kept'
+        else:
+            data_grids = grid_results['frac_edges_grid']
+            metric_label = 'Fraction of edges kept'
+            cbar_label = 'Edges kept'
+        
+        n_pc = len(p_c_list)
+        M, N0 = np.meshgrid(m_values, n0_values)
+        valid_mask = N0 > M
+        
+        # Contour plots
+        fig_contour, axes_contour = plt.subplots(1, n_pc, figsize=(figsize_per_plot[0] * n_pc, figsize_per_plot[1]))
+        if n_pc == 1:
+            axes_contour = [axes_contour]
+        
+        for idx, p_c in enumerate(p_c_list):
+            ax = axes_contour[idx]
+            data = data_grids[p_c].copy()
+            data[~valid_mask] = np.nan
+            
+            levels = np.linspace(0, 1, 21)
+            contourf = ax.contourf(M, N0, data, levels=levels, cmap='viridis', extend='both')
+            contour_lines = ax.contour(M, N0, data, levels=levels[::4], colors='white', linewidths=0.5, alpha=0.4)
+            ax.clabel(contour_lines, inline=True, fontsize=8, fmt='%.2f')
+            ax.fill_between(m_values, m_values, n0_values[0], color='gray', alpha=0.3, label='Invalid (n₀ ≤ m)')
+            
+            cbar = plt.colorbar(contourf, ax=ax)
+            cbar.set_label(cbar_label, fontsize=10)
+            ax.set_xlabel('m_edges', fontsize=11)
+            ax.set_ylabel('n₀', fontsize=11)
+            ax.set_title(f'p_c = {p_c}, z = {z}\n{metric_label}', fontsize=11, fontweight='bold')
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.legend(loc='upper left', fontsize=8)
+        
+        fig_contour.suptitle(f'2D Grid: {metric_label} (type {node_type}, a={a})', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        
+        # 3D surface plots
+        fig_3d = plt.figure(figsize=(figsize_per_plot[0] * n_pc, figsize_per_plot[1]))
+        
+        for idx, p_c in enumerate(p_c_list):
+            ax = fig_3d.add_subplot(1, n_pc, idx + 1, projection='3d')
+            data = data_grids[p_c].copy()
+            data[~valid_mask] = np.nan
+            
+            surf = ax.plot_surface(M, N0, data, cmap='viridis', alpha=0.9, edgecolor='none', antialiased=True)
+            ax.contour(M, N0, data, levels=10, offset=0, cmap='viridis', linewidths=1, alpha=0.5)
+            
+            ax.set_xlabel('m_edges', fontsize=10)
+            ax.set_ylabel('n₀', fontsize=10)
+            ax.set_zlabel(cbar_label, fontsize=10)
+            ax.set_title(f'p_c = {p_c}, z = {z}', fontsize=11, fontweight='bold')
+            ax.set_zlim(0, 1)
+            fig_3d.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
+            ax.view_init(elev=25, azim=45)
+        
+        fig_3d.suptitle(f'3D Surface: {metric_label} (type {node_type}, a={a})', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        
+        return fig_contour, fig_3d
 class NetworkPlotting:
     """
     Plotting utilities for DirectedHomophilicNetwork.
@@ -1635,50 +1604,38 @@ if __name__ == "__main__":
 
     config = dict(
         network=dict(
-            n0=100,
-            n_nodes=1000,
-            m_edges=3,
-            h=0.2,
-            f_a=0.2,
-            mu_a=1,
-            mu_b=5,
+            n0=10, n_nodes=20000, m_edges=3,
+            h=0.2, f_a=0.2, mu_a=1, mu_b=5,
             seed=None,
         ),
         sweep_m=dict(
-            m_min=2,
-            m_max=35,
-            m_step=5,
-            node_type='b',
-            a=0,
-            p_c_list=[0.2, 0.4, 0.6],
-            N_sims=5,
-            b_grid_type='linear',
-            n_b=5,
-            b_min=None,
-            b_max=None,
+            m_min=2, m_max= 26, m_step=1,
+            node_type='b', a=0,
+            p_c_list=[0.2, 0.4],
+            N_sims=30, b_grid_type='linear',
+            n_b=30, b_min=None, b_max=None,
         ),
         sweep_n0=dict(
-            n0_min=10,
-            n0_max=100,
-            n0_step=10,
-            node_type='b',
-            a=0,
-            p_c_list=[0.2, 0.4, 0.6],
-            N_sims=5,
-            b_grid_type='linear',
-            n_b=5,
-            b_min=None,
-            b_max=None,
+            n0_min=5, n0_max=100, n0_step=5,
+            node_type='b', a=0,
+            p_c_list=[0.2, 0.4],
+            N_sims= 30, b_grid_type='linear',
+            n_b=30, b_min=None, b_max=None,
+        ),
+        grid_2d=dict(
+            m_min=2, m_max=26, m_step=1,
+            n0_min=5, n0_max=100, n0_step=5,
+            node_type='b', a=0,
+            p_c_list=[0.2, 0.4],
+            N_sims=30, b_grid_type='linear', n_b=30,
+            b_min=None, b_max=None, z=1.0,
         ),
         plots=dict(
-            log_binned=True,
-            discrete_linear=True,
-            asymptotes=True,
-            A_const=True,
-            sweep_m_edges_csn=True,
-            sweep_n0_csn=True,
-            csn_p_vs_b_m=3,  
-            csn_p_vs_b_n0=3,
+            log_binned=True, discrete_linear=True,
+            asymptotes=True, A_const=True,
+            sweep_m_edges_csn= True, sweep_n0_csn= True,
+            csn_p_vs_b_m=3, csn_p_vs_b_n0=3,
+            grid_2d_sweep= True,
         )
     )
     fm = FileManager(config)
@@ -1744,5 +1701,14 @@ if __name__ == "__main__":
                 z=1.0,
                 a=config["sweep_n0"]["a"],
             )
+
+    if plots["grid_2d_sweep"]:
+        grid_results = gof.csn_sweep_2d_grid(net, **config["grid_2d"])
+        fig_c_n, fig_3d_n = gof.plot_2d_grid_results(grid_results, metric='nodes')
+        fm.save_fig(fig_c_n, "grid_2d_contour_nodes")
+        fm.save_fig(fig_3d_n, "grid_2d_surface_nodes")
+        fig_c_e, fig_3d_e = gof.plot_2d_grid_results(grid_results, metric='edges')
+        fm.save_fig(fig_c_e, "grid_2d_contour_edges")
+        fm.save_fig(fig_3d_e, "grid_2d_surface_edges")
 
     print(f"\nAll outputs saved to: {fm.path()}")
