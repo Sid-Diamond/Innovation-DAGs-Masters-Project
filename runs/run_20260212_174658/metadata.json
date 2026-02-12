@@ -72,6 +72,6 @@
     "csn_p_vs_b_n0": 3,
     "grid_2d_sweep": true
   },
-  "total_runtime_seconds": 124.65495419502258,
-  "total_runtime_formatted": "124.65s (2.08m)"
+  "total_runtime_seconds": 125.8366527557373,
+  "total_runtime_formatted": "125.84s (2.10m)"
 }

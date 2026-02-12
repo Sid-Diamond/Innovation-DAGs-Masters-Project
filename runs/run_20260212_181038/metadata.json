@@ -27,8 +27,8 @@
   },
   "sweep_n0": {
     "n0_min": 5,
-    "n0_max": 100,
-    "n0_step": 5,
+    "n0_max": 25,
+    "n0_step": 1,
     "node_type": "b",
     "a": 0,
     "p_c_list": [
@@ -44,7 +44,7 @@
   "grid_2d": {
     "m_min": 2,
     "m_max": 26,
-    "m_step": 4,
+    "m_step": 1,
     "n0_min": 5,
     "n0_max": 100,
     "n0_step": 20,
@@ -71,7 +71,5 @@
     "csn_p_vs_b_m": 3,
     "csn_p_vs_b_n0": 3,
     "grid_2d_sweep": true
-  },
-  "total_runtime_seconds": 124.65495419502258,
-  "total_runtime_formatted": "124.65s (2.08m)"
+  }
 }

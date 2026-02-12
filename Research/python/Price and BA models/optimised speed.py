@@ -896,11 +896,17 @@ class GoFDiagnostics:
                 grid_str = str(bs.tolist())
             print(f"    b-grid (candidate b_j): {grid_str}")
 
-            last_w = windows[-1]
-            print(f"    no truncation: p = {last_w['p']:.4f} ± {last_w['sigma_p']:.4f}")
+
+            print("DEBUG: reached before no-trunc", flush=True)
+            full_w = max(windows, key=lambda w: w['b'])
+            print("DEBUG: computed full_w", flush=True)
+            print(f"    no-trunc p={full_w['p']:.4f} ± {full_w['sigma_p']:.4f}")
+
 
             total_edges = degrees.sum() if degrees.size > 0 else 0
-            pcs_results = self.select_largest_window_for_pcs(windows=windows, a=a,p_c_list=p_c_list,)           
+
+            pcs_results = self.select_largest_window_for_pcs(
+                windows=windows, a=a, p_c_list=p_c_list,)
 
             for p_c in p_c_list:
                 lw = pcs_results[p_c]['largest_window']
@@ -909,7 +915,7 @@ class GoFDiagnostics:
                     frac_nodes_kept[p_c].append(0.0)
                     frac_edges_kept[p_c].append(0.0)
                     no_window[p_c].append(True)
-                    print(f"    No window with p >= p_c={p_c} found.")
+                    print(f"    p_c={p_c}: no acceptable window")
                     continue
 
                 b_star = lw['b']
@@ -917,7 +923,6 @@ class GoFDiagnostics:
                 sigma_p = lw['sigma_p']
 
                 mask_keep = (degrees >= a) & (degrees <= b_star)
-
                 fn = mask_keep.mean()
                 fe = degrees[mask_keep].sum() / total_edges if total_edges > 0 else 0.0
 
@@ -925,12 +930,12 @@ class GoFDiagnostics:
                 frac_edges_kept[p_c].append(fe)
                 no_window[p_c].append(False)
 
-            print(
-                f"    p_c={p_c}: largest acceptable window "
-                f"[a={a}, b={b_star}] "
-                f"nodes kept = {fn:.4f}, edges kept = {fe:.4f}, "
-                f"(p = {p_val:.4f} ± {sigma_p:.4f})"
-            )
+                print(
+                    f"    p_c={p_c}: b*={b_star}, "
+                    f"p-z*σ={p_val - sigma_p:.4f}, "
+                    f"nodes={fn:.4f}, edges={fe:.4f}"
+                )
+
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
@@ -1787,14 +1792,14 @@ if __name__ == "__main__":
             n_b=20, b_min=None, b_max=None,
         ),
         sweep_n0=dict(
-            n0_min=5, n0_max=100, n0_step=5,
+            n0_min=5, n0_max=25, n0_step=5,
             node_type='b', a=0,
             p_c_list=[0.2, 0.4],
             N_sims= 20, b_grid_type='linear',
             n_b=20, b_min=None, b_max=None,
         ),
         grid_2d=dict(
-            m_min=2, m_max=26, m_step=4,
+            m_min=2, m_max=26, m_step=1,
             n0_min=5, n0_max=100, n0_step=20,
             node_type='b', a=0,
             p_c_list=[0.2, 0.4],
