@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  
-from scipy.special import gamma as gamma_func, beta as beta_func
+from scipy.special import gamma as gamma_func, beta as beta_func, betaln as betaln_func
 from typing import Dict, Tuple, List
 import time
 from scipy.optimize import minimize
@@ -243,11 +243,8 @@ class DirectedHomophilicNetwork:
         # k > 0
         if np.any(pos_mask):
             k_pos = k[pos_mask]
-            result[pos_mask] = (
-                p0
-                * beta_func(k_pos, alpha + gamma)
-                / beta_func(k_pos, alpha)
-            )
+            log_ratio = betaln_func(k_pos, alpha + gamma) - betaln_func(k_pos, alpha)
+            result[pos_mask] = p0 * np.exp(log_ratio)
 
         return result
 
@@ -406,61 +403,82 @@ class GoFDiagnostics:
         D = float(np.max(D_vals))
         return D
 
-    def _fit_beta_mle(self, net: DirectedHomophilicNetwork, data, a: int, b: int, node_type: str, beta_init,):
-        
+    def _fit_beta_mle(
+        self,
+        net: DirectedHomophilicNetwork,
+        data,
+        a: int,
+        b: int,
+        node_type: str,
+        beta_init,
+    ):
+
         data = np.asarray(data, dtype=int)
         if data.size == 0:
             params0 = net._get_params(node_type)
-            beta_mle = np.array([params0['p0'], params0['alpha'], params0['gamma']], dtype=float)
+            beta_mle = np.array(
+                [params0['p0'], params0['alpha'], params0['gamma']],
+                dtype=float
+            )
             return beta_mle, True
 
         params0 = net._get_params(node_type)
+
         if beta_init is None:
-            p0_0 = float(params0['p0']); alpha0 = float(params0['alpha']); gamma0 = float(params0['gamma'])
+            p0_0 = float(params0['p0'])
+            alpha0 = float(params0['alpha'])
+            gamma0 = float(params0['gamma'])
         else:
-            beta_init_arr = np.asarray(beta_init, dtype=float)
-            p0_0, alpha0, gamma0 = beta_init_arr
+            p0_0, alpha0, gamma0 = np.asarray(beta_init, dtype=float)
 
         k_support = np.arange(a, b + 1, dtype=int)
 
+        # Sufficient statistics for multinomial likelihood
         unique_k, counts = np.unique(data, return_counts=True)
-        total = counts.sum()
-        emp_pmf = counts / total
+
+        # Only keep bins inside truncation window
+        mask = (unique_k >= a) & (unique_k <= b)
+        unique_k = unique_k[mask]
+        counts = counts[mask]
+
+        if counts.size == 0:
+            return np.array([p0_0, alpha0, gamma0]), True
 
         def truncated_pmf(p0: float, alpha: float, gamma: float) -> np.ndarray:
             pmf = np.zeros_like(k_support, dtype=float)
+
             zero_mask = (k_support == 0)
             if np.any(zero_mask):
                 pmf[zero_mask] = p0
+
             pos_mask = (k_support > 0)
             if np.any(pos_mask):
                 k_pos = k_support[pos_mask]
-                pmf[pos_mask] = p0 * beta_func(k_pos, alpha + gamma) / beta_func(k_pos, alpha)
+                log_ratio = betaln_func(k_pos, alpha + gamma) - betaln_func(k_pos, alpha)
+                pmf[pos_mask] = p0 * np.exp(log_ratio)
+
             Z_trunc = pmf.sum()
             if Z_trunc <= 0:
                 return np.full_like(k_support, 1e-300, dtype=float)
+
             pmf /= Z_trunc
             pmf = np.clip(pmf, 1e-300, 1.0)
             return pmf
 
+        # Precompute mapping from k -> index (avoid repeated np.where)
+        k_to_idx = {k: i for i, k in enumerate(k_support)}
+
         def objective(theta: np.ndarray) -> float:
             p0, alpha, gamma = theta
-            model_pmf_full = truncated_pmf(p0, alpha, gamma)
-            model_probs, emp_probs = [], []
-            for k, p_emp in zip(unique_k, emp_pmf):
-                if a <= k <= b:
-                    idx = np.where(k_support == k)[0]
-                    if idx.size == 0:
-                        continue
-                    model_probs.append(model_pmf_full[idx[0]])
-                    emp_probs.append(p_emp)
-            if not model_probs:
-                return 1e6
-            model_probs = np.asarray(model_probs, dtype=float)
-            emp_probs = np.asarray(emp_probs, dtype=float)
-            log_model = np.log(model_probs)
-            log_emp = np.log(emp_probs)
-            return np.sum((log_model - log_emp) ** 2)
+
+            model_pmf = truncated_pmf(p0, alpha, gamma)
+
+            # vectorised lookup
+            idxs = np.array([k_to_idx[k] for k in unique_k])
+            probs = model_pmf[idxs]
+
+            # multinomial negative log-likelihood
+            return -np.sum(counts * np.log(probs))
 
         theta0 = np.array([p0_0, alpha0, gamma0], dtype=float)
         bounds = [(1e-6, 1.0 - 1e-6), (1e-4, None), (1e-4, None)]
@@ -468,14 +486,13 @@ class GoFDiagnostics:
         res = minimize(objective, theta0, method='L-BFGS-B', bounds=bounds)
 
         if not res.success:
-            p0_mle, alpha_mle, gamma_mle = p0_0, alpha0, gamma0
+            beta_mle = theta0
             used_fallback = True
         else:
-            p0_mle, alpha_mle, gamma_mle = res.x
+            beta_mle = res.x
             used_fallback = False
 
-        beta_mle = np.array([p0_mle, alpha_mle, gamma_mle], dtype=float)
-        return beta_mle, used_fallback
+        return beta_mle.astype(float), used_fallback
 
     def mc_on_window(self, net: DirectedHomophilicNetwork, node_type: str, a: int, b: int, beta_theory, N_sims: int,):
         D_theory_list = []
