@@ -54,7 +54,6 @@ class FileManager:
     def path(self):
         return self.run_dir
     
-
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
@@ -1749,5 +1748,5 @@ if __name__ == "__main__":
         fm.save_fig(fig_c_e, "grid_2d_contour_edges")
         fm.save_fig(fig_3d_e, "grid_2d_surface_edges")
 
-fm.finalize_metadata()
-print(f"\nAll outputs saved to: {fm.path()}")
+    fm.finalize_metadata()
+    print(f"\nAll outputs saved to: {fm.path()}")
