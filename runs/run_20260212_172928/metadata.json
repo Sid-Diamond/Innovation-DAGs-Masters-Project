@@ -1,7 +1,7 @@
 {
   "network": {
     "n0": 30,
-    "n_nodes": 200,
+    "n_nodes": 5000,
     "m_edges": 3,
     "h": 0.2,
     "f_a": 0.2,
@@ -54,7 +54,7 @@
       0.2,
       0.4
     ],
-    "N_sims": 10,
+    "N_sims": 5,
     "b_grid_type": "linear",
     "n_b": 5,
     "b_min": null,

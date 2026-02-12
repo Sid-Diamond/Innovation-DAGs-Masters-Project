@@ -1,7 +1,7 @@
 {
   "network": {
     "n0": 30,
-    "n_nodes": 200,
+    "n_nodes": 2000,
     "m_edges": 3,
     "h": 0.2,
     "f_a": 0.2,
@@ -54,7 +54,7 @@
       0.2,
       0.4
     ],
-    "N_sims": 10,
+    "N_sims": 5,
     "b_grid_type": "linear",
     "n_b": 5,
     "b_min": null,
@@ -71,5 +71,7 @@
     "csn_p_vs_b_m": 3,
     "csn_p_vs_b_n0": 3,
     "grid_2d_sweep": true
-  }
+  },
+  "total_runtime_seconds": 71.38318848609924,
+  "total_runtime_formatted": "71.38s (1.19m)"
 }

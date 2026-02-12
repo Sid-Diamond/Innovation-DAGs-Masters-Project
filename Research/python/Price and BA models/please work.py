@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  
-from scipy.special import gamma as gamma_func, beta as beta_func
+from scipy.special import gamma as gamma_func, beta as beta_func,  betaln
 from typing import Dict, Tuple, List
 import time
 from scipy.optimize import minimize
@@ -51,17 +51,7 @@ class FileManager:
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
-    def __init__(
-        self,
-        n0: int,
-        n_nodes: int,
-        m_edges: int,
-        h: float,
-        f_a: float,
-        mu_a: float,
-        mu_b: float,
-        seed: int = None
-    ):
+    def __init__(self,n0: int,n_nodes: int,m_edges: int,h: float,f_a: float,mu_a: float,mu_b: float,seed: int = None):
         # Network parameters
         self.n0, self.n_nodes, self.m_edges = n0, n_nodes, m_edges
         self.h, self.f_a, self.f_b = h, f_a, 1 - f_a
@@ -225,32 +215,26 @@ class DirectedHomophilicNetwork:
 
     def pmf_from_beta(self, k, beta) -> np.ndarray:
         """
-        Core PMF shell: p(k | beta) with beta = (p0, alpha, gamma).
-
-        This is the only place where the Yule–Simon–type form is implemented.
+        Core PMF: p(k | beta) with beta = (p0, alpha, gamma).
+        Uses betaln for numerical stability (original approach).
         """
         p0, alpha, gamma = beta
         k = np.atleast_1d(k)
         result = np.zeros_like(k, dtype=float)
-
+        
         zero_mask = (k == 0)
         pos_mask = (k > 0)
-
-        # k = 0
+        
         if np.any(zero_mask):
             result[zero_mask] = p0
-
-        # k > 0
+        
         if np.any(pos_mask):
             k_pos = k[pos_mask]
-            result[pos_mask] = (
-                p0
-                * beta_func(k_pos, alpha + gamma)
-                / beta_func(k_pos, alpha)
-            )
-
+            log_ratio = betaln(k_pos, alpha + gamma) - betaln(k_pos, alpha)
+            result[pos_mask] = p0 * np.exp(log_ratio)
+        
         return result
-
+    
     def theoretical_distribution(self, k, node_type: str):
         """
         Theoretical in-degree distribution with analytic continuation.
@@ -728,11 +712,10 @@ class GoFDiagnostics:
             print(f"    b-grid (candidate b_j): {grid_str}")
 
             last_w = windows[-1]
-            print(f"    p_c=no_trunc: b*={last_w['b']}, " f"p-z*σ={last_w['p']:.4f}, nodes=1.0000, edges=1.0000")
+            print(f"    no truncation: p = {last_w['p']:.4f} ± {last_w['sigma_p']:.4f}")
 
             total_edges = degrees.sum() if degrees.size > 0 else 0
-            pcs_results = self.select_largest_window_for_pcs(
-                windows=windows, a=a, p_c_list=p_c_list,)         
+            pcs_results = self.select_largest_window_for_pcs(windows=windows, a=a,p_c_list=p_c_list,)           
 
             for p_c in p_c_list:
                 lw = pcs_results[p_c]['largest_window']
@@ -1628,7 +1611,7 @@ if __name__ == "__main__":
             n0_min=5, n0_max=100, n0_step=20,
             node_type='b', a=0,
             p_c_list=[0.2, 0.4],
-            N_sims=5, b_grid_type='linear', n_b=50,
+            N_sims=5, b_grid_type='linear', n_b=5,
             b_min=None, b_max=None, z=1.0,
         ),
         plots=dict(
