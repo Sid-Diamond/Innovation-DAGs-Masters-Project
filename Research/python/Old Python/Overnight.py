@@ -1605,7 +1605,7 @@ if __name__ == "__main__":
 
     config = dict(
         network=dict(
-            n0=30, n_nodes=2000, m_edges=3,
+            n0=30, n_nodes= 100, m_edges=3,
             h=0.2, f_a=0.2, mu_a=1, mu_b=5, 
             seed=None,
         ),
@@ -1628,7 +1628,7 @@ if __name__ == "__main__":
             n0_min=5, n0_max=100, n0_step=20,
             node_type='b', a=0,
             p_c_list=[0.2, 0.4],
-            N_sims=5, b_grid_type='linear', n_b=50,
+            N_sims=5, b_grid_type='linear', n_b=5,
             b_min=None, b_max=None, z=1.0,
         ),
         plots=dict(

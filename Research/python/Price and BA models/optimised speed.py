@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  
-from scipy.special import gamma as gamma_func, beta as beta_func
+from scipy.special import gamma as gamma_func, betaln
 from typing import Dict, Tuple, List
 import time
 from scipy.optimize import minimize
@@ -42,17 +42,6 @@ class FileManager:
         
         print(f"\nTotal runtime: {total_time:.2f}s ({total_time/60:.2f}m)")
 
-    def _archive_previous_run(self):
-        """If latest exists, rename to timestamped archive."""
-        if self.latest_dir.exists():
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            archive = self.base / f"run_{ts}"
-            self.latest_dir.rename(archive)
-
-    def _create_dirs(self):
-        self.run_dir = self.latest_dir
-        self.run_dir.mkdir()
-
     def _save_metadata(self):
         with open(self.run_dir / "metadata.json", "w") as f:
             json.dump(self.config, f, indent=2)
@@ -69,18 +58,9 @@ class FileManager:
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
-    def __init__(
-        self,
-        n0: int,
-        n_nodes: int,
-        m_edges: int,
-        h: float,
-        f_a: float,
-        mu_a: float,
-        mu_b: float,
-        seed: int = None,
-        build_graph: bool = True,   # <--- NEW ARG
-    ):
+    def __init__(self,n0: int,n_nodes: int,m_edges: int,h: float,f_a: float,mu_a: float,mu_b: float,
+        seed: int = None,build_graph: bool = True, ):
+        
         # Network parameters
         self.n0, self.n_nodes, self.m_edges = n0, n_nodes, m_edges
         self.h, self.f_a, self.f_b = h, f_a, 1 - f_a
@@ -101,28 +81,13 @@ class DirectedHomophilicNetwork:
         self.graph = None
         self.node_types = None
         self.edge_evolution = []
-        self.g_a, self.g_b, self.g_b_empirical, self.Z_factor, self.Z_tilde = (
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        self.g_a, self.g_b, self.g_b_empirical, self.Z_factor, self.Z_tilde = (None,None,None,None,None,)
 
         # Cached state for speed
         self.in_degrees = None
         self.in_edges_a_count = 0
         self.in_edges_b_count = 0
         self._cdf_cache: dict = {}
-
-    def clear_cache(self):
-        """Clear CDF cache to free memory."""
-        self._cdf_cache.clear()
-
-    def __del__(self):
-        """Cleanup cache on deletion."""
-        if hasattr(self, "_cdf_cache"):
-            self._cdf_cache.clear()
 
     def _get_params(self, node_type: str) -> Dict[str, float]:
         """Get all distribution parameters for a node type."""
@@ -140,7 +105,7 @@ class DirectedHomophilicNetwork:
         """Compute Z̃ using asymptotic g values."""
         self.g_a = g_a
         self.g_b = g_b
-        self.g_b_empirical = g_b_empirical  # Store for comparison only
+        self.g_b_empirical = g_b_empirical 
         self.Z_factor = (
             self.g_a * self.lambda_a
             + self.g_b * self.lambda_b
@@ -164,9 +129,7 @@ class DirectedHomophilicNetwork:
         probs = lambda_vals * in_deg + mu_vals
         probs = probs / probs.sum()
 
-        return np.random.choice(
-            n_nodes_so_far, size=self.m_edges, p=probs, replace=False
-        )
+        return np.random.choice(n_nodes_so_far, size=self.m_edges, p=probs, replace=False)
 
     def generate_network(self):
         """Generate network with cached state."""
@@ -193,8 +156,7 @@ class DirectedHomophilicNetwork:
             targets = np.random.choice(
                 [t for t in range(self.n0) if t != source],
                 size=self.m_edges,
-                replace=False,
-            )
+                replace=False,)
 
             if self.build_graph:
                 self.graph.add_edges_from((source, int(t)) for t in targets)
@@ -241,12 +203,8 @@ class DirectedHomophilicNetwork:
 
     def _fit_asymptotes(self, fraction: float = 0.05):
         """Fit asymptotic g values from evolution data."""
-        mean_deg_a = np.array(
-            [d['in_edges_a'] / d['t'] for d in self.edge_evolution]
-        )
-        mean_deg_b = np.array(
-            [d['in_edges_b'] / d['t'] for d in self.edge_evolution]
-        )
+        mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in self.edge_evolution])
+        mean_deg_b = np.array([d['in_edges_b'] / d['t'] for d in self.edge_evolution])
 
         n_tail = max(1, int(len(mean_deg_a) * fraction))
         g_a = mean_deg_a[-n_tail:].mean()
@@ -280,7 +238,6 @@ class DirectedHomophilicNetwork:
         
         if np.any(pos_mask):
             k_pos = k[pos_mask]
-            from scipy.special import betaln
             log_ratio = betaln(k_pos, alpha + gamma) - betaln(k_pos, alpha)
             result[pos_mask] = p0 * np.exp(log_ratio)
         
@@ -289,9 +246,6 @@ class DirectedHomophilicNetwork:
     def theoretical_distribution(self, k, node_type: str):
         """
         Theoretical in-degree distribution with analytic continuation.
-
-        Implemented via the generic shell pmf_from_beta using the
-        network's current (p0, alpha, gamma) for this node_type.
         """
         beta = self.get_beta_for_type(node_type)
         pmf = self.pmf_from_beta(k, beta)
@@ -349,9 +303,7 @@ class DirectedHomophilicNetwork:
         return [
             int(self.in_degrees[n])
             for n in range(self.in_degrees.size)
-            if self.node_types[n] == type_val
-        ]
-    
+            if self.node_types[n] == type_val]
 class GoFDiagnostics:
 
     def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None,):
@@ -402,36 +354,13 @@ class GoFDiagnostics:
         # Clamp to [0, 1] to handle numerical issues
         return float(np.clip(p_val, 0.0, 1.0))
 
-    def empirical_cdf_integers(self, data):
-        """
-        Compute the empirical CDF for integer data only (vectorized).
-        """
-        data = np.array(data, dtype=int)
-        n = len(data)
-        if n == 0:
-            return np.array([]), np.array([])
-
-        unique_vals = np.arange(data.min(), data.max() + 1)
-
-        sorted_data = np.sort(data)
-        counts = np.searchsorted(sorted_data, unique_vals, side='right')
-        cdf_vals = counts / n
-
-        return unique_vals, cdf_vals
-
     def csn_distance(self,net: DirectedHomophilicNetwork,data,a: int,b: int, beta, node_type: str,) -> float:
         """
         CSN/AD-style distance on a truncated window [a,b]:
-            D(data; beta; [a,b]) = max_{n = a,...,b}
-                | (N_n / N_a) - S(n; beta; [a,b]) |
-                / sqrt( S(n; beta; [a,b]) * (1 - S(n; beta; [a,b])) )
+            D(data; beta; [a,b]) = max_{n = a,...,b}| (N_n / N_a) - S(n; beta; [a,b]) |/ sqrt( S(n; beta; [a,b]) * (1 - S(n; beta; [a,b])) )
         """
         N_a = data.size
-
-        # Support n = a,..., b
         n_vals = np.arange(a, b + 1, dtype=int)
-
-        # Sort data once
         sorted_data = np.sort(data)
 
         # For each n, N_n = # { x_i >= n }
@@ -462,7 +391,6 @@ class GoFDiagnostics:
         MLE for beta = (p0, alpha, gamma) on truncated window [a, b].
         Uses formal MLE with precomputed support and efficient likelihood computation.
         """
-        from scipy.special import betaln
         
         data = np.asarray(data, dtype=int)
         if data.size == 0:
@@ -537,107 +465,6 @@ class GoFDiagnostics:
         beta_mle = np.array([p0_mle, alpha_mle, gamma_mle], dtype=float)
         return beta_mle, used_fallback
 
-    def mc_on_window(self, net: DirectedHomophilicNetwork, node_type: str, a: int, b: int, beta_theory, N_sims: int, data_cache: np.ndarray = None):
-        """
-        Monte Carlo on window [a, b]. If data_cache is provided, truncate it.
-        Otherwise, generate fresh simulations.
-        """
-        D_theory_list = []
-        D_mle_list = []
-        beta_mle_list = []
-        fallback_flags = []
-
-        beta_theory_arr = np.asarray(beta_theory) if beta_theory is not None else None
-
-        if data_cache is not None:
-            # Use cached data, truncate to [a, b]
-            data_s = data_cache[(data_cache >= a) & (data_cache <= b)]
-            
-            if data_s.size == 0:
-                D_theory_list.append(0.0)
-                D_mle_list.append(0.0)
-                beta_mle_list.append(beta_theory_arr if beta_theory_arr is not None else np.array([np.nan, np.nan, np.nan]))
-                fallback_flags.append(True)
-            else:
-                D_theory_s = self.csn_distance(net, data_s, a, b, beta_theory, node_type)
-                beta_mle_s, used_fallback_s = self._fit_beta_mle(net, data_s, a, b, node_type, beta_init=None)
-                D_mle_s = self.csn_distance(net, data_s, a, b, beta_mle_s, node_type)
-
-                D_theory_list.append(D_theory_s)
-                D_mle_list.append(D_mle_s)
-                beta_mle_list.append(beta_mle_s)
-                fallback_flags.append(used_fallback_s)
-        else:
-            # Generate fresh simulations
-            for s in range(N_sims):
-                net_sim = DirectedHomophilicNetwork(net.n0, net.n_nodes, net.m_edges, net.h, net.f_a, net.mu['a'], net.mu['b'], seed=None)
-                net_sim.generate_network()
-
-                degrees = np.array(net_sim._get_degrees(node_type), dtype=int)
-                data_s = degrees[(degrees >= a) & (degrees <= b)]
-
-                if data_s.size == 0:
-                    D_theory_list.append(0.0)
-                    D_mle_list.append(0.0)
-                    beta_mle_list.append(beta_theory_arr if beta_theory_arr is not None else np.array([np.nan, np.nan, np.nan]))
-                    fallback_flags.append(True)
-                    continue
-
-                D_theory_s = self.csn_distance(net_sim, data_s, a, b, beta_theory, node_type)
-                beta_mle_s, used_fallback_s = self._fit_beta_mle(net_sim, data_s, a, b, node_type, beta_init=None)
-                D_mle_s = self.csn_distance(net_sim, data_s, a, b, beta_mle_s, node_type)
-
-                D_theory_list.append(D_theory_s)
-                D_mle_list.append(D_mle_s)
-                beta_mle_list.append(beta_mle_s)
-                fallback_flags.append(used_fallback_s)
-
-        D_theory_arr = np.array(D_theory_list, dtype=float)
-        D_mle_arr = np.array(D_mle_list, dtype=float)
-        fallback_flags = np.asarray(fallback_flags, dtype=bool)
-
-        greater_mask = D_mle_arr > D_theory_arr
-        p = float(np.mean(greater_mask.astype(float)))
-        sigma_p = float(np.sqrt(p * (1.0 - p) / max(len(D_theory_arr), 1)))
-
-        try:
-            beta_mle_arr = np.asarray(beta_mle_list, dtype=float)
-        except Exception:
-            beta_mle_arr = np.array(beta_mle_list, dtype=object)
-
-        frac_moved = float(np.mean(~fallback_flags)) if fallback_flags.size > 0 else np.nan
-
-        beta_mle_mean = None
-        beta_mle_std = None
-        if isinstance(beta_mle_arr, np.ndarray) and beta_mle_arr.ndim == 2 and beta_mle_arr.shape[0] == fallback_flags.size:
-            mask_non_fallback = ~fallback_flags
-            if np.any(mask_non_fallback):
-                beta_mle_non_fallback = beta_mle_arr[mask_non_fallback]
-                beta_mle_mean = np.nanmean(beta_mle_non_fallback, axis=0)
-                beta_mle_std = np.nanstd(beta_mle_non_fallback, axis=0)
-
-        percent_diff_mean_vs_theory = None
-        if beta_theory_arr is not None and beta_mle_mean is not None:
-            with np.errstate(divide='ignore', invalid='ignore'):
-                percent_diff_mean_vs_theory = 100.0 * ((beta_mle_mean - beta_theory_arr) / beta_theory_arr)
-                percent_diff_mean_vs_theory = np.where(beta_theory_arr == 0.0, np.nan, percent_diff_mean_vs_theory)
-
-        result = {
-            'a': a,
-            'b': b,
-            'D_theory': D_theory_arr,
-            'D_mle': D_mle_arr,
-            'beta_mle': beta_mle_arr,
-            'p': p,
-            'sigma_p': sigma_p,
-            'beta_mle_mean': beta_mle_mean,
-            'beta_mle_std': beta_mle_std,
-            'beta_theory': beta_theory_arr,
-            'frac_moved': frac_moved,
-            'percent_diff_mean_vs_theory': percent_diff_mean_vs_theory,
-        }
-        return result
-
     def _build_b_grid(self,net: DirectedHomophilicNetwork,node_type: str,a: int,candidate_bs,b_min,b_max,n_b: int,b_grid_type: str,):
         if candidate_bs is not None:
             bs = np.array(candidate_bs, dtype=int)
@@ -665,15 +492,123 @@ class GoFDiagnostics:
             raise ValueError(f"Unknown b_grid_type='{b_grid_type}'. Use 'linear' or 'log'.")
 
         return bs
-        
-    def scan_over_b(self, net: DirectedHomophilicNetwork, node_type: str, a: int, beta_theory, candidate_bs=None, N_sims: int = 20, 
-                    b_min: int = None, b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear', data_cache: np.ndarray = None):
+
+    def mc_on_window(self,net: DirectedHomophilicNetwork,node_type: str,a: int,b: int,
+        beta_theory,N_sims: int,data_cache=None):
         """
-        Scan over b values. If data_cache is None, generate one set of N_sims 
-        non-truncated samples and reuse across all b values.
+        Monte Carlo on window [a, b].
         """
-        bs = self._build_b_grid(net=net, node_type=node_type, a=a, candidate_bs=candidate_bs, 
-                                b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type)
+        D_theory_list = []
+        D_mle_list = []
+        beta_mle_list = []
+        fallback_flags = []
+
+        beta_theory_arr = np.asarray(beta_theory) if beta_theory is not None else None
+
+        # Normalize data_cache into a list of degree arrays
+        if data_cache is None:
+            # Generate fresh simulations
+            cache_list = []
+            for _ in range(N_sims):
+                net_sim = DirectedHomophilicNetwork(n0=net.n0,n_nodes=net.n_nodes,m_edges=net.m_edges,
+                    h=net.h,f_a=net.f_a,mu_a=net.mu['a'],mu_b=net.mu['b'],seed=None)
+                net_sim.generate_network()
+                degrees = np.array(net_sim._get_degrees(node_type), dtype=int)
+                cache_list.append(degrees)
+        else:
+            # Accept a single ndarray or a list of ndarrays
+            if isinstance(data_cache, list):
+                cache_list = data_cache
+            else:
+                cache_list = [np.asarray(data_cache, dtype=int)]
+
+        # Evaluate MC statistics for each sample
+        for degrees in cache_list:
+            data_s = degrees[(degrees >= a) & (degrees <= b)]
+
+            if data_s.size == 0:
+                D_theory_list.append(0.0)
+                D_mle_list.append(0.0)
+                beta_mle_list.append(beta_theory_arr if beta_theory_arr is not None else np.array([np.nan, np.nan, np.nan]))
+                fallback_flags.append(True)
+                continue
+
+            # Compute D_theory using provided beta_theory
+            D_theory_s = self.csn_distance(net, data_s, a, b, beta_theory, node_type)
+
+            # Fit MLE and compute D_mle
+            beta_mle_s, used_fallback_s = self._fit_beta_mle(
+                net, data_s, a, b, node_type, beta_init=None)
+            D_mle_s = self.csn_distance(net, data_s, a, b, beta_mle_s, node_type)
+
+            D_theory_list.append(D_theory_s)
+            D_mle_list.append(D_mle_s)
+            beta_mle_list.append(beta_mle_s)
+            fallback_flags.append(used_fallback_s)
+
+        D_theory_arr = np.array(D_theory_list, dtype=float)
+        D_mle_arr = np.array(D_mle_list, dtype=float)
+        fallback_flags = np.asarray(fallback_flags, dtype=bool)
+
+        # Probability that D_mle > D_theory
+        greater_mask = D_mle_arr > D_theory_arr
+        p = float(np.mean(greater_mask.astype(float)))
+        sigma_p = float(np.sqrt(p * (1.0 - p) / max(len(D_theory_arr), 1)))
+
+        try:
+            beta_mle_arr = np.asarray(beta_mle_list, dtype=float)
+        except Exception:
+            beta_mle_arr = np.array(beta_mle_list, dtype=object)
+
+        frac_moved = float(np.mean(~fallback_flags)) if fallback_flags.size > 0 else np.nan
+
+        beta_mle_mean = None
+        beta_mle_std = None
+        if (
+            isinstance(beta_mle_arr, np.ndarray)
+            and beta_mle_arr.ndim == 2
+            and beta_mle_arr.shape[0] == fallback_flags.size
+        ):
+            mask_non_fallback = ~fallback_flags
+            if np.any(mask_non_fallback):
+                beta_mle_non_fallback = beta_mle_arr[mask_non_fallback]
+                beta_mle_mean = np.nanmean(beta_mle_non_fallback, axis=0)
+                beta_mle_std = np.nanstd(beta_mle_non_fallback, axis=0)
+
+        percent_diff_mean_vs_theory = None
+        if beta_theory_arr is not None and beta_mle_mean is not None:
+            with np.errstate(divide='ignore', invalid='ignore'):
+                percent_diff_mean_vs_theory = 100.0 * (
+                    (beta_mle_mean - beta_theory_arr) / beta_theory_arr
+                )
+                percent_diff_mean_vs_theory = np.where(
+                    beta_theory_arr == 0.0, np.nan, percent_diff_mean_vs_theory
+                )
+
+        result = {
+            'a': a,
+            'b': b,
+            'D_theory': D_theory_arr,
+            'D_mle': D_mle_arr,
+            'beta_mle': beta_mle_arr,
+            'p': p,
+            'sigma_p': sigma_p,
+            'beta_mle_mean': beta_mle_mean,
+            'beta_mle_std': beta_mle_std,
+            'beta_theory': beta_theory_arr,
+            'frac_moved': frac_moved,
+            'percent_diff_mean_vs_theory': percent_diff_mean_vs_theory,
+        }
+        return result
+    
+    def scan_over_b(self,net: DirectedHomophilicNetwork,node_type: str,a: int,beta_theory,candidate_bs=None,
+        N_sims: int = 20,b_min: int = None,b_max: int = None,n_b: int = 20,b_grid_type: str = 'linear',data_cache: np.ndarray = None):
+        """
+        Scan over b values. If data_cache is None, generate one set of N_sims
+        non-truncated samples (degree arrays) and reuse across all b values.
+        """
+        bs = self._build_b_grid(net=net,node_type=node_type,a=a,candidate_bs=candidate_bs,
+            b_min=b_min,b_max=b_max,n_b=n_b,b_grid_type=b_grid_type)
 
         windows_results = []
 
@@ -685,95 +620,41 @@ class GoFDiagnostics:
                 'b_grid': None,
             }
 
-        # Generate data cache once if not provided
+
         if data_cache is None:
             data_cache_list = []
-            for s in range(N_sims):
-                net_sim = DirectedHomophilicNetwork(net.n0, net.n_nodes, net.m_edges, net.h, net.f_a, 
-                                                net.mu['a'], net.mu['b'], seed=None)
+            for _ in range(N_sims):
+                net_sim = DirectedHomophilicNetwork(n0=net.n0,n_nodes=net.n_nodes, m_edges=net.m_edges, h=net.h,
+                    f_a=net.f_a, mu_a=net.mu['a'],mu_b=net.mu['b'],seed=None)
                 net_sim.generate_network()
                 degrees = np.array(net_sim._get_degrees(node_type), dtype=int)
                 data_cache_list.append(degrees)
-            # Stack all degree arrays (they may have different lengths, so store as list of arrays)
             data_cache = data_cache_list
-        
-        print(f"    b-grid (candidate b_j): {bs}")
+        else:
+            if not isinstance(data_cache, list):
+                data_cache = [np.asarray(data_cache, dtype=int)]
 
+        # Now evaluate each candidate b by delegating to mc_on_window
         for b in bs:
             if b <= a:
                 raise ValueError(f"Each b_j must satisfy b_j > a. Got a={a}, b_j={b}.")
 
-            # For each b, use mc_on_window with data_cache
-            # Since data_cache is a list of arrays, we process each one
-            D_theory_list = []
-            D_mle_list = []
-            beta_mle_list = []
-            fallback_flags = []
-
-            beta_theory_arr = np.asarray(beta_theory) if beta_theory is not None else None
-
-            for degrees in data_cache:
-                data_s = degrees[(degrees >= a) & (degrees <= b)]
-
-                if data_s.size == 0:
-                    D_theory_list.append(0.0)
-                    D_mle_list.append(0.0)
-                    beta_mle_list.append(beta_theory_arr if beta_theory_arr is not None else np.array([np.nan, np.nan, np.nan]))
-                    fallback_flags.append(True)
-                    continue
-
-                D_theory_s = self.csn_distance(net, data_s, a, b, beta_theory, node_type)
-                beta_mle_s, used_fallback_s = self._fit_beta_mle(net, data_s, a, b, node_type, beta_init=None)
-                D_mle_s = self.csn_distance(net, data_s, a, b, beta_mle_s, node_type)
-
-                D_theory_list.append(D_theory_s)
-                D_mle_list.append(D_mle_s)
-                beta_mle_list.append(beta_mle_s)
-                fallback_flags.append(used_fallback_s)
-
-            D_theory_arr = np.array(D_theory_list, dtype=float)
-            D_mle_arr = np.array(D_mle_list, dtype=float)
-            fallback_flags = np.asarray(fallback_flags, dtype=bool)
-
-            greater_mask = D_mle_arr > D_theory_arr
-            p = float(np.mean(greater_mask.astype(float)))
-            sigma_p = float(np.sqrt(p * (1.0 - p) / max(len(D_theory_arr), 1)))
-
-            try:
-                beta_mle_arr = np.asarray(beta_mle_list, dtype=float)
-            except Exception:
-                beta_mle_arr = np.array(beta_mle_list, dtype=object)
-
-            frac_moved = float(np.mean(~fallback_flags)) if fallback_flags.size > 0 else np.nan
-
-            beta_mle_mean = None
-            beta_mle_std = None
-            if isinstance(beta_mle_arr, np.ndarray) and beta_mle_arr.ndim == 2 and beta_mle_arr.shape[0] == fallback_flags.size:
-                mask_non_fallback = ~fallback_flags
-                if np.any(mask_non_fallback):
-                    beta_mle_non_fallback = beta_mle_arr[mask_non_fallback]
-                    beta_mle_mean = np.nanmean(beta_mle_non_fallback, axis=0)
-                    beta_mle_std = np.nanstd(beta_mle_non_fallback, axis=0)
-
-            percent_diff_mean_vs_theory = None
-            if beta_theory_arr is not None and beta_mle_mean is not None:
-                with np.errstate(divide='ignore', invalid='ignore'):
-                    percent_diff_mean_vs_theory = 100.0 * ((beta_mle_mean - beta_theory_arr) / beta_theory_arr)
-                    percent_diff_mean_vs_theory = np.where(beta_theory_arr == 0.0, np.nan, percent_diff_mean_vs_theory)
+            res_b = self.mc_on_window(net=net,node_type=node_type,a=a,
+                b=int(b),beta_theory=beta_theory,N_sims=len(data_cache), data_cache=data_cache)
 
             window_result = {
                 'a': a,
                 'b': int(b),
-                'D_theory': D_theory_arr,
-                'D_mle': D_mle_arr,
-                'beta_mle': beta_mle_arr,
-                'p': p,
-                'sigma_p': sigma_p,
-                'beta_mle_mean': beta_mle_mean,
-                'beta_mle_std': beta_mle_std,
-                'beta_theory': beta_theory_arr,
-                'frac_moved': frac_moved,
-                'percent_diff_mean_vs_theory': percent_diff_mean_vs_theory,
+                'D_theory': res_b['D_theory'],
+                'D_mle': res_b['D_mle'],
+                'beta_mle': res_b['beta_mle'],
+                'p': res_b['p'],
+                'sigma_p': res_b['sigma_p'],
+                'beta_mle_mean': res_b['beta_mle_mean'],
+                'beta_mle_std': res_b['beta_mle_std'],
+                'beta_theory': res_b['beta_theory'],
+                'frac_moved': res_b['frac_moved'],
+                'percent_diff_mean_vs_theory': res_b['percent_diff_mean_vs_theory'],
             }
             windows_results.append(window_result)
 
@@ -897,11 +778,8 @@ class GoFDiagnostics:
             print(f"    b-grid (candidate b_j): {grid_str}")
 
 
-            print("DEBUG: reached before no-trunc", flush=True)
             full_w = max(windows, key=lambda w: w['b'])
-            print("DEBUG: computed full_w", flush=True)
             print(f"    no-trunc p={full_w['p']:.4f} ± {full_w['sigma_p']:.4f}")
-
 
             total_edges = degrees.sum() if degrees.size > 0 else 0
 
@@ -1314,13 +1192,16 @@ class GoFDiagnostics:
                     continue
                 
                 beta_theory = net_temp.get_beta_for_type(node_type)
-                scan_res = self.scan_over_b(net=net_temp, node_type=node_type, a=a, beta_theory=beta_theory, candidate_bs=candidate_bs,
-                                           N_sims=N_sims, b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type)
-                
+                scan_res = self.scan_over_b(net=net_temp,node_type=node_type,a=a,beta_theory=beta_theory,
+                    candidate_bs=candidate_bs, N_sims=N_sims,b_min=b_min,b_max=b_max,n_b=n_b,b_grid_type=b_grid_type)
+
                 windows = scan_res['windows']
                 if not windows:
                     continue
-                
+
+                full_w = max(windows, key=lambda w: w['b'])
+                print(f"    no-trunc p={full_w['p']:.4f} ± {full_w['sigma_p']:.4f}")
+
                 pcs_results = self.select_largest_window_for_pcs(windows=windows, a=a, p_c_list=p_c_list)
                 total_edges = degrees.sum() if degrees.size > 0 else 0
                 
@@ -1352,7 +1233,6 @@ class GoFDiagnostics:
 
     def plot_2d_grid_results(self, grid_results: dict, metric: str = 'nodes', figsize_per_plot: tuple = (8, 6)):
         """Create contour and 3D surface plots for 2D grid sweep."""
-        from mpl_toolkits.mplot3d import Axes3D
         
         m_values = grid_results['m_values']
         n0_values = grid_results['n0_values']
@@ -1431,11 +1311,7 @@ class NetworkPlotting:
     Methods take a `DirectedHomophilicNetwork` instance `net`.
     """
 
-    def logarithmic_binning(
-        self,
-        degrees: np.ndarray,
-        bin_factor: float = 1.01
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def logarithmic_binning(self,degrees: np.ndarray,bin_factor: float = 1.01) -> Tuple[np.ndarray, np.ndarray]:
         """Create logarithmic bins with k=0 always in its own bin."""
         if len(degrees) == 0:
             return np.array([]), np.array([])  # prevents crash out if no nodes of a given type exist
@@ -1471,12 +1347,7 @@ class NetworkPlotting:
 
         return np.array(bin_centers), np.array(probabilities)
 
-    def plot_degree_distributions(
-        self,
-        net: DirectedHomophilicNetwork,
-        figsize: Tuple = (15, 6),
-        discretisations: int = 10**5,
-    ):
+    def plot_degree_distributions(self,net: DirectedHomophilicNetwork,figsize: Tuple = (15, 6),discretisations: int = 10**5,):
         """
         Plot in-degree distributions with theoretical curves. If discretisations=0,
         theoretical curve is only computed at integer k.
@@ -1556,11 +1427,7 @@ class NetworkPlotting:
         plt.tight_layout()
         return fig
 
-    def plot_in_edge_asymptotes(
-        self,
-        net: DirectedHomophilicNetwork,
-        figsize: Tuple = (10, 6),
-    ):
+    def plot_in_edge_asymptotes(self,net: DirectedHomophilicNetwork,figsize: Tuple = (10, 6),):
         """Plot mean in-edge density with asymptotic fits."""
         times = np.array([d['t'] for d in net.edge_evolution])
         mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in net.edge_evolution])
@@ -1651,12 +1518,7 @@ class NetworkPlotting:
         plt.tight_layout()
         return fig
 
-    def plot_degree_distributions_discrete(
-        self,
-        net: DirectedHomophilicNetwork,
-        figsize: Tuple = (15, 6),
-        max_k_display: int = None,
-    ):
+    def plot_degree_distributions_discrete(self,net: DirectedHomophilicNetwork,figsize: Tuple = (15, 6),max_k_display: int = None,):
         """
         Plot using discrete integer probabilities - no binning.
         This shows the true empirical PMF at each integer k value.
@@ -1792,14 +1654,14 @@ if __name__ == "__main__":
             n_b=20, b_min=None, b_max=None,
         ),
         sweep_n0=dict(
-            n0_min=5, n0_max=25, n0_step=5,
+            n0_min=5, n0_max=20, n0_step=1,
             node_type='b', a=0,
             p_c_list=[0.2, 0.4],
             N_sims= 20, b_grid_type='linear',
             n_b=20, b_min=None, b_max=None,
         ),
         grid_2d=dict(
-            m_min=2, m_max=26, m_step=1,
+            m_min=2, m_max=20, m_step=1,
             n0_min=5, n0_max=100, n0_step=20,
             node_type='b', a=0,
             p_c_list=[0.2, 0.4],
@@ -1809,9 +1671,9 @@ if __name__ == "__main__":
         plots=dict(
             log_binned=True, discrete_linear=True,
             asymptotes=True, A_const=True,
-            sweep_m_edges_csn= False, sweep_n0_csn= False,
+            sweep_m_edges_csn=False, sweep_n0_csn=False,
             csn_p_vs_b_m=3, csn_p_vs_b_n0=3,
-            grid_2d_sweep= True,
+            grid_2d_sweep=True,
         ))
     
     fm = FileManager(config)
@@ -1887,5 +1749,5 @@ if __name__ == "__main__":
         fm.save_fig(fig_c_e, "grid_2d_contour_edges")
         fm.save_fig(fig_3d_e, "grid_2d_surface_edges")
 
-fm.finalize_metadata()  # Add this at the very end
+fm.finalize_metadata()
 print(f"\nAll outputs saved to: {fm.path()}")
