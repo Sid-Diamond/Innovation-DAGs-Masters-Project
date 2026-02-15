@@ -2,20 +2,18 @@ import numpy as np
 import networkx as nx
 import matplotlib
 from matplotlib.colors import ListedColormap, Normalize
-from mpl_toolkits.mplot3d import Axes3D 
 import matplotlib.patches as mpatches
-from scipy.interpolate import RectBivariateSpline
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  
 from scipy.special import gamma as gamma_func, betaln
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple
 import time
 from scipy.optimize import minimize
 from pathlib import Path
+from matplotlib.patches import Patch
 import datetime
 import json
 import pandas as pd
-
 class FileManager:
 
     def __init__(self, config: dict, base: str = "runs"):
@@ -62,8 +60,7 @@ class FileManager:
     def export_grid_to_csv(self, data_grid, filename, metric_name, 
                         m_values=None, n0_values=None, x_values=None, 
                         x_name=None, p_c=None, metadata_dict=None):
-        """Export grid data to CSV. Handles both 1D and 2D cases.
-        
+        """Export grid data to CSV. Handles both 1D and 2D cases.     
         1D case: pass x_values, x_name, metadata_dict
         2D case: pass m_values, n0_values, p_c
         """
@@ -106,7 +103,6 @@ class FileManager:
 
     def path(self):
         return self.run_dir
-
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
@@ -354,6 +350,412 @@ class DirectedHomophilicNetwork:
         type_val = 0 if node_type == 'a' else 1
         mask = self.node_types[:self.in_degrees.size] == type_val
         return self.in_degrees[mask].copy()
+    class NetworkVis:
+        """Visualization utilities for DirectedHomophilicNetwork."""
+        
+        def __init__(self, parent_net: "DirectedHomophilicNetwork"):
+            self.net = parent_net
+            
+            # Set consistent font styling
+            plt.rcParams['font.family'] = 'serif'
+            plt.rcParams['font.serif'] = ['TeX Gyre Termes', 'Times New Roman']
+            plt.rcParams['mathtext.fontset'] = 'cm'
+            plt.rcParams['axes.linewidth'] = 0.8
+            plt.rcParams['xtick.major.width'] = 0.8
+            plt.rcParams['ytick.major.width'] = 0.8
+        
+        def _logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.01) -> Tuple[np.ndarray, np.ndarray]:
+            """Create logarithmic bins with k=0 always in its own bin."""
+            if len(degrees) == 0:
+                return np.array([]), np.array([])
+            
+            degrees = np.array(degrees)
+            max_degree, n_total = np.max(degrees), len(degrees)
+            
+            # Handle k=0 separately
+            count_zero = np.sum(degrees == 0)
+            bin_centers = [0.0] if count_zero > 0 else []
+            probabilities = [count_zero / n_total] if count_zero > 0 else []
+            
+            # Create logarithmic sequence for k >= 1
+            if np.any(degrees > 0):
+                bins = [1]
+                current = 1 * bin_factor
+                while current <= max_degree:
+                    bins.append(int(current))
+                    current *= bin_factor
+                bins.append(int(max_degree) + 1)
+                bins = sorted(set(bins))
+                
+                # Compute bin statistics
+                for i in range(len(bins) - 1):
+                    kmin, kmax = bins[i], bins[i + 1] - 1
+                    count = np.sum((degrees >= kmin) & (degrees <= kmax))
+                    
+                    if count > 0:
+                        center = np.sqrt(kmin * kmax)
+                        bin_centers.append(center)
+                        probabilities.append(count / n_total)
+            
+            return np.array(bin_centers), np.array(probabilities)
+        
+        def plot_degree_distributions_log(self, fm: "FileManager", discretisations: int = 10**5, figsize: Tuple = (15, 6)):
+            """Plot log-binned in-degree distributions with theoretical curves."""
+            fig, axes = plt.subplots(1, 2, figsize=figsize)
+            
+            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+                in_degrees = self.net._get_degrees(node_type)
+                if len(in_degrees) == 0:
+                    continue
+                
+                ax = axes[idx]
+                
+                # Empirical data
+                bin_centers, probs = self._logarithmic_binning(in_degrees)
+                ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
+                        edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
+                
+                ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
+                
+                # Theoretical curve
+                k_max = int(np.max(in_degrees))
+                if discretisations == 0:
+                    k_range = np.arange(0, k_max + 1)
+                else:
+                    k_range = np.concatenate([[0], np.linspace(0.01, k_max, discretisations)])
+                theo_probs = self.net.theoretical_distribution(k_range, node_type)
+                mask = theo_probs > 0
+                
+                ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5,
+                    color='dark' + color, alpha=0.85, label='Theory', zorder=2)
+                
+                # Formatting
+                ax.set_xscale('symlog', linthresh=0.1)
+                ax.set_yscale('log')
+                ax.set_xlim(left=-0.05)
+                ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
+                ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
+                ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
+                ax.legend(fontsize=9, loc='best', framealpha=0.9)
+                ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
+            
+            # Add metadata as legend text box
+            legend_text = (f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, "
+                        f"h={self.net.h}, $f_a$={self.net.f_a}")
+            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11,
+                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            
+            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            fm.save_fig(fig, "degree_dist_log_binned")
+            
+            # Export CSV for both types
+            for node_type in ['a', 'b']:
+                in_degrees = self.net._get_degrees(node_type)
+                if len(in_degrees) == 0:
+                    continue
+                
+                bin_centers, probs = self._logarithmic_binning(in_degrees)
+                k_max = int(np.max(in_degrees))
+                k_range = np.arange(0, k_max + 1)
+                theo_probs = self.net.theoretical_distribution(k_range, node_type)
+                
+                csv_data = []
+                for k, theo_p in zip(k_range, theo_probs):
+                    csv_data.append({'k': k, 'theory_prob': theo_p})
+                
+                for bc, emp_p in zip(bin_centers, probs):
+                    csv_data.append({'k': bc, 'empirical_prob': emp_p})
+                
+                df = pd.DataFrame(csv_data)
+                filepath = fm.data_dir / f"degree_dist_log_binned_type_{node_type}.csv"
+                with open(filepath, 'w') as f:
+                    f.write(f"# In-degree distribution (log-binned)\n")
+                    f.write(f"# Node type: {node_type}\n")
+                    f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                    f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df.to_csv(f, index=False)
+            
+            return fig
+        
+        def plot_degree_distributions_linear(self, fm: "FileManager", max_k_display: int = None, figsize: Tuple = (15, 6)):
+            """Plot discrete integer PMF distributions on linear scale."""
+            fig, axes = plt.subplots(1, 2, figsize=figsize)
+            
+            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+                in_degrees = self.net._get_degrees(node_type)
+                if len(in_degrees) == 0:
+                    continue
+                
+                ax = axes[idx]
+                
+                # Empirical PMF at integer values
+                unique_k, counts = np.unique(in_degrees, return_counts=True)
+                empirical_pmf = counts / len(in_degrees)
+                
+                ax.scatter(unique_k, empirical_pmf, s=20, alpha=0.7, color=color,
+                        edgecolors='black', linewidths=1, label='Simulation', zorder=3)
+                
+                # Theoretical curve at integer values
+                k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
+                k_range = np.arange(0, k_max + 1)
+                theo_probs = self.net.theoretical_distribution(k_range, node_type)
+                
+                ax.plot(k_range, theo_probs, '-', linewidth=1, color='dark' + color,
+                    alpha=1, label='Theory', zorder=2)
+                
+                # Formatting
+                ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
+                ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
+                ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
+                ax.legend(fontsize=9, loc='best', framealpha=0.9)
+                ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+            
+            # Add metadata as legend text box
+            legend_text = (f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, "
+                        f"h={self.net.h}, $f_a$={self.net.f_a}")
+            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11,
+                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            
+            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            fm.save_fig(fig, "degree_dist_discrete_linear")
+            
+            # Export CSV for both types
+            for node_type in ['a', 'b']:
+                in_degrees = self.net._get_degrees(node_type)
+                if len(in_degrees) == 0:
+                    continue
+                
+                unique_k, counts = np.unique(in_degrees, return_counts=True)
+                empirical_pmf = counts / len(in_degrees)
+                
+                k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
+                k_range = np.arange(0, k_max + 1)
+                theo_probs = self.net.theoretical_distribution(k_range, node_type)
+                
+                csv_data = []
+                for k in k_range:
+                    emp_p = empirical_pmf[unique_k == k][0] if k in unique_k else 0.0
+                    csv_data.append({
+                        'k': k,
+                        'empirical_prob': emp_p,
+                        'theory_prob': theo_probs[k]
+                    })
+                
+                df = pd.DataFrame(csv_data)
+                filepath = fm.data_dir / f"degree_dist_discrete_linear_type_{node_type}.csv"
+                with open(filepath, 'w') as f:
+                    f.write(f"# In-degree distribution (discrete linear)\n")
+                    f.write(f"# Node type: {node_type}\n")
+                    f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                    f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df.to_csv(f, index=False)
+            
+            return fig
+        
+        def plot_asymptotes(self, fm: "FileManager", figsize: Tuple = (10, 6)):
+            """Plot mean in-edge density with asymptotic fits."""
+            times = np.array([d['t'] for d in self.net.edge_evolution])
+            mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in self.net.edge_evolution])
+            mean_deg_b = np.array([d['in_edges_b'] / d['t'] for d in self.net.edge_evolution])
+            
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            for mean_deg, type_name, color in [
+                (mean_deg_a, 'a', 'red'),
+                (mean_deg_b, 'b', 'blue'),
+            ]:
+                ax.plot(times, mean_deg, label=f"Type '{type_name}' (data)", color=color, linewidth=2)
+                asymptote = self.net.g_a if type_name == 'a' else self.net.g_b
+                ax.axhline(asymptote, linestyle='--', alpha=0.7, color='dark' + color,
+                        label=f"Type '{type_name}' asymptote = {asymptote:.3f}", linewidth=2)
+            
+            # Add metadata as legend text box
+            legend_text = f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, h={self.net.h}"
+            ax.text(0.02, 0.98, legend_text, transform=ax.transAxes, fontsize=9,
+                verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            
+            ax.set_xlabel("t (number of nodes)", fontsize=12)
+            ax.set_ylabel("Mean in-degree", fontsize=12)
+            ax.legend(fontsize=10, loc='best')
+            ax.grid(True, linestyle='--', alpha=0.3)
+            plt.tight_layout()
+            fm.save_fig(fig, "asymptotes")
+            
+            # Export CSV
+            csv_data = []
+            for t, ma, mb in zip(times, mean_deg_a, mean_deg_b):
+                csv_data.append({
+                    't': t,
+                    'mean_deg_a': ma,
+                    'mean_deg_b': mb,
+                    'asymptote_a': self.net.g_a,
+                    'asymptote_b': self.net.g_b
+                })
+            
+            df = pd.DataFrame(csv_data)
+            filepath = fm.data_dir / "asymptotes.csv"
+            with open(filepath, 'w') as f:
+                f.write(f"# Asymptotic in-edge density evolution\n")
+                f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                f.write(f"# g_a: {self.net.g_a:.6f}, g_b: {self.net.g_b:.6f}\n")
+                f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                df.to_csv(f, index=False)
+            
+            return fig
+        
+        def plot_A_normalization(self, fm: "FileManager", max_k: int = 25, figsize: Tuple = (15, 6)):
+            """Plot normalization constant A(k) for both types."""
+            k_values = np.arange(0, max_k + 1)
+            fig, axes = plt.subplots(1, 2, figsize=figsize)
+            
+            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+                params = self.net._get_params(node_type)
+                
+                # Compute A(k)
+                A_values = []
+                for k in k_values:
+                    product = (np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i)
+                                    for i in range(k)]) if k > 0 else 1.0)
+                    gamma_ratio = gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha'])
+                    A_values.append(params['p0'] * product * gamma_ratio)
+                
+                ax = axes[idx]
+                ax.plot(k_values, A_values, 'o-', color=color, linewidth=2, markersize=4,
+                    alpha=0.7, label='A(k) computed')
+                ax.axhline(params['A'], linestyle='--', color='black', linewidth=2, alpha=0.7,
+                        label=f"$p_0 \\cdot \\Gamma(\\alpha+\\gamma)/\\Gamma(\\alpha)$ = {params['A']:.2f}")
+                
+                ax.set_xlabel('k', fontsize=13)
+                ax.set_ylabel('A(k)', fontsize=13)
+                ax.set_title(f"Type '{node_type}' Normalization", fontsize=13, fontweight='bold')
+                ax.set_xscale('log')
+                ax.legend(fontsize=10, loc='best')
+                ax.grid(True, alpha=0.3)
+            
+            # Add metadata as legend text box
+            legend_text = f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}"
+            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11,
+                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            
+            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            fm.save_fig(fig, "A_normalization")
+            
+            # Export CSV for both types
+            for node_type in ['a', 'b']:
+                params = self.net._get_params(node_type)
+                
+                csv_data = []
+                for k in k_values:
+                    product = (np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i)
+                                    for i in range(k)]) if k > 0 else 1.0)
+                    gamma_ratio = gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha'])
+                    A_k = params['p0'] * product * gamma_ratio
+                    
+                    csv_data.append({
+                        'k': k,
+                        'A_k': A_k,
+                        'A_asymptotic': params['A']
+                    })
+                
+                df = pd.DataFrame(csv_data)
+                filepath = fm.data_dir / f"A_normalization_type_{node_type}.csv"
+                with open(filepath, 'w') as f:
+                    f.write(f"# Normalization constant A(k)\n")
+                    f.write(f"# Node type: {node_type}\n")
+                    f.write(f"# p0: {params['p0']:.6f}, alpha: {params['alpha']:.6f}, gamma: {params['gamma']:.6f}\n")
+                    f.write(f"# A_asymptotic: {params['A']:.6f}\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df.to_csv(f, index=False)
+            
+            return fig
+
+        def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), 
+                        node_size: float = 100, layout: str = 'spring'):
+            """
+            Plot the network graph with nodes colored by type.
+            """
+            if self.net.graph is None:
+                print("Warning: Network graph not built. Set build_graph=True when creating network.")
+                return None
+            
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            # Get node attributes
+            node_types = self.net.node_types[:self.net.graph.number_of_nodes()]
+            in_degrees = self.net.in_degrees[:self.net.graph.number_of_nodes()]
+            
+            # Node colors by type
+            node_colors = ['red' if nt == 0 else 'blue' for nt in node_types]
+            
+            # Choose layout
+            if layout == 'spring':
+                pos = nx.spring_layout(self.net.graph, seed=42, k=1/np.sqrt(self.net.graph.number_of_nodes()))
+            elif layout == 'kamada_kawai':
+                pos = nx.kamada_kawai_layout(self.net.graph)
+            elif layout == 'circular':
+                pos = nx.circular_layout(self.net.graph)
+            else:
+                raise ValueError(f"Unknown layout: {layout}")
+            
+            # Draw network
+            nx.draw_networkx_nodes(self.net.graph, pos, node_color=node_colors, 
+                                node_size=node_size, alpha=0.7, ax=ax)
+            nx.draw_networkx_edges(self.net.graph, pos, alpha=0.2, width=0.5, 
+                                arrows=True, arrowsize=10, ax=ax)
+            
+            # Create legend
+
+            legend_elements = [
+                Patch(facecolor='red', alpha=0.7, label='Type a'),
+                Patch(facecolor='blue', alpha=0.7, label='Type b'),
+            ]
+            ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
+            
+            # Add metadata
+            legend_text = (f"N={self.net.n0 + self.net.n_nodes}, m={self.net.m_edges}, "
+                        f"h={self.net.h}, $f_a$={self.net.f_a}")
+            ax.text(0.5, 0.98, legend_text, transform=ax.transAxes, ha='center', va='top',
+                fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            
+            ax.set_title(f"Network Graph ({layout} layout)", fontsize=14, fontweight='bold', pad=20)
+            ax.axis('off')
+            plt.tight_layout()
+            fm.save_fig(fig, f"network_graph_{layout}")
+            
+            # Export single CSV with edge list and node attributes
+            edges_data = []
+            for source, target in self.net.graph.edges():
+                edges_data.append({
+                    'source': source,
+                    'target': target,
+                    'source_type': 'a' if node_types[source] == 0 else 'b',
+                    'target_type': 'a' if node_types[target] == 0 else 'b',
+                    'source_in_degree': in_degrees[source],
+                    'target_in_degree': in_degrees[target],
+                    'source_is_initial': source < self.net.n0,
+                    'target_is_initial': target < self.net.n0,
+                    'source_order': source,  # Node ID equals addition order
+                    'target_order': target,  # Node ID equals addition order
+                })
+            
+            df_edges = pd.DataFrame(edges_data)
+            filepath = fm.data_dir / "network_graph.csv"
+            with open(filepath, 'w') as f:
+                f.write(f"# Network edge list with node attributes\n")
+                f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                f.write(f"# Initial network nodes: 0 to {self.net.n0 - 1}\n")
+                f.write(f"# Added nodes: {self.net.n0} to {self.net.n0 + self.net.n_nodes - 1}\n")
+                f.write(f"# Total edges: {self.net.graph.number_of_edges()}\n")
+                f.write(f"# Type a nodes: {np.sum(node_types == 0)}\n")
+                f.write(f"# Type b nodes: {np.sum(node_types == 1)}\n")
+                f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                df_edges.to_csv(f, index=False)
+            
+            return fig
 class GoFDiagnostics:
 
     def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None,):
@@ -1031,95 +1433,6 @@ class GoFDiagnostics:
         indices = sorted(set(int(round(p)) for p in positions))
         return indices
 
-    def plot_p_vs_b_diagnostic_combined(self, scan_res, p_c_list, z: float = 1.0, title_prefix: str = "", figsize=(8, 5), x_context: str = None, ):
-        windows = scan_res.get('windows', [])
-        if not windows:
-            print("No windows to plot in p_vs_b diagnostic.")
-            return None
-
-        bs = np.array([w['b'] for w in windows], dtype=int)
-        ps = np.array([w['p'] for w in windows], dtype=float)
-        sigmas = np.array([w['sigma_p'] for w in windows], dtype=float)
-        p_lower = ps - z * sigmas
-
-        fig, ax = plt.subplots(figsize=figsize)
-
-        # Base vertical error 'bar' as a gray line (no caps)
-        ax.errorbar(
-            bs,
-            ps,
-            yerr=sigmas,
-            fmt='none',
-            ecolor='0.6',
-            elinewidth=1.5,
-            capsize=0,
-            zorder=1,
-        )
-
-        tick_color = 'orange'
-        tick_size = 0.01  # 
-
-        for b, p_val, s in zip(bs, ps, sigmas):
-            top = p_val + s
-            mid = p_val
-            bot = p_val - s
-
-            y_min, y_max = -0.05, 1.05
-            tick_half = tick_size * (y_max - y_min) / 2.0
-
-            for y in (top, mid, bot):
-                ax.plot(
-                    [b - 0.1, b + 0.1],
-                    [y, y],
-                    color=tick_color,
-                    linewidth=1.5,
-                    zorder=2,
-                )
-
-        ax.plot(
-            bs,
-            p_lower,
-            '-s',
-            color='C1',
-            linewidth=2,
-            markersize=5,
-            label=fr'Lower bound $p(b) - {z}\,\sigma_p$',
-            zorder=3,
-        )
-
-        colors_pc = plt.cm.plasma(np.linspace(0, 1, len(p_c_list)))
-        for color_pc, p_c in zip(colors_pc, p_c_list):
-            ax.axhline(
-                y=p_c,
-                color=color_pc,
-                linestyle='--',
-                linewidth=1.5,
-                label=fr'$p_c = {p_c}$',
-            )
-
-        a = scan_res.get('a', None)
-        if x_context is not None:
-            main_title = f"modified CSN  P value vs data truncation for {x_context}"
-        else:
-            main_title = "modified CSN  P value vs data truncation"
-
-        parts = [main_title]
-        if a is not None:
-            parts.append(f"[a = {a}]")
-        if title_prefix:
-            parts.append(title_prefix)
-
-        ax.set_title(" | ".join(parts))
-
-        ax.set_xlabel(r'$b$ (upper truncation)')
-        ax.set_ylabel(r'$p(b)$ and lower bounds')
-        ax.set_ylim(-0.05, 1.05)
-        ax.grid(True, alpha=0.3, linestyle='--')
-        ax.legend(loc='best')
-
-        plt.tight_layout()
-        return fig
-
     def _p_from_D_theory_over_b(self, scan_res, net: DirectedHomophilicNetwork, node_type: str,):
         """
         For each window in scan_res['windows'], compute p(d_e, N)
@@ -1156,79 +1469,6 @@ class GoFDiagnostics:
             p_vals.append(p_de)
 
         return np.asarray(bs, dtype=int), np.asarray(p_vals, dtype=float)
-
-    def csn_diagnostic_plots_over_sweep(self, sweep_results: dict, p_c_list, num_p_vs_b: int, fm: "FileManager", node_type: str, sweep_label: str,  z: float = 1.0, a: int = 0,):
-    
-        if num_p_vs_b <= 0:
-            return
-
-        if sweep_label == 'm_edges':
-            x_values = np.asarray(sweep_results['m_values'], dtype=int)
-        else:
-            x_values = np.asarray(sweep_results['n0_values'], dtype=int)
-
-        windows_info = sweep_results['windows_info']
-        n = len(x_values)
-        if n == 0:
-            return
-
-        diag_indices = self._select_indices_for_diagnostics(n=n, k=num_p_vs_b)
-
-        for idx in diag_indices:
-            x_val = int(x_values[idx])
-            scan_res = windows_info[idx]
-            windows = scan_res.get('windows', [])
-            if not windows:
-                continue
-
-            pcs_results = self.select_largest_window_for_pcs(
-                windows=windows,
-                a=a,
-                p_c_list=p_c_list,
-            )
-            if sweep_label == 'm_edges':
-                x_context = rf"$m = {x_val}$"
-            else:
-                x_context = rf"$n_0 = {x_val}$"
-
-            # Build figure without overlay first
-            fig_diag = self.plot_p_vs_b_diagnostic_combined(scan_res=scan_res, p_c_list=p_c_list,
-            z=z, title_prefix=f"node_type={node_type}", figsize=(8, 5), x_context=x_context,)
-
-            # overlay p(d_e, N) curve from D_theory
-            degrees_arr = scan_res.get('degrees_for_node_type', None)
-            if degrees_arr is not None and fig_diag is not None:
-                # minimal dummy "net" with only _get_degrees implemented
-                class _DummyNet:
-                    def __init__(self, degrees):
-                        self._degrees = np.asarray(degrees, dtype=int)
-                    def _get_degrees(self, nt):
-                        return self._degrees
-
-                dummy_net = _DummyNet(degrees_arr)
-                bs_extra, p_extra = self._p_from_D_theory_over_b(
-                    scan_res=scan_res,
-                    net=dummy_net,
-                    node_type=node_type,
-                )
-                if bs_extra.size > 0:
-                    ax = fig_diag.axes[0]
-                    ax.plot(
-                        bs_extra,
-                        p_extra,
-                        '-^',
-                        color='C3',
-                        linewidth=2,
-                        markersize=4,
-                        label=r'$p(d_e, N)$ from $D_{\mathrm{theory}}$',
-                    )
-                    ax.legend(loc='best')
-     
-            if fig_diag is not None:
-                fm.save_fig(
-                    fig_diag,
-                    f"p_vs_b_{sweep_label}{x_val}",
-                ) 
 
     def csn_sweep_2d_grid(self, net: DirectedHomophilicNetwork, m_min: int, m_max: int, m_step: int, n0_min: int, n0_max: int, n0_step: int, 
                           node_type: str = 'b', a: int = 0, candidate_bs=None, b_min: int = None, b_max: int = None, n_b: int = 20, 
@@ -1301,29 +1541,28 @@ class GoFDiagnostics:
         
         return {'m_values': m_values, 'n0_values': n0_values, 'frac_nodes_grid': frac_nodes_grid, 'frac_edges_grid': frac_edges_grid,
                 'b_star_grid': b_star_grid, 'p_value_grid': p_value_grid, 'p_c_list': p_c_list, 'z': z, 'a': a, 'node_type': node_type}
-
     class CSN1DVis:
-        """
-        1D visualization utilities for CSN-based windows.
-        """
+        """1D sweep visualization for m_edges and n0 sweeps."""
+        
         def __init__(self, parent_gof: "GoFDiagnostics"):
             self.gof = parent_gof
-            
             plt.rcParams['font.family'] = 'serif'
             plt.rcParams['font.serif'] = ['TeX Gyre Termes', 'Times New Roman']
             plt.rcParams['mathtext.fontset'] = 'cm'
             plt.rcParams['axes.linewidth'] = 0.8
             plt.rcParams['xtick.major.width'] = 0.8
             plt.rcParams['ytick.major.width'] = 0.8
-
-        def plot_frac_sweep(self, x_values, frac_dict, no_window_dict, p_c_list, 
-                            x_name, metric_name, x_label, node_type, a, figsize=(10, 6)):
+        
+        def plot_frac_sweep(self, x_values, frac_nodes_dict, frac_edges_dict, 
+                            no_window_dict, p_c_list, x_name, node_type, a, 
+                            metric='nodes', figsize=(10, 6)):
             """Plot fraction (nodes or edges) vs sweep parameter.
             
             Args:
-                metric_name: 'nodes' or 'edges'
-                x_label: display label for x-axis
+                metric: 'nodes' or 'edges'
             """
+            frac_dict = frac_nodes_dict if metric == 'nodes' else frac_edges_dict
+            
             fig, ax = plt.subplots(figsize=figsize)
             colors = plt.cm.viridis(np.linspace(0, 1, len(p_c_list)))
             
@@ -1343,17 +1582,115 @@ class GoFDiagnostics:
             
             legend_text = f"{x_name} = sweep, node_type = {node_type}, a = {a}"
             ax.text(0.02, 0.98, legend_text, transform=ax.transAxes,
-                fontsize=9, verticalalignment='top', bbox=dict(boxstyle='round', 
-                facecolor='wheat', alpha=0.5))
+                fontsize=9, verticalalignment='top', 
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
             
-            ax.set_xlabel(x_label, fontsize=12)
-            ax.set_ylabel(f'Fraction of {metric_name} kept', fontsize=12)
+            ax.set_xlabel(x_name, fontsize=12)
+            ax.set_ylabel(f'Fraction of {metric} kept', fontsize=12)
             ax.set_ylim(-0.05, 1.05)
             ax.grid(True, alpha=0.3)
             ax.legend(fontsize=10, loc='lower right')
             plt.tight_layout()
             return fig
-
+        
+        def plot_beta_mle_pct_diff(self, windows, x_val, x_name, node_type, a, figsize=(10, 6)):
+            """Plot % difference between fitted and theory beta across truncations."""
+            bs = []
+            p0_pct = []
+            p0_err = []
+            alpha_pct = []
+            alpha_err = []
+            gamma_pct = []
+            gamma_err = []
+            
+            for w in windows:
+                b = int(w['b'])
+                beta_mle_mean = w.get('beta_mle_mean')
+                beta_mle_std = w.get('beta_mle_std')
+                beta_theory = w.get('beta_theory')
+                
+                if beta_mle_mean is None or beta_theory is None:
+                    continue
+                
+                p0_m, alpha_m, gamma_m = beta_mle_mean
+                p0_s, alpha_s, gamma_s = beta_mle_std if beta_mle_std is not None else (0, 0, 0)
+                p0_t, alpha_t, gamma_t = beta_theory
+                
+                bs.append(b)
+                
+                p0_pct.append(100 * (p0_m - p0_t) / p0_t if p0_t != 0 else np.nan)
+                p0_err.append(100 * p0_s / p0_t if p0_t != 0 else np.nan)
+                
+                alpha_pct.append(100 * (alpha_m - alpha_t) / alpha_t if alpha_t != 0 else np.nan)
+                alpha_err.append(100 * alpha_s / alpha_t if alpha_t != 0 else np.nan)
+                
+                gamma_pct.append(100 * (gamma_m - gamma_t) / gamma_t if gamma_t != 0 else np.nan)
+                gamma_err.append(100 * gamma_s / gamma_t if gamma_t != 0 else np.nan)
+            
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            ax.errorbar(bs, p0_pct, yerr=p0_err, fmt='o-', linewidth=2, markersize=5,
+                    color='red', label=r'$p_0$', capsize=4)
+            ax.errorbar(bs, alpha_pct, yerr=alpha_err, fmt='s-', linewidth=2, markersize=5,
+                    color='blue', label=r'$\alpha$', capsize=4)
+            ax.errorbar(bs, gamma_pct, yerr=gamma_err, fmt='^-', linewidth=2, markersize=5,
+                    color='green', label=r'$\gamma$', capsize=4)
+            
+            ax.axhline(0, color='black', linestyle='--', linewidth=1, alpha=0.5)
+            
+            legend_text = f"{x_name} = {x_val}, node_type = {node_type}, a = {a}"
+            ax.text(0.02, 0.98, legend_text, transform=ax.transAxes,
+                fontsize=9, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            
+            ax.set_xlabel(r'$b$ (truncation upper bound)', fontsize=12)
+            ax.set_ylabel(r'% difference from theory', fontsize=12)
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=11, loc='best')
+            plt.tight_layout()
+            return fig
+        
+        def plot_p_vs_b(self, scan_res, p_c_list, x_val, x_name, node_type, a, z=1.0, figsize=(10, 6)):
+            """Wrapper around parent's plot_p_vs_b_diagnostic_combined with no title."""
+            windows = scan_res.get('windows', [])
+            if not windows:
+                return None
+            
+            bs = np.array([w['b'] for w in windows], dtype=int)
+            ps = np.array([w['p'] for w in windows], dtype=float)
+            sigmas = np.array([w['sigma_p'] for w in windows], dtype=float)
+            p_lower = ps - z * sigmas
+            
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            ax.errorbar(bs, ps, yerr=sigmas, fmt='none', ecolor='0.6', 
+                    elinewidth=1.5, capsize=0, zorder=1)
+            
+            for b, p_val, s in zip(bs, ps, sigmas):
+                for y in (p_val + s, p_val, p_val - s):
+                    ax.plot([b - 0.1, b + 0.1], [y, y], color='orange', 
+                        linewidth=1.5, zorder=2)
+            
+            ax.plot(bs, p_lower, '-s', color='C1', linewidth=2, markersize=5,
+                label=fr'Lower bound $p(b) - {z}\,\sigma_p$', zorder=3)
+            
+            colors_pc = plt.cm.plasma(np.linspace(0, 1, len(p_c_list)))
+            for color_pc, p_c in zip(colors_pc, p_c_list):
+                ax.axhline(y=p_c, color=color_pc, linestyle='--', linewidth=1.5,
+                        label=fr'$p_c = {p_c}$')
+            
+            legend_text = f"{x_name} = {x_val}, node_type = {node_type}, a = {a}"
+            ax.text(0.02, 0.98, legend_text, transform=ax.transAxes,
+                fontsize=9, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            
+            ax.set_xlabel(r'$b$ (upper truncation)', fontsize=12)
+            ax.set_ylabel(r'$p(b)$ and lower bounds', fontsize=12)
+            ax.set_ylim(-0.05, 1.05)
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.legend(loc='best', fontsize=9)
+            plt.tight_layout()
+            return fig        
     class CSN2DVis:
         """
         2D visualization utilities for CSN-based windows.
@@ -1444,285 +1781,6 @@ class GoFDiagnostics:
             ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
             plt.tight_layout()
             return fig                    
-class NetworkPlotting:
-    """
-    Plotting utilities for DirectedHomophilicNetwork.
-    Methods take a `DirectedHomophilicNetwork` instance `net`.
-    """
-
-    def logarithmic_binning(self,degrees: np.ndarray,bin_factor: float = 1.01) -> Tuple[np.ndarray, np.ndarray]:
-        """Create logarithmic bins with k=0 always in its own bin."""
-        if len(degrees) == 0:
-            return np.array([]), np.array([])  # prevents crash out if no nodes of a given type exist
-
-        degrees = np.array(degrees)
-        max_degree, n_total = np.max(degrees), len(degrees)
-
-        # Handle k=0 separately
-        count_zero = np.sum(degrees == 0)
-        bin_centers = [0.0] if count_zero > 0 else []
-        probabilities = [count_zero / n_total] if count_zero > 0 else []
-
-        # Create logarithmic sequence for k >= 1
-        if np.any(degrees > 0):
-            bins = [1]
-            current = 1 * bin_factor
-            while current <= max_degree:
-                bins.append(int(current))
-                current *= bin_factor
-            bins.append(int(max_degree) + 1)
-            bins = sorted(set(bins))
-
-            # Compute bin statistics for k > 0: turn the logarithmic sequence into bins
-            # and count how many degrees fall into each bin
-            for i in range(len(bins) - 1):
-                kmin, kmax = bins[i], bins[i + 1] - 1
-                count = np.sum((degrees >= kmin) & (degrees <= kmax))
-
-                if count > 0:
-                    center = np.sqrt(kmin * kmax)  # Geometric mean (always kmin > 0)
-                    bin_centers.append(center)
-                    probabilities.append(count / n_total)
-
-        return np.array(bin_centers), np.array(probabilities)
-
-    def plot_degree_distributions(self,net: DirectedHomophilicNetwork,figsize: Tuple = (15, 6),discretisations: int = 10**5,):
-        """
-        Plot in-degree distributions with theoretical curves. If discretisations=0,
-        theoretical curve is only computed at integer k.
-        """
-        fig, axes = plt.subplots(1, 2, figsize=figsize)
-
-        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
-            in_degrees = net._get_degrees(node_type)
-            if len(in_degrees) == 0:
-                continue
-
-            ax = axes[idx]
-
-            # Empirical data
-            bin_centers, probs = self.logarithmic_binning(in_degrees)
-            ax.scatter(
-                bin_centers,
-                probs,
-                s=50,
-                alpha=0.7,
-                color=color,
-                edgecolors='black',
-                linewidths=0.5,
-                label='Simulation',
-                zorder=3,
-            )
-
-            ax.axvline(
-                x=0,
-                color='black',
-                linestyle='--',
-                linewidth=1.5,
-                alpha=0.7,
-                zorder=4,
-            )
-
-            # Theoretical curve
-            k_max = int(np.max(in_degrees))
-            if discretisations == 0:
-                k_range = np.arange(0, k_max + 1)
-            else:
-                k_range = np.concatenate([[0], np.linspace(0.01, k_max, discretisations)])
-            theo_probs = net.theoretical_distribution(k_range, node_type)
-            mask = theo_probs > 0
-
-            ax.plot(
-                k_range[mask],
-                theo_probs[mask],
-                '-',
-                linewidth=2.5,
-                color='dark' + color,
-                alpha=0.85,
-                label='Theory',
-                zorder=2,
-            )
-
-            # Formatting
-            ax.set_xscale('symlog', linthresh=0.1)
-            ax.set_yscale('log')
-            ax.set_xlim(left=-0.05)
-            ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
-            ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
-            ax.set_title(
-                f'Type "{node_type}" (n={len(in_degrees)})',
-                fontsize=13,
-                fontweight='bold',
-            )
-            ax.legend(fontsize=9, loc='best', framealpha=0.9)
-            ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
-
-        fig.suptitle(
-            f'Directed Homophilic Network: N={net.n0 + net.n_nodes:,}, '
-            f'm={net.m_edges}, h={net.h}, f_a={net.f_a}',
-            fontsize=14,
-            fontweight='bold',
-        )
-        plt.tight_layout()
-        return fig
-
-    def plot_in_edge_asymptotes(self,net: DirectedHomophilicNetwork,figsize: Tuple = (10, 6),):
-        """Plot mean in-edge density with asymptotic fits."""
-        times = np.array([d['t'] for d in net.edge_evolution])
-        mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in net.edge_evolution])
-        mean_deg_b = np.array([d['in_edges_b'] / d['t'] for d in net.edge_evolution])
-
-        fig, ax = plt.subplots(figsize=figsize)
-
-        for mean_deg, type_name, color in [
-            (mean_deg_a, 'a', 'red'),
-            (mean_deg_b, 'b', 'blue'),
-        ]:
-            ax.plot(times, mean_deg, label=f"Type '{type_name}' (data)", color=color)
-            asymptote = net.g_a if type_name == 'a' else net.g_b
-            ax.axhline(
-                asymptote,
-                linestyle='--',
-                alpha=0.7,
-                color='dark' + color,
-                label=f"Type '{type_name}' asymptote = {asymptote:.3f}",
-            )
-
-        ax.set_xlabel("t (number of nodes)")
-        ax.set_ylabel("Mean in-degree")
-        ax.set_title("Asymptotic In-Edge Density")
-        ax.legend()
-        ax.grid(True, linestyle='--', alpha=0.3)
-        plt.tight_layout()
-        return fig
-
-    def plot_A_values(self, net: DirectedHomophilicNetwork, max_k: int = 25):
-        """Plot normalization constant A(k) for both types."""
-        k_values = np.arange(0, max_k + 1)
-        fig, axes = plt.subplots(1, 2, figsize=(15, 6))
-
-        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
-            params = net._get_params(node_type)
-
-            # Compute A(k) by brute force
-            A_values = []
-            for k in k_values:
-                product = (
-                    np.prod(
-                        [
-                            (params['alpha'] + i)
-                            / (params['alpha'] + params['gamma'] + i)
-                            for i in range(k)
-                        ]
-                    )
-                    if k > 0
-                    else 1.0
-                )
-                gamma_ratio = gamma_func(
-                    k + params['alpha'] + params['gamma']
-                ) / gamma_func(k + params['alpha'])
-                A_values.append(params['p0'] * product * gamma_ratio)
-
-            ax = axes[idx]
-            ax.plot(
-                k_values,
-                A_values,
-                'o-',
-                color=color,
-                linewidth=2,
-                markersize=4,
-                alpha=0.7,
-                label='A(k) computed',
-            )
-            ax.axhline(
-                params['A'],
-                linestyle='--',
-                color='black',
-                linewidth=2,
-                alpha=0.7,
-                label=f"b₀·Γ(α+γ)/Γ(α) = {params['A']:.2f}",
-            )
-
-            ax.set_xlabel('k', fontsize=13)
-            ax.set_ylabel('A(k)', fontsize=13)
-            ax.set_title(
-                f"Type '{node_type}' Normalization",
-                fontsize=13,
-                fontweight='bold',
-            )
-            ax.set_xscale('log')
-            ax.legend(fontsize=10)
-            ax.grid(True, alpha=0.3)
-
-        plt.tight_layout()
-        return fig
-
-    def plot_degree_distributions_discrete(self,net: DirectedHomophilicNetwork,figsize: Tuple = (15, 6),max_k_display: int = None,):
-        """
-        Plot using discrete integer probabilities - no binning.
-        This shows the true empirical PMF at each integer k value.
-        LINEAR SCALE VERSION - raw data.
-        """
-        fig, axes = plt.subplots(1, 2, figsize=figsize)
-
-        for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
-            in_degrees = net._get_degrees(node_type)
-            if len(in_degrees) == 0:
-                continue
-
-            ax = axes[idx]
-
-            # Empirical PMF at integer values
-            unique_k, counts = np.unique(in_degrees, return_counts=True)
-            empirical_pmf = counts / len(in_degrees)
-
-            ax.scatter(
-                unique_k,
-                empirical_pmf,
-                s=1,
-                alpha=0.7,
-                color=color,
-                edgecolors='black',
-                linewidths=1,
-                label='Simulation',
-                zorder=3,
-            )
-
-            # Theoretical curve at integer values
-            k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
-            k_range = np.arange(0, k_max + 1)
-            theo_probs = net.theoretical_distribution(k_range, node_type)
-
-            ax.plot(
-                k_range,
-                theo_probs,
-                '-',
-                linewidth=1,
-                color='dark' + color,
-                alpha=1,
-                label='Theory',
-                zorder=2,
-            )
-
-            # Formatting - LINEAR AXES
-            ax.set_xlabel(r'In-degree ${k^{\mathrm{(in)}}}$', fontsize=13)
-            ax.set_ylabel(r'Probability ${p(k^{\mathrm{(in)}})}$', fontsize=13)
-            ax.set_title(
-                f'Type "{node_type}" (n={len(in_degrees)}) - LINEAR SCALE',
-                fontsize=13,
-                fontweight='bold',
-            )
-            ax.legend(fontsize=9, loc='best', framealpha=0.9)
-            ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
-
-        fig.suptitle(
-            f'Directed Homophilic Network: N={net.n0 + net.n_nodes:,}, '
-            f'm={net.m_edges}, h={net.h}, f_a={net.f_a}',
-            fontsize=14,
-            fontweight='bold',
-        )
-        plt.tight_layout()
-        return fig
 class NetworkStatistics:
     """
     Statistical reporting utilities for DirectedHomophilicNetwork.
@@ -1782,7 +1840,7 @@ class NetworkStatistics:
         )
 
 if __name__ == "__main__":
-
+    
     config = dict(
         network=dict(
             n0=30, n_nodes=500, m_edges=3,
@@ -1790,7 +1848,7 @@ if __name__ == "__main__":
             seed=None,
         ),
         sweep_m=dict(
-            m_min=1, m_max= 25, m_step=5,
+            m_min=1, m_max=25, m_step=5,
             node_type='b', a=0,
             p_c_list=[0.1, 0.4],
             N_sims=5, b_grid_type='linear',
@@ -1800,7 +1858,7 @@ if __name__ == "__main__":
             n0_min=10, n0_max=100, n0_step=20,
             node_type='b', a=0,
             p_c_list=[0.1, 0.4],
-            N_sims= 10, b_grid_type='linear',
+            N_sims=10, b_grid_type='linear',
             n_b=20, b_min=None, b_max=None,
         ),
         grid_2d=dict(
@@ -1812,145 +1870,381 @@ if __name__ == "__main__":
             b_min=None, b_max=None, z=1.0,
         ),
         plots=dict(
-            log_binned= False, discrete_linear= False,
-            asymptotes=False, A_const= False,
-            sweep_m_edges_csn= True, sweep_n0_csn= True,
+            network_basic=True, 
+            sweep_m_edges_csn=False, sweep_n0_csn=False,
             csn_p_vs_b_m=3, csn_p_vs_b_n0=3,
-            grid_2d_sweep=False, 
+            grid_2d_sweep=False,
         ))
     
     fm = FileManager(config)
     net = DirectedHomophilicNetwork(**config["network"])
     gof = GoFDiagnostics()
-    plotting = NetworkPlotting()
     stats = NetworkStatistics()
-
+    
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
-
+    
     stats.print_statistics(net)
-
+    
     plots = config["plots"]
-
-    if plots["log_binned"]:
-        fig = plotting.plot_degree_distributions(net)
-        fm.save_fig(fig, "degree_dist_log_binned")
-
-    if plots["discrete_linear"]:
-        fig = plotting.plot_degree_distributions_discrete(net)
-        fm.save_fig(fig, "degree_dist_discrete")
-
-    if plots["asymptotes"]:
-        fig = plotting.plot_in_edge_asymptotes(net)
-        fm.save_fig(fig, "asymptotes")
-
-    if plots["A_const"]:
-        fig = plotting.plot_A_values(net)
-        fm.save_fig(fig, "A_const")
+    
+    if plots["network_basic"]:
+        vis = DirectedHomophilicNetwork.NetworkVis(net)
+        vis.plot_network_graph(fm)
+        vis.plot_degree_distributions_log(fm)
+        vis.plot_degree_distributions_linear(fm)
+        vis.plot_asymptotes(fm)
+        vis.plot_A_normalization(fm)
 
     if plots["sweep_m_edges_csn"]:
         results_m = gof.csn_sweep_m_edges(net, **config["sweep_m"])
         fm.save_fig(results_m["fig"], "sweep_m_edges_csn")
-
+        
+        # Export frac sweep data
+        frac_data = {}
+        for p_c in config["sweep_m"]["p_c_list"]:
+            frac_data[f'frac_nodes_pc{p_c}'] = results_m['frac_nodes_kept'][p_c]
+            frac_data[f'frac_edges_pc{p_c}'] = results_m['frac_edges_kept'][p_c]
+            frac_data[f'valid_pc{p_c}'] = [not x for x in results_m['no_window'][p_c]]
+        
+        fm.export_grid_to_csv(
+            frac_data, 'sweep_m_edges_frac',
+            metric_name='frac', x_values=results_m['m_values'], 
+            x_name='m_edges',
+            metadata_dict={
+                'Sweep': 'm_edges',
+                'Node type': config["sweep_m"]["node_type"],
+                'a': config["sweep_m"]["a"],
+            }
+        )
+        
+        # Plot frac sweep
+        v1d = GoFDiagnostics.CSN1DVis(gof)
+        fig_nodes = v1d.plot_frac_sweep(
+            results_m['m_values'], results_m['frac_nodes_kept'],
+            results_m['frac_edges_kept'], results_m['no_window'],
+            config["sweep_m"]["p_c_list"], 'm_edges',
+            config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='nodes'
+        )
+        fm.save_fig(fig_nodes, "sweep_m_edges_frac_nodes")
+        
+        fig_edges = v1d.plot_frac_sweep(
+            results_m['m_values'], results_m['frac_nodes_kept'],
+            results_m['frac_edges_kept'], results_m['no_window'],
+            config["sweep_m"]["p_c_list"], 'm_edges',
+            config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='edges'
+        )
+        fm.save_fig(fig_edges, "sweep_m_edges_frac_edges")
+        
+        # P vs B and Beta MLE diagnostics
         num_p_vs_b_m = plots.get("csn_p_vs_b_m", 0)
         if num_p_vs_b_m > 0:
-            gof.csn_diagnostic_plots_over_sweep(
-                sweep_results=results_m,
-                p_c_list=config["sweep_m"]["p_c_list"],
-                num_p_vs_b=num_p_vs_b_m,
-                fm=fm,
-                node_type=config["sweep_m"]["node_type"],
-                sweep_label='m_edges',
-                z=1.0,
-                a=config["sweep_m"]["a"],
+            diag_indices = gof._select_indices_for_diagnostics(
+                len(results_m['m_values']), num_p_vs_b_m
             )
+            
+            for idx in diag_indices:
+                x_val = int(results_m['m_values'][idx])
+                scan_res = results_m['windows_info'][idx]
+                windows = scan_res.get('windows', [])
+                
+                if not windows:
+                    continue
+                
+                # P vs B plot
+                fig_p = v1d.plot_p_vs_b(
+                    scan_res, config["sweep_m"]["p_c_list"],
+                    x_val, 'm_edges', config["sweep_m"]["node_type"],
+                    config["sweep_m"]["a"], z=1.0
+                )
+                fm.save_fig(fig_p, f"p_vs_b_m_edges_{x_val}")
+                
+                # P vs B CSV
+                p_data = []
+                for w in windows:
+                    p_data.append({
+                        'b': int(w['b']),
+                        'p': float(w['p']),
+                        'sigma_p': float(w['sigma_p']),
+                        'p_lower_bound': float(w['p']) - 1.0 * float(w['sigma_p']),
+                        'D_theory_mean': float(np.mean(np.asarray(w['D_theory'], dtype=float))),
+                        'D_mle_mean': float(np.mean(np.asarray(w['D_mle'], dtype=float))),
+                    })
+                
+                df_p = pd.DataFrame(p_data)
+                filepath_p = fm.data_dir / f"p_vs_b_m_edges_{x_val}.csv"
+                with open(filepath_p, 'w') as f:
+                    f.write(f"# P-value vs truncation analysis\n")
+                    f.write(f"# Sweep: m_edges, value: {x_val}\n")
+                    f.write(f"# Node type: {config['sweep_m']['node_type']}, a: {config['sweep_m']['a']}\n")
+                    f.write(f"# Confidence interval: z = 1.0\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df_p.to_csv(f, index=False)
+                
+                # Beta MLE plot
+                fig_beta = v1d.plot_beta_mle_pct_diff(
+                    windows, x_val, 'm_edges',
+                    config["sweep_m"]["node_type"], config["sweep_m"]["a"]
+                )
+                fm.save_fig(fig_beta, f"beta_mle_m_edges_{x_val}")
+                
+                # Beta MLE CSV
+                beta_data = []
+                for w in windows:
+                    b = int(w['b'])
+                    beta_mle_mean = w.get('beta_mle_mean')
+                    beta_mle_std = w.get('beta_mle_std')
+                    beta_theory = w.get('beta_theory')
+                    
+                    if beta_mle_mean is None or beta_theory is None:
+                        continue
+                    
+                    p0_m, alpha_m, gamma_m = beta_mle_mean
+                    p0_s, alpha_s, gamma_s = beta_mle_std if beta_mle_std is not None else (0, 0, 0)
+                    p0_t, alpha_t, gamma_t = beta_theory
+                    
+                    p0_pct = 100 * (p0_m - p0_t) / p0_t if p0_t != 0 else np.nan
+                    p0_pct_sigma = 100 * p0_s / p0_t if p0_t != 0 else np.nan
+                    alpha_pct = 100 * (alpha_m - alpha_t) / alpha_t if alpha_t != 0 else np.nan
+                    alpha_pct_sigma = 100 * alpha_s / alpha_t if alpha_t != 0 else np.nan
+                    gamma_pct = 100 * (gamma_m - gamma_t) / gamma_t if gamma_t != 0 else np.nan
+                    gamma_pct_sigma = 100 * gamma_s / gamma_t if gamma_t != 0 else np.nan
+                    
+                    beta_data.append({
+                        'b': b,
+                        'p0_mle_mean': p0_m, 'p0_mle_std': p0_s, 'p0_theory': p0_t,
+                        'p0_pct_diff': p0_pct, 'p0_pct_diff_lower': p0_pct - p0_pct_sigma,
+                        'p0_pct_diff_upper': p0_pct + p0_pct_sigma,
+                        'alpha_mle_mean': alpha_m, 'alpha_mle_std': alpha_s, 'alpha_theory': alpha_t,
+                        'alpha_pct_diff': alpha_pct, 'alpha_pct_diff_lower': alpha_pct - alpha_pct_sigma,
+                        'alpha_pct_diff_upper': alpha_pct + alpha_pct_sigma,
+                        'gamma_mle_mean': gamma_m, 'gamma_mle_std': gamma_s, 'gamma_theory': gamma_t,
+                        'gamma_pct_diff': gamma_pct, 'gamma_pct_diff_lower': gamma_pct - gamma_pct_sigma,
+                        'gamma_pct_diff_upper': gamma_pct + gamma_pct_sigma,
+                    })
+                
+                df_beta = pd.DataFrame(beta_data)
+                filepath_beta = fm.data_dir / f"beta_mle_m_edges_{x_val}.csv"
+                with open(filepath_beta, 'w') as f:
+                    f.write(f"# Beta MLE analysis\n")
+                    f.write(f"# Sweep: m_edges, value: {x_val}\n")
+                    f.write(f"# Node type: {config['sweep_m']['node_type']}, a: {config['sweep_m']['a']}\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df_beta.to_csv(f, index=False)
 
     if plots["sweep_n0_csn"]:
-        results_n0 = gof.csn_sweep_n0(net, **config["sweep_n0"])
-        fm.save_fig(results_n0["fig"], "sweep_n0_csn")
-
-        num_p_vs_b_n0 = plots.get("csn_p_vs_b_n0", 0)
-        if num_p_vs_b_n0 > 0:
-            gof.csn_diagnostic_plots_over_sweep(
-                sweep_results=results_n0,
-                p_c_list=config["sweep_n0"]["p_c_list"],
-                num_p_vs_b=num_p_vs_b_n0,
-                fm=fm,
-                node_type=config["sweep_n0"]["node_type"],
-                sweep_label='n0',
-                z=1.0,
-                a=config["sweep_n0"]["a"],
+            results_n0 = gof.csn_sweep_n0(net, **config["sweep_n0"])
+            fm.save_fig(results_n0["fig"], "sweep_n0_csn")
+            
+            # Export frac sweep data
+            frac_data = {}
+            for p_c in config["sweep_n0"]["p_c_list"]:
+                frac_data[f'frac_nodes_pc{p_c}'] = results_n0['frac_nodes_kept'][p_c]
+                frac_data[f'frac_edges_pc{p_c}'] = results_n0['frac_edges_kept'][p_c]
+                frac_data[f'valid_pc{p_c}'] = [not x for x in results_n0['no_window'][p_c]]
+            
+            fm.export_grid_to_csv(
+                frac_data, 'sweep_n0_frac',
+                metric_name='frac', x_values=results_n0['n0_values'], 
+                x_name='n0',
+                metadata_dict={
+                    'Sweep': 'n0',
+                    'Node type': config["sweep_n0"]["node_type"],
+                    'a': config["sweep_n0"]["a"],
+                }
             )
-
+            
+            # Plot frac sweep
+            v1d = GoFDiagnostics.CSN1DVis(gof)
+            fig_nodes = v1d.plot_frac_sweep(
+                results_n0['n0_values'], results_n0['frac_nodes_kept'],
+                results_n0['frac_edges_kept'], results_n0['no_window'],
+                config["sweep_n0"]["p_c_list"], 'n0',
+                config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='nodes'
+            )
+            fm.save_fig(fig_nodes, "sweep_n0_frac_nodes")
+            
+            fig_edges = v1d.plot_frac_sweep(
+                results_n0['n0_values'], results_n0['frac_nodes_kept'],
+                results_n0['frac_edges_kept'], results_n0['no_window'],
+                config["sweep_n0"]["p_c_list"], 'n0',
+                config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='edges'
+            )
+            fm.save_fig(fig_edges, "sweep_n0_frac_edges")
+            
+            # P vs B and Beta MLE diagnostics
+            num_p_vs_b_n0 = plots.get("csn_p_vs_b_n0", 0)
+            if num_p_vs_b_n0 > 0:
+                diag_indices = gof._select_indices_for_diagnostics(
+                    len(results_n0['n0_values']), num_p_vs_b_n0
+                )
+                
+                for idx in diag_indices:
+                    x_val = int(results_n0['n0_values'][idx])
+                    scan_res = results_n0['windows_info'][idx]
+                    windows = scan_res.get('windows', [])
+                    
+                    if not windows:
+                        continue
+                    
+                    # P vs B plot
+                    fig_p = v1d.plot_p_vs_b(
+                        scan_res, config["sweep_n0"]["p_c_list"],
+                        x_val, 'n0', config["sweep_n0"]["node_type"],
+                        config["sweep_n0"]["a"], z=1.0
+                    )
+                    fm.save_fig(fig_p, f"p_vs_b_n0_{x_val}")
+                    
+                    # P vs B CSV
+                    p_data = []
+                    for w in windows:
+                        p_data.append({
+                            'b': int(w['b']),
+                            'p': float(w['p']),
+                            'sigma_p': float(w['sigma_p']),
+                            'p_lower_bound': float(w['p']) - 1.0 * float(w['sigma_p']),
+                            'D_theory_mean': float(np.mean(np.asarray(w['D_theory'], dtype=float))),
+                            'D_mle_mean': float(np.mean(np.asarray(w['D_mle'], dtype=float))),
+                        })
+                    
+                    df_p = pd.DataFrame(p_data)
+                    filepath_p = fm.data_dir / f"p_vs_b_n0_{x_val}.csv"
+                    with open(filepath_p, 'w') as f:
+                        f.write(f"# P-value vs truncation analysis\n")
+                        f.write(f"# Sweep: n0, value: {x_val}\n")
+                        f.write(f"# Node type: {config['sweep_n0']['node_type']}, a: {config['sweep_n0']['a']}\n")
+                        f.write(f"# Confidence interval: z = 1.0\n")
+                        f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                        df_p.to_csv(f, index=False)
+                    
+                    # Beta MLE plot
+                    fig_beta = v1d.plot_beta_mle_pct_diff(
+                        windows, x_val, 'n0',
+                        config["sweep_n0"]["node_type"], config["sweep_n0"]["a"]
+                    )
+                    fm.save_fig(fig_beta, f"beta_mle_n0_{x_val}")
+                    
+                    # Beta MLE CSV
+                    beta_data = []
+                    for w in windows:
+                        b = int(w['b'])
+                        beta_mle_mean = w.get('beta_mle_mean')
+                        beta_mle_std = w.get('beta_mle_std')
+                        beta_theory = w.get('beta_theory')
+                        
+                        if beta_mle_mean is None or beta_theory is None:
+                            continue
+                        
+                        p0_m, alpha_m, gamma_m = beta_mle_mean
+                        p0_s, alpha_s, gamma_s = beta_mle_std if beta_mle_std is not None else (0, 0, 0)
+                        p0_t, alpha_t, gamma_t = beta_theory
+                        
+                        p0_pct = 100 * (p0_m - p0_t) / p0_t if p0_t != 0 else np.nan
+                        p0_pct_sigma = 100 * p0_s / p0_t if p0_t != 0 else np.nan
+                        alpha_pct = 100 * (alpha_m - alpha_t) / alpha_t if alpha_t != 0 else np.nan
+                        alpha_pct_sigma = 100 * alpha_s / alpha_t if alpha_t != 0 else np.nan
+                        gamma_pct = 100 * (gamma_m - gamma_t) / gamma_t if gamma_t != 0 else np.nan
+                        gamma_pct_sigma = 100 * gamma_s / gamma_t if gamma_t != 0 else np.nan
+                        
+                        beta_data.append({
+                            'b': b,
+                            'p0_mle_mean': p0_m, 'p0_mle_std': p0_s, 'p0_theory': p0_t,
+                            'p0_pct_diff': p0_pct, 'p0_pct_diff_lower': p0_pct - p0_pct_sigma,
+                            'p0_pct_diff_upper': p0_pct + p0_pct_sigma,
+                            'alpha_mle_mean': alpha_m, 'alpha_mle_std': alpha_s, 'alpha_theory': alpha_t,
+                            'alpha_pct_diff': alpha_pct, 'alpha_pct_diff_lower': alpha_pct - alpha_pct_sigma,
+                            'alpha_pct_diff_upper': alpha_pct + alpha_pct_sigma,
+                            'gamma_mle_mean': gamma_m, 'gamma_mle_std': gamma_s, 'gamma_theory': gamma_t,
+                            'gamma_pct_diff': gamma_pct, 'gamma_pct_diff_lower': gamma_pct - gamma_pct_sigma,
+                            'gamma_pct_diff_upper': gamma_pct + gamma_pct_sigma,
+                        })
+                    
+                    df_beta = pd.DataFrame(beta_data)
+                    filepath_beta = fm.data_dir / f"beta_mle_n0_{x_val}.csv"
+                    with open(filepath_beta, 'w') as f:
+                        f.write(f"# Beta MLE analysis\n")
+                        f.write(f"# Sweep: n0, value: {x_val}\n")
+                        f.write(f"# Node type: {config['sweep_n0']['node_type']}, a: {config['sweep_n0']['a']}\n")
+                        f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                        df_beta.to_csv(f, index=False)
+    
     if plots["grid_2d_sweep"]:
-        _allowed_keys_grid2d = {
-            "m_min", "m_max", "m_step",
-            "n0_min", "n0_max", "n0_step",
-            "node_type", "a",
-            "p_c_list",
-            "N_sims", "b_grid_type", "n_b",
-            "b_min", "b_max",
-            "z",
-        }
-        _grid2d_args = {
-            k: v for k, v in config["grid_2d"].items()
-            if k in _allowed_keys_grid2d
-        }
+            _allowed_keys_grid2d = {
+                "m_min", "m_max", "m_step",
+                "n0_min", "n0_max", "n0_step",
+                "node_type", "a",
+                "p_c_list",
+                "N_sims", "b_grid_type", "n_b",
+                "b_min", "b_max",
+                "z",
+            }
+            _grid2d_args = {
+                k: v for k, v in config["grid_2d"].items()
+                if k in _allowed_keys_grid2d
+            }
 
-        grid_results = gof.csn_sweep_2d_grid(net, **_grid2d_args)
-        m_values = grid_results["m_values"]
-        n0_values = grid_results["n0_values"]
-        p_c_list = grid_results["p_c_list"]
-        frac_nodes_grid = grid_results["frac_nodes_grid"]
-        frac_edges_grid = grid_results["frac_edges_grid"]
-        p_value_grid = grid_results["p_value_grid"]
+            grid_results = gof.csn_sweep_2d_grid(net, **_grid2d_args)
+            m_values = grid_results["m_values"]
+            n0_values = grid_results["n0_values"]
+            p_c_list = grid_results["p_c_list"]
+            frac_nodes_grid = grid_results["frac_nodes_grid"]
+            frac_edges_grid = grid_results["frac_edges_grid"]
+            p_value_grid = grid_results["p_value_grid"]
 
-        v2d = GoFDiagnostics.CSN2DVis(gof)
+            v2d = GoFDiagnostics.CSN2DVis(gof)
 
-        for p_c in p_c_list:
-            # Margin: M = p* - p_c
-            margin_data = p_value_grid[p_c] - p_c
-            fig = v2d.plot_contour_generic(
-                m_values, n0_values, margin_data,
-                metric_label=r'$M = p^* - p_c$',
-                use_csn_cmap=False
-            )
-            fm.save_fig(fig, f"margin_pc{p_c}")
-            fm.export_grid_to_csv(
-                m_values, n0_values, margin_data,
-                filename=f"margin_pc{p_c}",
-                metric_name='margin',
-                p_c=p_c
-            )
+            for p_c in p_c_list:
+                # Margin: M = p* - p_c
+                margin_data = p_value_grid[p_c] - p_c
+                fig = v2d.plot_contour_generic(
+                    m_values, n0_values, margin_data,
+                    metric_label=r'$M = p^* - p_c$',
+                    use_csn_cmap=False
+                )
+                fm.save_fig(fig, f"margin_pc{p_c}")
+                # FIXED: Use correct parameter names for 2D grid
+                fm.export_grid_to_csv(
+                    data_grid=margin_data,
+                    filename=f"margin_pc{p_c}",
+                    metric_name='margin',
+                    m_values=m_values,
+                    n0_values=n0_values,
+                    p_c=p_c
+                )
 
-            # Frac nodes
-            fig = v2d.plot_contour_generic(
-                m_values, n0_values, frac_nodes_grid[p_c],
-                metric_label=r'$F_{\mathrm{nodes}}^*$',
-                use_csn_cmap=True
-            )
-            fm.save_fig(fig, f"frac_nodes_pc{p_c}")
-            fm.export_grid_to_csv(
-                m_values, n0_values, frac_nodes_grid[p_c],
-                filename=f"frac_nodes_pc{p_c}",
-                metric_name='frac_nodes',
-                p_c=p_c
-            )
+                # Frac nodes
+                fig = v2d.plot_contour_generic(
+                    m_values, n0_values, frac_nodes_grid[p_c],
+                    metric_label=r'$F_{\mathrm{nodes}}^*$',
+                    use_csn_cmap=True
+                )
+                fm.save_fig(fig, f"frac_nodes_pc{p_c}")
+                fm.export_grid_to_csv(
+                    data_grid=frac_nodes_grid[p_c],
+                    filename=f"frac_nodes_pc{p_c}",
+                    metric_name='frac_nodes',
+                    m_values=m_values,
+                    n0_values=n0_values,
+                    p_c=p_c
+                )
 
-            # Frac edges
-            fig = v2d.plot_contour_generic(
-                m_values, n0_values, frac_edges_grid[p_c],
-                metric_label=r'$F_{\mathrm{edges}}^*$',
-                use_csn_cmap=True
-            )
-            fm.save_fig(fig, f"frac_edges_pc{p_c}")
-            fm.export_grid_to_csv(
-                m_values, n0_values, frac_edges_grid[p_c],
-                filename=f"frac_edges_pc{p_c}",
-                metric_name='frac_edges',
-                p_c=p_c
+                # Frac edges
+                fig = v2d.plot_contour_generic(
+                    m_values, n0_values, frac_edges_grid[p_c],
+                    metric_label=r'$F_{\mathrm{edges}}^*$',
+                    use_csn_cmap=True
+                )
+                fm.save_fig(fig, f"frac_edges_pc{p_c}")
+                fm.export_grid_to_csv(
+                    data_grid=frac_edges_grid[p_c],
+                    filename=f"frac_edges_pc{p_c}",
+                    metric_name='frac_edges',
+                    m_values=m_values,
+                    n0_values=n0_values,
+                    p_c=p_c
             )
 
     fm.finalize_metadata()
     print(f"\nAll outputs saved to: {fm.path()}")
+
