@@ -1,7 +1,10 @@
 import numpy as np
 import networkx as nx
 import matplotlib
+from matplotlib.colors import ListedColormap, Normalize
 from mpl_toolkits.mplot3d import Axes3D 
+import matplotlib.patches as mpatches
+from scipy.interpolate import RectBivariateSpline
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  
 from scipy.special import gamma as gamma_func, betaln
@@ -11,6 +14,7 @@ from scipy.optimize import minimize
 from pathlib import Path
 import datetime
 import json
+import pandas as pd
 
 class FileManager:
 
@@ -23,7 +27,10 @@ class FileManager:
         self.run_dir = self.base / f"run_{ts}"
         self.run_dir.mkdir()
         
-        # Track start time for finalization
+        # Create data subdirectory
+        self.data_dir = self.run_dir / "data"
+        self.data_dir.mkdir(exist_ok=True)
+        
         self.start_time = time.time()
         self._save_metadata()
 
@@ -52,9 +59,54 @@ class FileManager:
         fig.savefig(path, dpi=dpi, bbox_inches="tight")
         plt.close(fig)
 
+    def export_grid_to_csv(self, data_grid, filename, metric_name, 
+                        m_values=None, n0_values=None, x_values=None, 
+                        x_name=None, p_c=None, metadata_dict=None):
+        """Export grid data to CSV. Handles both 1D and 2D cases.
+        
+        1D case: pass x_values, x_name, metadata_dict
+        2D case: pass m_values, n0_values, p_c
+        """
+
+        
+        filepath = self.data_dir / f"{filename}.csv"
+        
+        if x_values is not None:
+            # 1D sweep case
+            rows = []
+            for i, x_val in enumerate(x_values):
+                row = {x_name: x_val}
+                if isinstance(data_grid, dict):
+                    # Multiple columns (e.g., frac_nodes_pc0.1, frac_nodes_pc0.4)
+                    for key, values in data_grid.items():
+                        row[key] = values[i]
+                else:
+                    row[metric_name] = data_grid[i]
+                rows.append(row)
+            df = pd.DataFrame(rows)
+        else:
+            # 2D grid case
+            rows = []
+            for i, n0 in enumerate(n0_values):
+                for j, m in enumerate(m_values):
+                    valid = (n0 > m)
+                    value = data_grid[i, j] if valid else np.nan
+                    rows.append({'m': m, 'n0': n0, metric_name: value, 'valid': valid})
+            df = pd.DataFrame(rows)
+        
+        with open(filepath, 'w') as f:
+            if metadata_dict:
+                for key, val in metadata_dict.items():
+                    f.write(f"# {key}: {val}\n")
+            elif p_c is not None:
+                f.write(f"# {metric_name} grid for p_c={p_c}\n")
+                f.write(f"# Valid region: n0 > m\n")
+            f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+            df.to_csv(f, index=False)
+
     def path(self):
         return self.run_dir
-    
+
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
@@ -302,7 +354,6 @@ class DirectedHomophilicNetwork:
         type_val = 0 if node_type == 'a' else 1
         mask = self.node_types[:self.in_degrees.size] == type_val
         return self.in_degrees[mask].copy()
-
 class GoFDiagnostics:
 
     def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None,):
@@ -1251,411 +1302,148 @@ class GoFDiagnostics:
         return {'m_values': m_values, 'n0_values': n0_values, 'frac_nodes_grid': frac_nodes_grid, 'frac_edges_grid': frac_edges_grid,
                 'b_star_grid': b_star_grid, 'p_value_grid': p_value_grid, 'p_c_list': p_c_list, 'z': z, 'a': a, 'node_type': node_type}
 
+    class CSN1DVis:
+        """
+        1D visualization utilities for CSN-based windows.
+        """
+        def __init__(self, parent_gof: "GoFDiagnostics"):
+            self.gof = parent_gof
+            
+            plt.rcParams['font.family'] = 'serif'
+            plt.rcParams['font.serif'] = ['TeX Gyre Termes', 'Times New Roman']
+            plt.rcParams['mathtext.fontset'] = 'cm'
+            plt.rcParams['axes.linewidth'] = 0.8
+            plt.rcParams['xtick.major.width'] = 0.8
+            plt.rcParams['ytick.major.width'] = 0.8
+
+        def plot_frac_sweep(self, x_values, frac_dict, no_window_dict, p_c_list, 
+                            x_name, metric_name, x_label, node_type, a, figsize=(10, 6)):
+            """Plot fraction (nodes or edges) vs sweep parameter.
+            
+            Args:
+                metric_name: 'nodes' or 'edges'
+                x_label: display label for x-axis
+            """
+            fig, ax = plt.subplots(figsize=figsize)
+            colors = plt.cm.viridis(np.linspace(0, 1, len(p_c_list)))
+            
+            for color, p_c in zip(colors, p_c_list):
+                frac_arr = np.array(frac_dict[p_c], dtype=float)
+                nw_arr = np.array(no_window_dict[p_c], dtype=bool)
+                
+                ok_mask = ~nw_arr
+                fail_mask = nw_arr
+                
+                ax.plot(x_values[ok_mask], frac_arr[ok_mask],
+                    marker='o', linestyle='-', linewidth=2, markersize=5,
+                    color=color, label=f'$p_c = {p_c}$')
+                
+                ax.scatter(x_values[fail_mask], np.zeros_like(frac_arr[fail_mask]),
+                        marker='x', s=60, color=color, zorder=3)
+            
+            legend_text = f"{x_name} = sweep, node_type = {node_type}, a = {a}"
+            ax.text(0.02, 0.98, legend_text, transform=ax.transAxes,
+                fontsize=9, verticalalignment='top', bbox=dict(boxstyle='round', 
+                facecolor='wheat', alpha=0.5))
+            
+            ax.set_xlabel(x_label, fontsize=12)
+            ax.set_ylabel(f'Fraction of {metric_name} kept', fontsize=12)
+            ax.set_ylim(-0.05, 1.05)
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=10, loc='lower right')
+            plt.tight_layout()
+            return fig
+
     class CSN2DVis:
         """
         2D visualization utilities for CSN-based windows.
-        Implements:
-        - Hard-acceptance plots (nodes/edges) from csn_sweep_2d_grid
-        - A) Soft acceptance coverage surfaces (C_soft, C_max) for each p_c in p_c_list
-        - B) Margin map M = p* - p_c with F* overlay for each p_c in p_c_list
         """
-
         def __init__(self, parent_gof: "GoFDiagnostics"):
-            self.gof = parent_gof  # access scan_over_b and other helpers
+            self.gof = parent_gof
+            
+            plt.rcParams['font.family'] = 'serif'
+            plt.rcParams['font.serif'] = ['TeX Gyre Termes', 'Times New Roman']
+            plt.rcParams['mathtext.fontset'] = 'cm'
+            plt.rcParams['axes.linewidth'] = 0.8
+            plt.rcParams['xtick.major.width'] = 0.8
+            plt.rcParams['ytick.major.width'] = 0.8
 
-        # ---------- Core series builders ----------
+        def _create_csn_colormap(self):
+            """Custom colormap for CSN plot."""
+            viridis = plt.colormaps['viridis'] 
+            viridis_colors = viridis(np.linspace(0, 1, 256))
+            
+            custom_colors = [
+                (0.85, 0.85, 0.85, 1.0),  # Light gray: Not assessed
+                (0.05, 0.05, 0.25, 1.0),  # Dark navy: No valid range
+            ]
+            custom_colors.extend(viridis_colors)
+            
+            return ListedColormap(custom_colors)
 
-        def build_series_for_scan(self, scan_res: dict, degrees: np.ndarray, a: int, z: float = 1.0):
+        def _prepare_data_for_csn_colormap(self, data_grid, valid_mask):
+            """Prepare data for CSN colormap with semantic encoding."""
+            data_prepared = data_grid.copy()
+            data_prepared[~valid_mask] = -0.5
+            return data_prepared
+
+        def _add_boundary_lines(self, ax, m_values, n0_values, valid_mask):
+            """Add boundary lines between invalid and valid regions."""
+            m_boundary = np.linspace(m_values.min(), m_values.max(), 100)
+            ax.plot(m_boundary, m_boundary, 'k-', linewidth=1.5, alpha=0.7, zorder=10)
+            ax.fill_between(m_values, m_values, n0_values[0], 
+                        color='gray', alpha=0.25, zorder=1, label='Not assessed')
+            
+        def plot_contour_generic(self, m_values, n0_values, data_grid, 
+                                metric_label, use_csn_cmap=False, figsize=(6, 5)):
+            """Plot 2D contour from grid data.
+            
+            Args:
+                use_csn_cmap: True for [0,1] metrics (frac_nodes, frac_edges), 
+                            False for diverging metrics (margin)
             """
-            From a single scan_over_b result, build arrays over b:
-            - bs: candidate upper truncations
-            - F(b): fraction of nodes kept
-            - p(b): estimated p
-            - sigma(b): std of p
-            - L(b) = p(b) - z*sigma(b)  (conservative lower bound)
-            """
-            windows = scan_res.get('windows', [])
-            if not windows:
-                return (np.array([]),) * 5
-
-            bs = np.array([w['b'] for w in windows], dtype=int)
-            p = np.array([w['p'] for w in windows], dtype=float)
-            sigma = np.array([w['sigma_p'] for w in windows], dtype=float)
-            L = p - z * sigma
-
-            degrees = np.asarray(degrees, dtype=int)
-            N_tot = max(degrees.size, 1)
-            F = np.zeros_like(bs, dtype=float)
-            for i, b in enumerate(bs):
-                mask = (degrees >= a) & (degrees <= b)
-                F[i] = mask.mean() if N_tot > 0 else 0.0
-
-            return bs, F, p, sigma, L
-
-        def soft_acceptance_scores(self, F: np.ndarray, L: np.ndarray, sigma: np.ndarray, p_c: float,
-                                kappa: float = 1.0, epsilon: float = 1e-12):
-            """
-            Soft acceptance around p_c via a logistic weight:
-            w_tau(b) = sigmoid( (L(b) - p_c) / tau(b) ), tau(b) = kappa * sigma(b)
-            Returns:
-            - C_soft: expected accepted coverage (weighted by w_tau)
-            - C_max:  max_b F(b)*w_tau(b) (best soft-accepted coverage)
-            - w_tau:  weights per b (for diagnostics)
-            """
-            if F.size == 0:
-                return np.nan, np.nan, np.array([])
-
-            tau = kappa * np.maximum(sigma, 1e-9)  # avoid division by zero
-            w_tau = 1.0 / (1.0 + np.exp(-(L - p_c) / tau))
-            Z = np.sum(w_tau) + epsilon
-            C_soft = float(np.sum(w_tau * F) / Z)
-            C_max = float(np.max(F * w_tau)) if F.size > 0 else np.nan
-            return C_soft, C_max, w_tau
-
-        def margin_and_coverage(self, L: np.ndarray, F: np.ndarray, p_c: float):
-            """
-            Margin M = max_b L(b) - p_c and coverage F* at argmax L.
-            Negative M => below threshold by |M|.
-            """
-            if L.size == 0:
-                return np.nan, np.nan
-            j = int(np.argmax(L))
-            M = float(L[j] - p_c)
-            F_star = float(F[j])  # independent of p_c
-            return M, F_star
-
-        # ---------- 2D sweep: A & B for all p_c in p_c_list ----------
-
-        def sweep_2d_soft_and_margin_for_pcs(
-            self,
-            net: "DirectedHomophilicNetwork",
-            m_min: int, m_max: int, m_step: int,
-            n0_min: int, n0_max: int, n0_step: int,
-            node_type: str = 'b',
-            a: int = 0,
-            candidate_bs=None,
-            b_min: int = None,
-            b_max: int = None,
-            n_b: int = 20,
-            b_grid_type: str = 'linear',
-            N_sims: int = 20,
-            z: float = 1.0,
-            p_c_list=(0.2,),
-            kappa: float = 1.0,
-            epsilon: float = 1e-12,
-        ):
-            """
-            Compute 2D grids for each p_c in p_c_list:
-            - C_soft (soft-accepted coverage)
-            - C_max  (best soft-accepted coverage)
-            - Margin M = p* - p_c
-            Also returns a single Fstar_grid (coverage at argmax L), independent of p_c.
-            """
-            m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
-            n0_values = np.arange(n0_min, n0_max + 1, n0_step, dtype=int)
-
-            # p_c keyed containers:
-            C_soft_grids = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
-            C_max_grids  = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
-            Margin_grids = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
-            # F* does not depend on p_c
-            Fstar_grid = np.full((len(n0_values), len(m_values)), np.nan)
-
-            print(f"\n2D (soft+margin, multi p_c): m ∈ [{m_min}, {m_max}], n0 ∈ [{n0_min}, {n0_max}], p_c_list={p_c_list}, kappa={kappa}")
-
-            total_points = len(n0_values) * len(m_values)
-            done = 0
-
-            for i, n0 in enumerate(n0_values):
-                for j, m in enumerate(m_values):
-                    done += 1
-                    if n0 <= m:
-                        continue
-
-                    print(f"  Point {done}/{total_points}: (m={m}, n0={n0})")
-                    net_temp = DirectedHomophilicNetwork(
-                        n0=n0, n_nodes=net.n_nodes, m_edges=m,
-                        h=net.h, f_a=net.f_a, mu_a=net.mu['a'], mu_b=net.mu['b']
-                    )
-                    net_temp.generate_network()
-
-                    degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                    if degrees.size == 0:
-                        continue
-
-                    beta_theory = net_temp.get_beta_for_type(node_type)
-                    scan_res = self.gof.scan_over_b(
-                        net=net_temp,
-                        node_type=node_type,
-                        a=a,
-                        beta_theory=beta_theory,
-                        candidate_bs=candidate_bs,
-                        N_sims=N_sims,
-                        b_min=b_min,
-                        b_max=b_max,
-                        n_b=n_b,
-                        b_grid_type=b_grid_type,
-                    )
-
-                    bs, F, p, sigma, L = self.build_series_for_scan(scan_res, degrees, a=a, z=z)
-                    if bs.size == 0:
-                        continue
-
-                    # Compute F* once (independent of p_c)
-                    if np.isnan(Fstar_grid[i, j]):
-                        _, F_star = self.margin_and_coverage(L, F, p_c=0.0)  # p_c unused for F_star
-                        Fstar_grid[i, j] = F_star
-
-                    # Per p_c metrics
-                    for p_c in p_c_list:
-                        C_soft, C_max, _ = self.soft_acceptance_scores(F, L, sigma, p_c=p_c, kappa=kappa, epsilon=epsilon)
-                        M, _Fstar_ = self.margin_and_coverage(L, F, p_c=p_c)
-
-                        C_soft_grids[p_c][i, j] = C_soft
-                        C_max_grids[p_c][i, j] = C_max
-                        Margin_grids[p_c][i, j] = M
-
-            return {
-                'm_values': m_values,
-                'n0_values': n0_values,
-                'C_soft_grids': C_soft_grids,  # dict: p_c -> 2D array
-                'C_max_grids': C_max_grids,    # dict: p_c -> 2D array
-                'Margin_grids': Margin_grids,  # dict: p_c -> 2D array
-                'Fstar_grid': Fstar_grid,      # 2D array
-                'p_c_list': tuple(p_c_list),
-                'kappa': kappa,
-                'epsilon': epsilon,
-                'z': z,
-                'a': a,
-                'node_type': node_type,
-            }
-
-        # ---------- Plotting: Hard acceptance (existing) moved here ----------
-
-        def plot_hard_acceptance_contours_and_surfaces(self, grid_results: dict, metric: str = 'nodes', figsize_per_plot=(8, 6)):
-            """
-            Replicates the prior plot_2d_grid_results in a tidy home.
-            metric ∈ {'nodes','edges'}
-            Returns (fig_contour, fig_surface)
-            """
-            m_values = grid_results['m_values']
-            n0_values = grid_results['n0_values']
-            p_c_list = grid_results['p_c_list']
-            z = grid_results['z']
-            a = grid_results['a']
-            node_type = grid_results['node_type']
-
-            if metric == 'nodes':
-                data_grids = grid_results['frac_nodes_grid']
-                metric_label = 'Fraction of nodes kept'
-                cbar_label = 'Nodes kept'
-            else:
-                data_grids = grid_results['frac_edges_grid']
-                metric_label = 'Fraction of edges kept'
-                cbar_label = 'Edges kept'
-
             M, N0 = np.meshgrid(m_values, n0_values)
             valid_mask = N0 > M
-
-            # Contour
-            fig_contour, ax = plt.subplots(1, len(p_c_list), figsize=(figsize_per_plot[0]*len(p_c_list), figsize_per_plot[1]))
-            axes = [ax] if len(p_c_list) == 1 else ax
-
-            for idx, p_c in enumerate(p_c_list):
-                ax_i = axes[idx]
-                data = data_grids[p_c].copy()
-                data[~valid_mask] = np.nan
-
-                levels = np.linspace(0, 1, 21)
-                contourf = ax_i.contourf(M, N0, data, levels=levels, cmap='viridis', extend='both')
-                contour_lines = ax_i.contour(M, N0, data, levels=levels[::4], colors='white', linewidths=0.5, alpha=0.4)
-                ax_i.clabel(contour_lines, inline=True, fontsize=8, fmt='%.2f')
-                ax_i.fill_between(m_values, m_values, n0_values[0], color='gray', alpha=0.3, label='Invalid (n₀ ≤ m)')
-
-                cbar = fig_contour.colorbar(contourf, ax=ax_i)
-                cbar.set_label(cbar_label, fontsize=10)
-                ax_i.set_xlabel('m_edges', fontsize=11)
-                ax_i.set_ylabel('n₀', fontsize=11)
-                ax_i.set_title(f'p_c = {p_c}\n{metric_label} (type {node_type}, a={a}, z={z})', fontsize=11, fontweight='bold')
-                ax_i.grid(True, alpha=0.3, linestyle='--')
-                ax_i.legend(loc='upper left', fontsize=8)
-
-            fig_contour.suptitle(f'2D Grid: {metric_label}', fontsize=14, fontweight='bold')
-            plt.tight_layout()
-
-            # Surface (3D) — separate figure per p_c
-            fig_surfaces = []
-            for p_c in p_c_list:
-                data = data_grids[p_c].copy()
-                data[~valid_mask] = np.nan
-                fig_3d = plt.figure(figsize=(figsize_per_plot[0], figsize_per_plot[1]))
-                ax3 = fig_3d.add_subplot(111, projection='3d')
-                surf = ax3.plot_surface(M, N0, data, cmap='viridis', alpha=0.9, edgecolor='none', antialiased=True)
-                ax3.contour(M, N0, data, levels=10, offset=0, cmap='viridis', linewidths=1, alpha=0.5)
-                ax3.set_xlabel('m_edges', fontsize=10)
-                ax3.set_ylabel('n₀', fontsize=10)
-                ax3.set_zlabel(cbar_label, fontsize=10)
-                ax3.set_title(f'{metric_label} (p_c = {p_c}, type {node_type}, a={a}, z={z})', fontsize=11, fontweight='bold')
-                ax3.set_zlim(0, 1)
-                fig_3d.colorbar(surf, ax=ax3, shrink=0.6, aspect=14)
-                ax3.view_init(elev=25, azim=45)
-                plt.tight_layout()
-                fig_surfaces.append(fig_3d)
-
-            return fig_contour, fig_surfaces
-
-        # ---------- Plotting: A) Soft acceptance (per p_c) ----------
-
-        def plot_soft_acceptance_contour(self, grid_results_pcs: dict, p_c: float, which: str = 'C_soft', figsize=(8, 6)):
-            """
-            which ∈ {'C_soft','C_max'}; plots single contour for a given p_c.
-            """
-            m_values = grid_results_pcs['m_values']
-            n0_values = grid_results_pcs['n0_values']
-            M, N0 = np.meshgrid(m_values, n0_values)
-
-            if which == 'C_soft':
-                data = grid_results_pcs['C_soft_grids'][p_c].copy()
-                title_core = 'Soft-accepted coverage C_soft'
-            else:
-                data = grid_results_pcs['C_max_grids'][p_c].copy()
-                title_core = 'Best soft-accepted coverage C_max'
-
-            valid_mask = N0 > M
+            data = data_grid.copy()
             data[~valid_mask] = np.nan
-
+            
             fig, ax = plt.subplots(figsize=figsize)
-            levels = np.linspace(0, 1, 21)
-            cs = ax.contourf(M, N0, data, levels=levels, cmap='viridis', extend='both')
-            cl = ax.contour(M, N0, data, levels=levels[::4], colors='white', linewidths=0.6, alpha=0.5)
-            ax.clabel(cl, inline=True, fontsize=8, fmt='%.2f')
-            ax.fill_between(m_values, m_values, n0_values[0], color='gray', alpha=0.25, label='Invalid (n₀ ≤ m)')
-
-            cbar = fig.colorbar(cs, ax=ax)
-            cbar.set_label(which, fontsize=10)
-
-            kappa = grid_results_pcs.get('kappa', None)
-            z = grid_results_pcs.get('z', None)
-            a = grid_results_pcs.get('a', None)
-            node_type = grid_results_pcs.get('node_type', None)
-
-            title = f'{title_core} (p_c={p_c}, type {node_type}, a={a}, κ={kappa}, z={z})'
-            ax.set_title(title, fontsize=12, fontweight='bold')
-            ax.set_xlabel('m_edges')
-            ax.set_ylabel('n₀')
-            ax.grid(True, alpha=0.3, linestyle='--')
-            ax.legend(loc='upper left', fontsize=8)
-            plt.tight_layout()
-            return fig
-
-        def plot_soft_acceptance_surface(self, grid_results_pcs: dict, p_c: float, which: str = 'C_soft', figsize=(8, 6)):
-            """
-            3D surface for C_soft or C_max at a given p_c.
-            """
-
-            m_values = grid_results_pcs['m_values']
-            n0_values = grid_results_pcs['n0_values']
-            M, N0 = np.meshgrid(m_values, n0_values)
-
-            if which == 'C_soft':
-                data = grid_results_pcs['C_soft_grids'][p_c].copy()
-                title_core = 'C_soft (soft-accepted coverage)'
+            
+            if use_csn_cmap:
+                cmap = self._create_csn_colormap()
+                data_prep = self._prepare_data_for_csn_colormap(data, valid_mask)
+                norm = Normalize(vmin=-0.5, vmax=1.0)
+                cs = ax.contourf(M, N0, data_prep, levels=20, cmap=cmap, norm=norm, extend='neither')
+                cbar = fig.colorbar(cs, ax=ax, extend='neither', 
+                                ticks=[-0.5, 0, 0.25, 0.5, 0.75, 1.0])
+                cbar.ax.set_yticklabels(['', '0', '0.25', '0.5', '0.75', '1.0'])
+                
+                legend_elements = [
+                    mpatches.Patch(facecolor=(0.85, 0.85, 0.85), edgecolor='black', 
+                                linewidth=0.8, label='Not assessed'),
+                    mpatches.Patch(facecolor=(0.05, 0.05, 0.25), edgecolor='black', 
+                                linewidth=0.8, label='No valid range'),
+                    mpatches.Patch(facecolor=(0.267, 0.004, 0.329), edgecolor='black', 
+                                linewidth=0.8, label=r'Valid ($p \ll 1$)'),
+                    mpatches.Patch(facecolor=(1.0, 1.0, 0.0), edgecolor='black', 
+                                linewidth=0.8, label=r'Valid ($p \approx 1$)'),
+                ]
+                ax.legend(handles=legend_elements, loc='upper left', fontsize=8.5,
+                        framealpha=0.95, edgecolor='black', fancybox=False)
             else:
-                data = grid_results_pcs['C_max_grids'][p_c].copy()
-                title_core = 'C_max (best soft-accepted coverage)'
-
-            valid_mask = N0 > M
-            data[~valid_mask] = np.nan
-
-            fig = plt.figure(figsize=figsize)
-            ax = fig.add_subplot(111, projection='3d')
-            surf = ax.plot_surface(M, N0, data, cmap='viridis', alpha=0.95, edgecolor='none', antialiased=True)
-            ax.set_xlabel('m_edges')
-            ax.set_ylabel('n₀')
-            ax.set_zlabel(which)
-            ax.set_zlim(0, 1)
-            ax.view_init(elev=25, azim=45)
-            fig.colorbar(surf, ax=ax, shrink=0.6, aspect=14)
-
-            kappa = grid_results_pcs.get('kappa', None)
-            z = grid_results_pcs.get('z', None)
-            a = grid_results_pcs.get('a', None)
-            node_type = grid_results_pcs.get('node_type', None)
-            ax.set_title(f'{title_core} (p_c={p_c}, type {node_type}, a={a}, κ={kappa}, z={z})', fontsize=11, fontweight='bold')
+                max_abs = np.nanmax(np.abs(data))
+                max_abs = 1.0 if not np.isfinite(max_abs) or max_abs == 0 else max_abs
+                levels = np.linspace(-max_abs, max_abs, 21)
+                cs = ax.contourf(M, N0, data, levels=levels, cmap='coolwarm', extend='neither')
+                cbar = fig.colorbar(cs, ax=ax, extend='neither')
+                self._add_boundary_lines(ax, m_values, n0_values, valid_mask)
+            
+            cbar.set_label(metric_label, fontsize=11)
+            ax.set_xlabel(r'$m$', fontsize=12)
+            ax.set_ylabel(r'$n_0$', fontsize=12)
+            ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
             plt.tight_layout()
-            return fig
-
-        # ---------- Plotting: B) Margin (per p_c), overlay F* on contour ----------
-
-        def plot_margin_contour_with_coverage(self, grid_results_pcs: dict, p_c: float, F_levels=(0.25, 0.5, 0.75), figsize=(8, 6)):
-            """
-            Diverging color for Margin M = p* - p_c, with F* contours, at a given p_c.
-            """
-            m_values = grid_results_pcs['m_values']
-            n0_values = grid_results_pcs['n0_values']
-            M, N0 = np.meshgrid(m_values, n0_values)
-
-            data_M = grid_results_pcs['Margin_grids'][p_c].copy()
-            data_F = grid_results_pcs['Fstar_grid'].copy()
-            valid_mask = N0 > M
-            data_M[~valid_mask] = np.nan
-            data_F[~valid_mask] = np.nan
-
-            fig, ax = plt.subplots(figsize=figsize)
-            max_abs = np.nanmax(np.abs(data_M))
-            if not np.isfinite(max_abs) or max_abs == 0:
-                max_abs = 1.0
-            levels = np.linspace(-max_abs, max_abs, 21)
-            cs = ax.contourf(M, N0, data_M, levels=levels, cmap='coolwarm', extend='both')
-            cbar = fig.colorbar(cs, ax=ax)
-            cbar.set_label('Margin M = p* - p_c', fontsize=10)
-
-            # F* contours
-            cl = ax.contour(M, N0, data_F, levels=F_levels, colors='black', linewidths=1.0, linestyles='--')
-            ax.clabel(cl, inline=True, fontsize=8, fmt='F* = %.2f')
-
-            kappa = grid_results_pcs.get('kappa', None)
-            z = grid_results_pcs.get('z', None)
-            a = grid_results_pcs.get('a', None)
-            node_type = grid_results_pcs.get('node_type', None)
-
-            ax.fill_between(m_values, m_values, n0_values[0], color='gray', alpha=0.25, label='Invalid (n₀ ≤ m)')
-            ax.set_title(f'Margin (p_c={p_c}, type {node_type}, a={a}, z={z}) with F* contours', fontsize=12, fontweight='bold')
-            ax.set_xlabel('m_edges')
-            ax.set_ylabel('n₀')
-            ax.grid(True, alpha=0.3, linestyle='--')
-            ax.legend(loc='upper left', fontsize=8)
-            plt.tight_layout()
-            return fig
-
-        def plot_margin_surface(self, grid_results_pcs: dict, p_c: float, figsize=(8, 6)):
-            """
-            3D surface for Margin M = p* - p_c at a given p_c.
-            """
-            m_values = grid_results_pcs['m_values']
-            n0_values = grid_results_pcs['n0_values']
-            M, N0 = np.meshgrid(m_values, n0_values)
-
-            data_M = grid_results_pcs['Margin_grids'][p_c].copy()
-            valid_mask = N0 > M
-            data_M[~valid_mask] = np.nan
-
-            fig = plt.figure(figsize=figsize)
-            ax = fig.add_subplot(111, projection='3d')
-            surf = ax.plot_surface(M, N0, data_M, cmap='coolwarm', alpha=0.95, edgecolor='none', antialiased=True)
-            ax.set_xlabel('m_edges')
-            ax.set_ylabel('n₀')
-            ax.set_zlabel('Margin M')
-            ax.view_init(elev=25, azim=45)
-            fig.colorbar(surf, ax=ax, shrink=0.6, aspect=14)
-
-            z = grid_results_pcs.get('z', None)
-            a = grid_results_pcs.get('a', None)
-            node_type = grid_results_pcs.get('node_type', None)
-            ax.set_title(f'Margin M = p* - p_c (p_c={p_c}, type {node_type}, a={a}, z={z})', fontsize=11, fontweight='bold')
-            plt.tight_layout()
-            return fig
-
+            return fig                    
 class NetworkPlotting:
     """
     Plotting utilities for DirectedHomophilicNetwork.
@@ -1935,7 +1723,6 @@ class NetworkPlotting:
         )
         plt.tight_layout()
         return fig
-
 class NetworkStatistics:
     """
     Statistical reporting utilities for DirectedHomophilicNetwork.
@@ -1998,39 +1785,38 @@ if __name__ == "__main__":
 
     config = dict(
         network=dict(
-            n0=30, n_nodes=5000, m_edges=3,
+            n0=30, n_nodes=500, m_edges=3,
             h=0.2, f_a=0.2, mu_a=1, mu_b=5, 
             seed=None,
         ),
         sweep_m=dict(
-            m_min=1, m_max= 25, m_step=1,
+            m_min=1, m_max= 25, m_step=5,
             node_type='b', a=0,
             p_c_list=[0.1, 0.4],
-            N_sims=30, b_grid_type='linear',
-            n_b=50, b_min=None, b_max=None,
+            N_sims=5, b_grid_type='linear',
+            n_b=20, b_min=None, b_max=None,
         ),
         sweep_n0=dict(
-            n0_min=10, n0_max=150, n0_step=10,
+            n0_min=10, n0_max=100, n0_step=20,
             node_type='b', a=0,
             p_c_list=[0.1, 0.4],
-            N_sims= 30, b_grid_type='linear',
-            n_b=50, b_min=None, b_max=None,
+            N_sims= 10, b_grid_type='linear',
+            n_b=20, b_min=None, b_max=None,
         ),
         grid_2d=dict(
             m_min=1, m_max=25, m_step=5,
-            n0_min=10, n0_max=150, n0_step=50,
+            n0_min=10, n0_max=100, n0_step=20,
             node_type='b', a=0,
             p_c_list=[0.1, 0.4],
             N_sims=5, b_grid_type='linear', n_b=10,
-            b_min=None, b_max=None, z=1.0, 
-            kappa=3, epsilon=1e-12,
+            b_min=None, b_max=None, z=1.0,
         ),
         plots=dict(
-            log_binned=True, discrete_linear=True,
-            asymptotes=True, A_const=True,
-            sweep_m_edges_csn=False, sweep_n0_csn= False,
+            log_binned= False, discrete_linear= False,
+            asymptotes=False, A_const= False,
+            sweep_m_edges_csn= True, sweep_n0_csn= True,
             csn_p_vs_b_m=3, csn_p_vs_b_n0=3,
-            grid_2d_sweep=True, 
+            grid_2d_sweep=False, 
         ))
     
     fm = FileManager(config)
@@ -2098,7 +1884,6 @@ if __name__ == "__main__":
             )
 
     if plots["grid_2d_sweep"]:
-        # Filter only the kwargs that csn_sweep_2d_grid accepts
         _allowed_keys_grid2d = {
             "m_min", "m_max", "m_step",
             "n0_min", "n0_max", "n0_step",
@@ -2108,63 +1893,64 @@ if __name__ == "__main__":
             "b_min", "b_max",
             "z",
         }
-        _grid2d_args = {k: v for k, v in config["grid_2d"].items() if k in _allowed_keys_grid2d}
+        _grid2d_args = {
+            k: v for k, v in config["grid_2d"].items()
+            if k in _allowed_keys_grid2d
+        }
 
         grid_results = gof.csn_sweep_2d_grid(net, **_grid2d_args)
+        m_values = grid_results["m_values"]
+        n0_values = grid_results["n0_values"]
+        p_c_list = grid_results["p_c_list"]
+        frac_nodes_grid = grid_results["frac_nodes_grid"]
+        frac_edges_grid = grid_results["frac_edges_grid"]
+        p_value_grid = grid_results["p_value_grid"]
 
-        # Tidy plotting via the new class
-        v2d = gof.CSN2DVis(gof)
+        v2d = GoFDiagnostics.CSN2DVis(gof)
 
-        # Hard-acceptance plots (nodes and edges)
-        fig_cont_nodes, fig_surfaces_nodes = v2d.plot_hard_acceptance_contours_and_surfaces(grid_results, metric='nodes')
-        fm.save_fig(fig_cont_nodes, "grid2d_hard_nodes_contour")
-        for idx, fig3 in enumerate(fig_surfaces_nodes):
-            fm.save_fig(fig3, f"grid2d_hard_nodes_surface_pc{config['grid_2d']['p_c_list'][idx]}")
+        for p_c in p_c_list:
+            # Margin: M = p* - p_c
+            margin_data = p_value_grid[p_c] - p_c
+            fig = v2d.plot_contour_generic(
+                m_values, n0_values, margin_data,
+                metric_label=r'$M = p^* - p_c$',
+                use_csn_cmap=False
+            )
+            fm.save_fig(fig, f"margin_pc{p_c}")
+            fm.export_grid_to_csv(
+                m_values, n0_values, margin_data,
+                filename=f"margin_pc{p_c}",
+                metric_name='margin',
+                p_c=p_c
+            )
 
-        fig_cont_edges, fig_surfaces_edges = v2d.plot_hard_acceptance_contours_and_surfaces(grid_results, metric='edges')
-        fm.save_fig(fig_cont_edges, "grid2d_hard_edges_contour")
-        for idx, fig3 in enumerate(fig_surfaces_edges):
-            fm.save_fig(fig3, f"grid2d_hard_edges_surface_pc{config['grid_2d']['p_c_list'][idx]}")
+            # Frac nodes
+            fig = v2d.plot_contour_generic(
+                m_values, n0_values, frac_nodes_grid[p_c],
+                metric_label=r'$F_{\mathrm{nodes}}^*$',
+                use_csn_cmap=True
+            )
+            fm.save_fig(fig, f"frac_nodes_pc{p_c}")
+            fm.export_grid_to_csv(
+                m_values, n0_values, frac_nodes_grid[p_c],
+                filename=f"frac_nodes_pc{p_c}",
+                metric_name='frac_nodes',
+                p_c=p_c
+            )
 
-        # A & B: soft acceptance + margin (this call still uses kappa/epsilon)
-        grid_soft_margin = v2d.sweep_2d_soft_and_margin_for_pcs(
-            net=net,
-            m_min=config["grid_2d"]["m_min"],
-            m_max=config["grid_2d"]["m_max"],
-            m_step=config["grid_2d"]["m_step"],
-            n0_min=config["grid_2d"]["n0_min"],
-            n0_max=config["grid_2d"]["n0_max"],
-            n0_step=config["grid_2d"]["n0_step"],
-            node_type=config["grid_2d"]["node_type"],
-            a=config["grid_2d"]["a"],
-            candidate_bs=None,
-            b_min=config["grid_2d"]["b_min"],
-            b_max=config["grid_2d"]["b_max"],
-            n_b=config["grid_2d"]["n_b"],
-            b_grid_type=config["grid_2d"]["b_grid_type"],
-            N_sims=config["grid_2d"]["N_sims"],
-            z=config["grid_2d"]["z"],
-            p_c_list=config["grid_2d"]["p_c_list"],
-            kappa=config["grid_2d"]["kappa"],       # stays
-            epsilon=config["grid_2d"]["epsilon"],   # stays
-        )
+            # Frac edges
+            fig = v2d.plot_contour_generic(
+                m_values, n0_values, frac_edges_grid[p_c],
+                metric_label=r'$F_{\mathrm{edges}}^*$',
+                use_csn_cmap=True
+            )
+            fm.save_fig(fig, f"frac_edges_pc{p_c}")
+            fm.export_grid_to_csv(
+                m_values, n0_values, frac_edges_grid[p_c],
+                filename=f"frac_edges_pc{p_c}",
+                metric_name='frac_edges',
+                p_c=p_c
+            )
 
-        # Plot per p_c for soft-acceptance (C_soft & C_max) and margin
-        for p_c in config["grid_2d"]["p_c_list"]:
-            fig_csoft = v2d.plot_soft_acceptance_contour(grid_soft_margin, p_c=p_c, which='C_soft')
-            fm.save_fig(fig_csoft, f"grid2d_soft_Csoft_contour_pc{p_c}")
-            fig_csoft3 = v2d.plot_soft_acceptance_surface(grid_soft_margin, p_c=p_c, which='C_soft')
-            fm.save_fig(fig_csoft3, f"grid2d_soft_Csoft_surface_pc{p_c}")
-
-            fig_cmax = v2d.plot_soft_acceptance_contour(grid_soft_margin, p_c=p_c, which='C_max')
-            fm.save_fig(fig_cmax, f"grid2d_soft_Cmax_contour_pc{p_c}")
-            fig_cmax3 = v2d.plot_soft_acceptance_surface(grid_soft_margin, p_c=p_c, which='C_max')
-            fm.save_fig(fig_cmax3, f"grid2d_soft_Cmax_surface_pc{p_c}")
-
-            fig_margin = v2d.plot_margin_contour_with_coverage(grid_soft_margin, p_c=p_c, F_levels=(0.25, 0.5, 0.75))
-            fm.save_fig(fig_margin, f"grid2d_margin_contour_pc{p_c}")
-            fig_margin3 = v2d.plot_margin_surface(grid_soft_margin, p_c=p_c)
-            fm.save_fig(fig_margin3, f"grid2d_margin_surface_pc{p_c}")
-
-        fm.finalize_metadata()
-        print(f"\nAll outputs saved to: {fm.path()}")
+    fm.finalize_metadata()
+    print(f"\nAll outputs saved to: {fm.path()}")

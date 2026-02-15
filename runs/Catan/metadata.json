@@ -1,0 +1,78 @@
+{
+  "network": {
+    "n0": 30,
+    "n_nodes": 5000,
+    "m_edges": 3,
+    "h": 0.2,
+    "f_a": 0.2,
+    "mu_a": 1,
+    "mu_b": 5,
+    "seed": null
+  },
+  "sweep_m": {
+    "m_min": 1,
+    "m_max": 25,
+    "m_step": 1,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.1,
+      0.4
+    ],
+    "N_sims": 30,
+    "b_grid_type": "linear",
+    "n_b": 50,
+    "b_min": null,
+    "b_max": null
+  },
+  "sweep_n0": {
+    "n0_min": 10,
+    "n0_max": 150,
+    "n0_step": 5,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.1,
+      0.4
+    ],
+    "N_sims": 30,
+    "b_grid_type": "linear",
+    "n_b": 50,
+    "b_min": null,
+    "b_max": null
+  },
+  "grid_2d": {
+    "m_min": 1,
+    "m_max": 25,
+    "m_step": 1,
+    "n0_min": 10,
+    "n0_max": 150,
+    "n0_step": 10,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.1,
+      0.4
+    ],
+    "N_sims": 30,
+    "b_grid_type": "linear",
+    "n_b": 50,
+    "b_min": null,
+    "b_max": null,
+    "z": 1.0,
+    "smoothing_factor": 0.5
+  },
+  "plots": {
+    "log_binned": true,
+    "discrete_linear": true,
+    "asymptotes": true,
+    "A_const": true,
+    "sweep_m_edges_csn": false,
+    "sweep_n0_csn": false,
+    "csn_p_vs_b_m": 3,
+    "csn_p_vs_b_n0": 3,
+    "grid_2d_sweep": true
+  },
+  "total_runtime_seconds": 14270.77074432373,
+  "total_runtime_formatted": "14270.77s (237.85m)"
+}
