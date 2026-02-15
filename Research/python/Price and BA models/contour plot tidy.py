@@ -1843,37 +1843,37 @@ if __name__ == "__main__":
     
     config = dict(
         network=dict(
-            n0=30, n_nodes=500, m_edges=3,
+            n0=30, n_nodes=10000, m_edges=3,
             h=0.2, f_a=0.2, mu_a=1, mu_b=5, 
             seed=None,
         ),
         sweep_m=dict(
-            m_min=1, m_max=25, m_step=5,
+            m_min=1, m_max=35, m_step=1,
             node_type='b', a=0,
-            p_c_list=[0.1, 0.4],
-            N_sims=5, b_grid_type='linear',
-            n_b=20, b_min=None, b_max=None,
+            p_c_list=[0.1,0.2, 0.4],
+            N_sims=50, b_grid_type='linear',
+            n_b=50, b_min=None, b_max=None,
         ),
         sweep_n0=dict(
-            n0_min=10, n0_max=100, n0_step=20,
+            n0_min=10, n0_max=120, n0_step=1,
             node_type='b', a=0,
             p_c_list=[0.1, 0.4],
-            N_sims=10, b_grid_type='linear',
-            n_b=20, b_min=None, b_max=None,
+            N_sims=50, b_grid_type='linear',
+            n_b=50, b_min=None, b_max=None,
         ),
         grid_2d=dict(
-            m_min=1, m_max=25, m_step=5,
-            n0_min=10, n0_max=100, n0_step=20,
+            m_min=1, m_max=35, m_step=1,
+            n0_min=10, n0_max=120, n0_step=1,
             node_type='b', a=0,
-            p_c_list=[0.1, 0.4],
-            N_sims=5, b_grid_type='linear', n_b=10,
+            p_c_list=[0.1,0.2, 0.4],
+            N_sims=50, b_grid_type='linear', n_b=50,
             b_min=None, b_max=None, z=1.0,
         ),
         plots=dict(
             network_basic=True, 
-            sweep_m_edges_csn=False, sweep_n0_csn=False,
-            csn_p_vs_b_m=3, csn_p_vs_b_n0=3,
-            grid_2d_sweep=False,
+            sweep_m_edges_csn=True, sweep_n0_csn=True,
+            csn_p_vs_b_m=5, csn_p_vs_b_n0=5,
+            grid_2d_sweep= True,
         ))
     
     fm = FileManager(config)
