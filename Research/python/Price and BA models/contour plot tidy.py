@@ -1843,27 +1843,27 @@ if __name__ == "__main__":
     
     config = dict(
         network=dict(
-            n0=30, n_nodes=10000, m_edges=3,
+            n0=35, n_nodes=10000, m_edges=3,
             h=0.2, f_a=0.2, mu_a=1, mu_b=5, 
             seed=None,
         ),
         sweep_m=dict(
-            m_min=1, m_max=35, m_step=1,
+            m_min=1, m_max=34, m_step=1,
             node_type='b', a=0,
             p_c_list=[0.1,0.2, 0.4],
             N_sims=50, b_grid_type='linear',
             n_b=50, b_min=None, b_max=None,
         ),
         sweep_n0=dict(
-            n0_min=10, n0_max=120, n0_step=1,
+            n0_min=10, n0_max=150, n0_step=5,
             node_type='b', a=0,
-            p_c_list=[0.1, 0.4],
+            p_c_list=[0.1,0.2, 0.4],
             N_sims=50, b_grid_type='linear',
             n_b=50, b_min=None, b_max=None,
         ),
         grid_2d=dict(
-            m_min=1, m_max=35, m_step=1,
-            n0_min=10, n0_max=120, n0_step=1,
+            m_min=1, m_max=34, m_step=2,
+            n0_min=10, n0_max=150, n0_step=10,
             node_type='b', a=0,
             p_c_list=[0.1,0.2, 0.4],
             N_sims=50, b_grid_type='linear', n_b=50,
