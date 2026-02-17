@@ -14,6 +14,7 @@ from matplotlib.patches import Patch
 import datetime
 import json
 import pandas as pd
+
 class FileManager:
 
     def __init__(self, config: dict, base: str = "runs"):
@@ -23,11 +24,10 @@ class FileManager:
 
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.run_dir = self.base / f"run_{ts}"
-        self.run_dir.mkdir()
+        self.run_dir.mkdir(parents=True, exist_ok=True)  
         
-        # Create data subdirectory
         self.data_dir = self.run_dir / "data"
-        self.data_dir.mkdir(exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         
         self.start_time = time.time()
         self._save_metadata()
@@ -56,25 +56,21 @@ class FileManager:
         path = self.run_dir / f"{name}.png"
         fig.savefig(path, dpi=dpi, bbox_inches="tight")
         plt.close(fig)
-
-    def export_grid_to_csv(self, data_grid, filename, metric_name, 
-                        m_values=None, n0_values=None, x_values=None, 
-                        x_name=None, p_c=None, metadata_dict=None):
-        """Export grid data to CSV. Handles both 1D and 2D cases.     
-        1D case: pass x_values, x_name, metadata_dict
-        2D case: pass m_values, n0_values, p_c
-        """
-
-        
+    
+    def save_fig_with_suffix(self, fig, name: str, suffix: str, dpi: int = 300):
+        """Save figure with theory-type or parameter suffix."""
+        path = self.run_dir / f"{name}_{suffix}.png"
+        fig.savefig(path, dpi=dpi, bbox_inches="tight")
+        plt.close(fig)
+   
+    def export_grid_to_csv(self, data_grid, filename, metric_name, m_values=None, n0_values=None, x_values=None, x_name=None, p_c=None, metadata_dict=None):
+        """Export grid data to CSV. Handles 1D (x_values) and 2D (m_values, n0_values) cases."""
         filepath = self.data_dir / f"{filename}.csv"
-        
         if x_values is not None:
-            # 1D sweep case
             rows = []
             for i, x_val in enumerate(x_values):
                 row = {x_name: x_val}
                 if isinstance(data_grid, dict):
-                    # Multiple columns (e.g., frac_nodes_pc0.1, frac_nodes_pc0.4)
                     for key, values in data_grid.items():
                         row[key] = values[i]
                 else:
@@ -82,7 +78,6 @@ class FileManager:
                 rows.append(row)
             df = pd.DataFrame(rows)
         else:
-            # 2D grid case
             rows = []
             for i, n0 in enumerate(n0_values):
                 for j, m in enumerate(m_values):
@@ -90,52 +85,86 @@ class FileManager:
                     value = data_grid[i, j] if valid else np.nan
                     rows.append({'m': m, 'n0': n0, metric_name: value, 'valid': valid})
             df = pd.DataFrame(rows)
-        
         with open(filepath, 'w') as f:
             if metadata_dict:
                 for key, val in metadata_dict.items():
                     f.write(f"# {key}: {val}\n")
             elif p_c is not None:
-                f.write(f"# {metric_name} grid for p_c={p_c}\n")
-                f.write(f"# Valid region: n0 > m\n")
+                f.write(f"# {metric_name} grid for p_c={p_c}\n# Valid region: n0 > m\n")
             f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
             df.to_csv(f, index=False)
-
+            
     def path(self):
         return self.run_dir
+
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
-    def __init__(self,n0: int,n_nodes: int,m_edges: int,h: float,f_a: float,mu_a: float,mu_b: float,
-        seed: int = None,build_graph: bool = True, ):
-        
-        # Network parameters
+    def __init__(self, n0: int, n_nodes: int, m_edges: int, h: float, f_a: float, mu_a: float, mu_b: float, seed: int = None, build_graph: bool = True, theory_type: str = 'yule_simon', power_law_params: dict = None):
+        """Initialize network with configurable theory type."""
         self.n0, self.n_nodes, self.m_edges = n0, n_nodes, m_edges
         self.h, self.f_a, self.f_b = h, f_a, 1 - f_a
         self.mu = {'a': mu_a, 'b': mu_b}
         self.seed = seed
-        self.build_graph = build_graph   # <--- STORE FLAG
-
-        # Set random seed if provided
+        self.build_graph = build_graph
+        self.theory_type = theory_type
+        self.power_law_params = power_law_params or {}
+        
         if self.seed is not None:
             np.random.seed(self.seed)
-
-        # Computed parameters
+        
         self.lambda_a = h * f_a + (1 - f_a) * (1 - h)
         self.lambda_b = h * self.f_b + (1 - self.f_b) * (1 - h)
         self.lambda_ = {'a': self.lambda_a, 'b': self.lambda_b}
-
-        # Network state
+        
         self.graph = None
         self.node_types = None
         self.edge_evolution = []
-        self.g_a, self.g_b, self.g_b_empirical, self.Z_factor, self.Z_tilde = (None,None,None,None,None,)
-
-        # Cached state for speed
+        self.g_a, self.g_b, self.g_b_empirical, self.Z_factor, self.Z_tilde = (None, None, None, None, None,)
         self.in_degrees = None
         self.in_edges_a_count = 0
         self.in_edges_b_count = 0
         self._cdf_cache: dict = {}
+
+    def _fit_asymptotes(self, fraction: float = 0.05):
+        """Fit asymptotic g values (Yule-Simon only)."""
+        if self.theory_type != 'yule_simon':
+            return
+        mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in self.edge_evolution])
+        mean_deg_b = np.array([d['in_edges_b'] / d['t'] for d in self.edge_evolution])
+        n_tail = max(1, int(len(mean_deg_a) * fraction))
+        g_a = mean_deg_a[-n_tail:].mean()
+        g_b_empirical = mean_deg_b[-n_tail:].mean()
+        g_b = self.m_edges - g_a
+        self._compute_theoretical_params(g_a, g_b, g_b_empirical)
+
+    def _compute_power_law_params(self, node_type: str):
+        degrees = self._get_degrees(node_type)
+        if degrees.size == 0:
+            return
+        degrees_pos = degrees[degrees > 0]
+        if degrees_pos.size == 0:
+            return
+
+        if self.theory_type == 'power_law_1':
+            alpha_est = 2.0
+            k_max = int(degrees_pos.max())
+            zeta_est = np.sum(np.arange(1, k_max + 1) ** (-alpha_est))
+            self.power_law_params[node_type] = {
+                'alpha': alpha_est,
+                'k0': 0.0,          # no shift
+                'norm': zeta_est,   # renamed from zeta -> norm for consistency
+            }
+        elif self.theory_type == 'power_law_2':
+            alpha_est = 2.0
+            k0_est = 1.0
+            k_max = int(degrees_pos.max())
+            norm_est = np.sum((np.arange(0, k_max + 1) + k0_est) ** (-alpha_est))
+            self.power_law_params[node_type] = {
+                'alpha': alpha_est,
+                'k0': k0_est,
+                'norm': norm_est,
+            }
 
     def _get_params(self, node_type: str) -> Dict[str, float]:
         """Get all distribution parameters for a node type."""
@@ -247,18 +276,6 @@ class DirectedHomophilicNetwork:
 
         self._fit_asymptotes()
 
-    def _fit_asymptotes(self, fraction: float = 0.05):
-        """Fit asymptotic g values from evolution data."""
-        mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in self.edge_evolution])
-        mean_deg_b = np.array([d['in_edges_b'] / d['t'] for d in self.edge_evolution])
-
-        n_tail = max(1, int(len(mean_deg_a) * fraction))
-        g_a = mean_deg_a[-n_tail:].mean()
-        g_b_empirical = mean_deg_b[-n_tail:].mean()  # Store for comparison
-        g_b = self.m_edges - g_a  # Enforce constraint
-
-        self._compute_theoretical_params(g_a, g_b, g_b_empirical)
-
     def get_beta_for_type(self, node_type: str):
         """
         Return the theoretical beta = (p0, alpha, gamma) for a node type,
@@ -289,50 +306,33 @@ class DirectedHomophilicNetwork:
         
         return result
 
-    def theoretical_distribution(self, k, node_type: str):
-        """
-        Theoretical in-degree distribution with analytic continuation.
-        """
-        beta = self.get_beta_for_type(node_type)
-        pmf = self.pmf_from_beta(k, beta)
-        return pmf.item() if np.ndim(pmf) == 1 and pmf.size == 1 else pmf
-
     def cdf_from_beta_truncated(self, k, beta, kmin: int, kmax: int) -> np.ndarray:
-        """
-        Conditional CDF F(k | beta, kmin <= K <= kmax) on integer support
-        kmin,...,kmax, constructed from pmf_from_beta and renormalised
-        over [kmin, kmax].
-        """
+        """Conditional CDF F(k | beta, kmin <= K <= kmax) on integer support (Yule-Simon only)."""
+        if self.theory_type != 'yule_simon':
+            raise NotImplementedError(f"CDF truncation not implemented for {self.theory_type}")
+        
         k = np.atleast_1d(k)
         k_int = np.floor(k).astype(int)
-
-        # Normalise beta to a hashable key (round to avoid small float noise)
         beta = np.asarray(beta, dtype=float)
-        beta_key = tuple(np.round(beta, decimals=12))  # (p0, alpha, gamma)
+        beta_key = tuple(np.round(beta, decimals=12))
         cache_key = (beta_key, int(kmin), int(kmax))
-
-        # Build and cache support-CDF table if needed
+        
         if cache_key not in self._cdf_cache:
             support = np.arange(kmin, kmax + 1, dtype=int)
             pmf = self.pmf_from_beta(support, beta).astype(float)
-
             Z = pmf.sum()
             if Z <= 0:
-                # Degenerate case: CDF is 0 until kmax, then 1
                 cdf_support = np.ones_like(support, dtype=float)
             else:
                 pmf /= Z
                 cdf_support = np.cumsum(pmf)
-
             self._cdf_cache[cache_key] = (support, cdf_support)
         else:
             support, cdf_support = self._cdf_cache[cache_key]
-
-        # Answer the CDF query for each k_int via the cached table
+        
         F = np.zeros_like(k_int, dtype=float)
         s_min = support[0]
         s_max = support[-1]
-
         for i, ki in enumerate(k_int):
             if ki < s_min:
                 F[i] = 0.0
@@ -340,7 +340,6 @@ class DirectedHomophilicNetwork:
                 F[i] = 1.0
             else:
                 F[i] = cdf_support[ki - s_min]
-
         return F.item() if F.size == 1 else F
 
     def _get_degrees(self, node_type: str) -> np.ndarray:
@@ -348,34 +347,64 @@ class DirectedHomophilicNetwork:
         type_val = 0 if node_type == 'a' else 1
         mask = self.node_types[:self.in_degrees.size] == type_val
         return self.in_degrees[mask].copy()
+
+    def theoretical_distribution(self, k, node_type: str):
+        """Theoretical in-degree distribution (dispatches by theory_type)."""
+        if self.theory_type == 'yule_simon':
+            beta = self.get_beta_for_type(node_type)
+            pmf = self.pmf_from_beta(k, beta)
+            return pmf.item() if np.ndim(pmf) == 1 and pmf.size == 1 else pmf
+        elif self.theory_type == 'power_law_1':
+            return self._pmf_power_law_1(k, node_type)
+        elif self.theory_type == 'power_law_2':
+            return self._pmf_power_law_2(k, node_type)
+        else:
+            raise ValueError(f"Unknown theory_type: {self.theory_type}")
+
+    def _pmf_power_law_1(self, k, node_type: str) -> np.ndarray:
+        k = np.atleast_1d(k)
+        if node_type not in self.power_law_params:
+            self._compute_power_law_params(node_type)
+        params = self.power_law_params[node_type]
+        alpha = params['alpha']
+        norm = params['norm']        # was params['zeta']
+        result = np.zeros_like(k, dtype=float)
+        pos_mask = k > 0
+        result[pos_mask] = (k[pos_mask] ** (-alpha)) / norm
+        return result
+
+    def _pmf_power_law_2(self, k, node_type: str) -> np.ndarray:
+        """Power law type 2: p(k) ~ (k + k0)^(-alpha) / normalization."""
+        k = np.atleast_1d(k)
+        if node_type not in self.power_law_params:
+            self._compute_power_law_params(node_type)
+        alpha = self.power_law_params[node_type]['alpha']
+        k0 = self.power_law_params[node_type]['k0']
+        norm = self.power_law_params[node_type]['norm']
+        result = ((k + k0) ** (-alpha)) / norm
+        return result
+
     class NetworkVis:
         """Visualization utilities for DirectedHomophilicNetwork."""
         
         def __init__(self, parent_net: "DirectedHomophilicNetwork"):
             self.net = parent_net
-            
-            # Set consistent font styling
             plt.rcParams['font.family'] = 'serif'
             plt.rcParams['font.serif'] = ['TeX Gyre Termes', 'Times New Roman']
             plt.rcParams['mathtext.fontset'] = 'cm'
             plt.rcParams['axes.linewidth'] = 0.8
             plt.rcParams['xtick.major.width'] = 0.8
             plt.rcParams['ytick.major.width'] = 0.8
-        
+
         def _logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.01) -> Tuple[np.ndarray, np.ndarray]:
-            """Create logarithmic bins with k=0 always in its own bin."""
+            """Logarithmic binning with k=0 separate."""
             if len(degrees) == 0:
                 return np.array([]), np.array([])
-            
             degrees = np.array(degrees)
             max_degree, n_total = np.max(degrees), len(degrees)
-            
-            # Handle k=0 separately
             count_zero = np.sum(degrees == 0)
             bin_centers = [0.0] if count_zero > 0 else []
             probabilities = [count_zero / n_total] if count_zero > 0 else []
-            
-            # Create logarithmic sequence for k >= 1
             if np.any(degrees > 0):
                 bins = [1]
                 current = 1 * bin_factor
@@ -384,50 +413,47 @@ class DirectedHomophilicNetwork:
                     current *= bin_factor
                 bins.append(int(max_degree) + 1)
                 bins = sorted(set(bins))
-                
-                # Compute bin statistics
                 for i in range(len(bins) - 1):
                     kmin, kmax = bins[i], bins[i + 1] - 1
                     count = np.sum((degrees >= kmin) & (degrees <= kmax))
-                    
                     if count > 0:
                         center = np.sqrt(kmin * kmax)
                         bin_centers.append(center)
                         probabilities.append(count / n_total)
-            
             return np.array(bin_centers), np.array(probabilities)
-        
-        def plot_degree_distributions_log(self, fm: "FileManager", discretisations: int = 10**5, figsize: Tuple = (15, 6)):
-            """Plot log-binned in-degree distributions with theoretical curves."""
+
+        _THEORY_STYLES = {
+            'yule_simon':  dict(linestyle='-',  linewidth=2.5, alpha=0.85, label='Yule-Simon'),
+            'power_law_1': dict(linestyle='--', linewidth=2.0, alpha=0.85, label='Power Law 1'),
+            'power_law_2': dict(linestyle=':',  linewidth=2.0, alpha=0.85, label='Power Law 2'),
+        }
+
+        def plot_degree_distributions_log(self, fm, theories, discretisations=10**5, figsize=(15, 6)):
+            """Log-binned empirical scatter + one curve per theory on the same axes."""
             fig, axes = plt.subplots(1, 2, figsize=figsize)
-            
             for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
                 in_degrees = self.net._get_degrees(node_type)
                 if len(in_degrees) == 0:
                     continue
-                
                 ax = axes[idx]
-                
-                # Empirical data
                 bin_centers, probs = self._logarithmic_binning(in_degrees)
                 ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
                         edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
-                
                 ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
-                
-                # Theoretical curve
                 k_max = int(np.max(in_degrees))
-                if discretisations == 0:
-                    k_range = np.arange(0, k_max + 1)
-                else:
-                    k_range = np.concatenate([[0], np.linspace(0.01, k_max, discretisations)])
-                theo_probs = self.net.theoretical_distribution(k_range, node_type)
-                mask = theo_probs > 0
-                
-                ax.plot(k_range[mask], theo_probs[mask], '-', linewidth=2.5,
-                    color='dark' + color, alpha=0.85, label='Theory', zorder=2)
-                
-                # Formatting
+                k_range = (np.arange(0, k_max + 1) if discretisations == 0
+                        else np.concatenate([[0], np.linspace(0.01, k_max, discretisations)]))
+                for theory in theories:
+                    self.net.theory_type = theory
+                    if theory == 'yule_simon':
+                        self.net._fit_asymptotes()
+                    else:
+                        self.net._compute_power_law_params(node_type)
+                    theo_probs = self.net.theoretical_distribution(k_range, node_type)
+                    mask = theo_probs > 0
+                    style = self._THEORY_STYLES.get(
+                        theory, dict(linestyle='-.', linewidth=2.0, alpha=0.85, label=theory))
+                    ax.plot(k_range[mask], theo_probs[mask], color='dark' + color, zorder=2, **style)
                 ax.set_xscale('symlog', linthresh=0.1)
                 ax.set_yscale('log')
                 ax.set_xlim(left=-0.05)
@@ -436,334 +462,215 @@ class DirectedHomophilicNetwork:
                 ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
                 ax.legend(fontsize=9, loc='best', framealpha=0.9)
                 ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
-            
-            # Add metadata as legend text box
-            legend_text = (f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, "
-                        f"h={self.net.h}, $f_a$={self.net.f_a}")
-            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11,
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            
-            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            fig.suptitle(
+                f'Directed Homophilic Network: N={self.net.n0 + self.net.n_nodes:,}, '
+                f'm={self.net.m_edges}, h={self.net.h}, f_a={self.net.f_a}',
+                fontsize=14, fontweight='bold')
+            plt.tight_layout()
             fm.save_fig(fig, "degree_dist_log_binned")
-            
-            # Export CSV for both types
-            for node_type in ['a', 'b']:
-                in_degrees = self.net._get_degrees(node_type)
-                if len(in_degrees) == 0:
-                    continue
-                
-                bin_centers, probs = self._logarithmic_binning(in_degrees)
-                k_max = int(np.max(in_degrees))
-                k_range = np.arange(0, k_max + 1)
-                theo_probs = self.net.theoretical_distribution(k_range, node_type)
-                
-                csv_data = []
-                for k, theo_p in zip(k_range, theo_probs):
-                    csv_data.append({'k': k, 'theory_prob': theo_p})
-                
-                for bc, emp_p in zip(bin_centers, probs):
-                    csv_data.append({'k': bc, 'empirical_prob': emp_p})
-                
-                df = pd.DataFrame(csv_data)
-                filepath = fm.data_dir / f"degree_dist_log_binned_type_{node_type}.csv"
-                with open(filepath, 'w') as f:
-                    f.write(f"# In-degree distribution (log-binned)\n")
-                    f.write(f"# Node type: {node_type}\n")
-                    f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
-                    f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
-                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
-                    df.to_csv(f, index=False)
-            
             return fig
-        
-        def plot_degree_distributions_linear(self, fm: "FileManager", max_k_display: int = None, figsize: Tuple = (15, 6)):
-            """Plot discrete integer PMF distributions on linear scale."""
+
+        def plot_degree_distributions_linear(self, fm, theories, max_k_display=None, figsize=(15, 6)):
+            """Discrete integer PMF scatter + one curve per theory on the same axes."""
             fig, axes = plt.subplots(1, 2, figsize=figsize)
-            
             for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
                 in_degrees = self.net._get_degrees(node_type)
                 if len(in_degrees) == 0:
                     continue
-                
                 ax = axes[idx]
-                
-                # Empirical PMF at integer values
                 unique_k, counts = np.unique(in_degrees, return_counts=True)
                 empirical_pmf = counts / len(in_degrees)
-                
-                ax.scatter(unique_k, empirical_pmf, s=20, alpha=0.7, color=color,
+                ax.scatter(unique_k, empirical_pmf, s=1, alpha=0.7, color=color,
                         edgecolors='black', linewidths=1, label='Simulation', zorder=3)
-                
-                # Theoretical curve at integer values
                 k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
                 k_range = np.arange(0, k_max + 1)
-                theo_probs = self.net.theoretical_distribution(k_range, node_type)
-                
-                ax.plot(k_range, theo_probs, '-', linewidth=1, color='dark' + color,
-                    alpha=1, label='Theory', zorder=2)
-                
-                # Formatting
+                for theory in theories:
+                    self.net.theory_type = theory
+                    if theory == 'yule_simon':
+                        self.net._fit_asymptotes()
+                    else:
+                        self.net._compute_power_law_params(node_type)
+                    theo_probs = self.net.theoretical_distribution(k_range, node_type)
+                    style = self._THEORY_STYLES.get(
+                        theory, dict(linestyle='-.', linewidth=1.5, alpha=0.85, label=theory))
+                    ax.plot(k_range, theo_probs, color='dark' + color, zorder=2, **style)
                 ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
                 ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
-                ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
+                ax.set_title(f'Type "{node_type}" (n={len(in_degrees)}) - LINEAR SCALE',
+                            fontsize=13, fontweight='bold')
                 ax.legend(fontsize=9, loc='best', framealpha=0.9)
                 ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
-            
-            # Add metadata as legend text box
-            legend_text = (f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, "
-                        f"h={self.net.h}, $f_a$={self.net.f_a}")
-            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11,
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            
-            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            fig.suptitle(
+                f'Directed Homophilic Network: N={self.net.n0 + self.net.n_nodes:,}, '
+                f'm={self.net.m_edges}, h={self.net.h}, f_a={self.net.f_a}',
+                fontsize=14, fontweight='bold')
+            plt.tight_layout()
             fm.save_fig(fig, "degree_dist_discrete_linear")
-            
-            # Export CSV for both types
-            for node_type in ['a', 'b']:
-                in_degrees = self.net._get_degrees(node_type)
-                if len(in_degrees) == 0:
-                    continue
-                
-                unique_k, counts = np.unique(in_degrees, return_counts=True)
-                empirical_pmf = counts / len(in_degrees)
-                
-                k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
-                k_range = np.arange(0, k_max + 1)
-                theo_probs = self.net.theoretical_distribution(k_range, node_type)
-                
-                csv_data = []
-                for k in k_range:
-                    emp_p = empirical_pmf[unique_k == k][0] if k in unique_k else 0.0
-                    csv_data.append({
-                        'k': k,
-                        'empirical_prob': emp_p,
-                        'theory_prob': theo_probs[k]
-                    })
-                
-                df = pd.DataFrame(csv_data)
-                filepath = fm.data_dir / f"degree_dist_discrete_linear_type_{node_type}.csv"
-                with open(filepath, 'w') as f:
-                    f.write(f"# In-degree distribution (discrete linear)\n")
-                    f.write(f"# Node type: {node_type}\n")
-                    f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
-                    f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
-                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
-                    df.to_csv(f, index=False)
-            
             return fig
-        
+
+        def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), node_size: float = 100, layout: str = 'spring'):
+            """Visualize network graph with node coloring by type."""
+            if self.net.graph is None:
+                print("Warning: Network graph not built. Set build_graph=True when creating network.")
+                return None
+            fig, ax = plt.subplots(figsize=figsize)
+            node_types = self.net.node_types[:self.net.graph.number_of_nodes()]
+            node_colors = ['red' if nt == 0 else 'blue' for nt in node_types]
+            pos = nx.spring_layout(self.net.graph, seed=42, k=1/np.sqrt(self.net.graph.number_of_nodes())) if layout == 'spring' else (nx.kamada_kawai_layout(self.net.graph) if layout == 'kamada_kawai' else nx.circular_layout(self.net.graph))
+            nx.draw_networkx_nodes(self.net.graph, pos, node_color=node_colors, node_size=node_size, alpha=0.7, ax=ax)
+            nx.draw_networkx_edges(self.net.graph, pos, alpha=0.2, width=0.5, arrows=True, arrowsize=10, ax=ax)
+            legend_elements = [Patch(facecolor='red', alpha=0.7, label='Type a'), Patch(facecolor='blue', alpha=0.7, label='Type b')]
+            ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
+            legend_text = f"N={self.net.n0 + self.net.n_nodes}, m={self.net.m_edges}, h={self.net.h}, $f_a$={self.net.f_a}"
+            ax.text(0.5, 0.98, legend_text, transform=ax.transAxes, ha='center', va='top', fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax.set_title(f"Network Graph ({layout} layout)", fontsize=14, fontweight='bold', pad=20)
+            ax.axis('off')
+            plt.tight_layout()
+            fm.save_fig(fig, f"network_graph_{layout}")
+            return fig
+
         def plot_asymptotes(self, fm: "FileManager", figsize: Tuple = (10, 6)):
-            """Plot mean in-edge density with asymptotic fits."""
+            """Plot mean in-edge density with asymptotic fits (Yule-Simon only)."""
+            if self.net.theory_type != 'yule_simon':
+                return None
             times = np.array([d['t'] for d in self.net.edge_evolution])
             mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in self.net.edge_evolution])
             mean_deg_b = np.array([d['in_edges_b'] / d['t'] for d in self.net.edge_evolution])
-            
             fig, ax = plt.subplots(figsize=figsize)
-            
-            for mean_deg, type_name, color in [
-                (mean_deg_a, 'a', 'red'),
-                (mean_deg_b, 'b', 'blue'),
-            ]:
+            for mean_deg, type_name, color in [(mean_deg_a, 'a', 'red'), (mean_deg_b, 'b', 'blue')]:
                 ax.plot(times, mean_deg, label=f"Type '{type_name}' (data)", color=color, linewidth=2)
                 asymptote = self.net.g_a if type_name == 'a' else self.net.g_b
-                ax.axhline(asymptote, linestyle='--', alpha=0.7, color='dark' + color,
-                        label=f"Type '{type_name}' asymptote = {asymptote:.3f}", linewidth=2)
-            
-            # Add metadata as legend text box
+                ax.axhline(asymptote, linestyle='--', alpha=0.7, color='dark' + color, label=f"Type '{type_name}' asymptote = {asymptote:.3f}", linewidth=2)
             legend_text = f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, h={self.net.h}"
-            ax.text(0.02, 0.98, legend_text, transform=ax.transAxes, fontsize=9,
-                verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            
+            ax.text(0.02, 0.98, legend_text, transform=ax.transAxes, fontsize=9, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
             ax.set_xlabel("t (number of nodes)", fontsize=12)
             ax.set_ylabel("Mean in-degree", fontsize=12)
             ax.legend(fontsize=10, loc='best')
             ax.grid(True, linestyle='--', alpha=0.3)
             plt.tight_layout()
             fm.save_fig(fig, "asymptotes")
-            
-            # Export CSV
-            csv_data = []
-            for t, ma, mb in zip(times, mean_deg_a, mean_deg_b):
-                csv_data.append({
-                    't': t,
-                    'mean_deg_a': ma,
-                    'mean_deg_b': mb,
-                    'asymptote_a': self.net.g_a,
-                    'asymptote_b': self.net.g_b
-                })
-            
+            csv_data = [{'t': t, 'mean_deg_a': ma, 'mean_deg_b': mb, 'asymptote_a': self.net.g_a, 'asymptote_b': self.net.g_b} for t, ma, mb in zip(times, mean_deg_a, mean_deg_b)]
             df = pd.DataFrame(csv_data)
             filepath = fm.data_dir / "asymptotes.csv"
             with open(filepath, 'w') as f:
-                f.write(f"# Asymptotic in-edge density evolution\n")
-                f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
-                f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
-                f.write(f"# g_a: {self.net.g_a:.6f}, g_b: {self.net.g_b:.6f}\n")
-                f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                f.write(f"# Asymptotic in-edge density evolution\n# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n# h: {self.net.h}, f_a: {self.net.f_a}\n# g_a: {self.net.g_a:.6f}, g_b: {self.net.g_b:.6f}\n# Generated: {datetime.datetime.now().isoformat()}\n")
                 df.to_csv(f, index=False)
-            
             return fig
-        
-        def plot_A_normalization(self, fm: "FileManager", max_k: int = 25, figsize: Tuple = (15, 6)):
-            """Plot normalization constant A(k) for both types."""
+
+        def plot_normalization(self, fm: "FileManager", max_k: int = 25, figsize: Tuple = (15, 6)):
+            """Plot theory-specific normalization. Yule-Simon: A(k), Power Law: exponent & norm."""
+            if self.net.theory_type == 'yule_simon':
+                return self._plot_normalization_yule_simon(fm, max_k, figsize)
+            elif self.net.theory_type in ['power_law_1', 'power_law_2']:
+                return self._plot_normalization_power_law(fm, max_k, figsize)
+            return None
+
+        def _plot_normalization_yule_simon(self, fm: "FileManager", max_k: int, figsize: Tuple):
+            """Plot A(k) normalization constant for Yule-Simon."""
             k_values = np.arange(0, max_k + 1)
             fig, axes = plt.subplots(1, 2, figsize=figsize)
-            
             for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
                 params = self.net._get_params(node_type)
-                
-                # Compute A(k)
-                A_values = []
-                for k in k_values:
-                    product = (np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i)
-                                    for i in range(k)]) if k > 0 else 1.0)
-                    gamma_ratio = gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha'])
-                    A_values.append(params['p0'] * product * gamma_ratio)
-                
+                A_values = [params['p0'] * (np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i) for i in range(k)]) if k > 0 else 1.0) * gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha']) for k in k_values]
                 ax = axes[idx]
-                ax.plot(k_values, A_values, 'o-', color=color, linewidth=2, markersize=4,
-                    alpha=0.7, label='A(k) computed')
-                ax.axhline(params['A'], linestyle='--', color='black', linewidth=2, alpha=0.7,
-                        label=f"$p_0 \\cdot \\Gamma(\\alpha+\\gamma)/\\Gamma(\\alpha)$ = {params['A']:.2f}")
-                
+                ax.plot(k_values, A_values, 'o-', color=color, linewidth=2, markersize=4, alpha=0.7, label='A(k) computed')
+                ax.axhline(params['A'], linestyle='--', color='black', linewidth=2, alpha=0.7, label=f"$p_0 \\cdot \\Gamma(\\alpha+\\gamma)/\\Gamma(\\alpha)$ = {params['A']:.2f}")
                 ax.set_xlabel('k', fontsize=13)
                 ax.set_ylabel('A(k)', fontsize=13)
                 ax.set_title(f"Type '{node_type}' Normalization", fontsize=13, fontweight='bold')
                 ax.set_xscale('log')
                 ax.legend(fontsize=10, loc='best')
                 ax.grid(True, alpha=0.3)
-            
-            # Add metadata as legend text box
             legend_text = f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}"
-            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11,
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            
+            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
             plt.tight_layout(rect=[0, 0, 1, 0.96])
             fm.save_fig(fig, "A_normalization")
-            
-            # Export CSV for both types
             for node_type in ['a', 'b']:
                 params = self.net._get_params(node_type)
-                
-                csv_data = []
-                for k in k_values:
-                    product = (np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i)
-                                    for i in range(k)]) if k > 0 else 1.0)
-                    gamma_ratio = gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha'])
-                    A_k = params['p0'] * product * gamma_ratio
-                    
-                    csv_data.append({
-                        'k': k,
-                        'A_k': A_k,
-                        'A_asymptotic': params['A']
-                    })
-                
+                csv_data = [{'k': k, 'A_k': params['p0'] * (np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i) for i in range(k)]) if k > 0 else 1.0) * gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha']), 'A_asymptotic': params['A']} for k in k_values]
                 df = pd.DataFrame(csv_data)
                 filepath = fm.data_dir / f"A_normalization_type_{node_type}.csv"
                 with open(filepath, 'w') as f:
-                    f.write(f"# Normalization constant A(k)\n")
-                    f.write(f"# Node type: {node_type}\n")
-                    f.write(f"# p0: {params['p0']:.6f}, alpha: {params['alpha']:.6f}, gamma: {params['gamma']:.6f}\n")
-                    f.write(f"# A_asymptotic: {params['A']:.6f}\n")
-                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    f.write(f"# Normalization constant A(k)\n# Node type: {node_type}\n# p0: {params['p0']:.6f}, alpha: {params['alpha']:.6f}, gamma: {params['gamma']:.6f}\n# A_asymptotic: {params['A']:.6f}\n# Generated: {datetime.datetime.now().isoformat()}\n")
                     df.to_csv(f, index=False)
-            
             return fig
 
-        def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), 
-                        node_size: float = 100, layout: str = 'spring'):
-            """
-            Plot the network graph with nodes colored by type.
-            """
-            if self.net.graph is None:
-                print("Warning: Network graph not built. Set build_graph=True when creating network.")
-                return None
-            
-            fig, ax = plt.subplots(figsize=figsize)
-            
-            # Get node attributes
-            node_types = self.net.node_types[:self.net.graph.number_of_nodes()]
-            in_degrees = self.net.in_degrees[:self.net.graph.number_of_nodes()]
-            
-            # Node colors by type
-            node_colors = ['red' if nt == 0 else 'blue' for nt in node_types]
-            
-            # Choose layout
-            if layout == 'spring':
-                pos = nx.spring_layout(self.net.graph, seed=42, k=1/np.sqrt(self.net.graph.number_of_nodes()))
-            elif layout == 'kamada_kawai':
-                pos = nx.kamada_kawai_layout(self.net.graph)
-            elif layout == 'circular':
-                pos = nx.circular_layout(self.net.graph)
-            else:
-                raise ValueError(f"Unknown layout: {layout}")
-            
-            # Draw network
-            nx.draw_networkx_nodes(self.net.graph, pos, node_color=node_colors, 
-                                node_size=node_size, alpha=0.7, ax=ax)
-            nx.draw_networkx_edges(self.net.graph, pos, alpha=0.2, width=0.5, 
-                                arrows=True, arrowsize=10, ax=ax)
-            
-            # Create legend
-
-            legend_elements = [
-                Patch(facecolor='red', alpha=0.7, label='Type a'),
-                Patch(facecolor='blue', alpha=0.7, label='Type b'),
-            ]
-            ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
-            
-            # Add metadata
-            legend_text = (f"N={self.net.n0 + self.net.n_nodes}, m={self.net.m_edges}, "
-                        f"h={self.net.h}, $f_a$={self.net.f_a}")
-            ax.text(0.5, 0.98, legend_text, transform=ax.transAxes, ha='center', va='top',
-                fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            
-            ax.set_title(f"Network Graph ({layout} layout)", fontsize=14, fontweight='bold', pad=20)
-            ax.axis('off')
-            plt.tight_layout()
-            fm.save_fig(fig, f"network_graph_{layout}")
-            
-            # Export single CSV with edge list and node attributes
-            edges_data = []
-            for source, target in self.net.graph.edges():
-                edges_data.append({
-                    'source': source,
-                    'target': target,
-                    'source_type': 'a' if node_types[source] == 0 else 'b',
-                    'target_type': 'a' if node_types[target] == 0 else 'b',
-                    'source_in_degree': in_degrees[source],
-                    'target_in_degree': in_degrees[target],
-                    'source_is_initial': source < self.net.n0,
-                    'target_is_initial': target < self.net.n0,
-                    'source_order': source,  # Node ID equals addition order
-                    'target_order': target,  # Node ID equals addition order
-                })
-            
-            df_edges = pd.DataFrame(edges_data)
-            filepath = fm.data_dir / "network_graph.csv"
-            with open(filepath, 'w') as f:
-                f.write(f"# Network edge list with node attributes\n")
-                f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
-                f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
-                f.write(f"# Initial network nodes: 0 to {self.net.n0 - 1}\n")
-                f.write(f"# Added nodes: {self.net.n0} to {self.net.n0 + self.net.n_nodes - 1}\n")
-                f.write(f"# Total edges: {self.net.graph.number_of_edges()}\n")
-                f.write(f"# Type a nodes: {np.sum(node_types == 0)}\n")
-                f.write(f"# Type b nodes: {np.sum(node_types == 1)}\n")
-                f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
-                df_edges.to_csv(f, index=False)
-            
+        def _plot_normalization_power_law(self, fm: "FileManager", max_k: int, figsize: Tuple):
+            """Plot power law exponent and normalization."""
+            fig, axes = plt.subplots(1, 2, figsize=figsize)
+            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+                if node_type not in self.net.power_law_params:
+                    self.net._compute_power_law_params(node_type)
+                params = self.net.power_law_params[node_type]
+                alpha, k0, norm = params['alpha'], params.get('k0', 0.0), params['norm']
+                k_values = np.arange(0 if k0 > 0 else 1, max_k + 1)
+                pmf_vals = ((k_values + k0) ** (-alpha)) / norm
+                ax = axes[idx]
+                ax.plot(k_values, pmf_vals, 'o-', color=color, linewidth=2, markersize=4, alpha=0.7, label=f'$\\alpha = {alpha:.2f}$' + (f', $k_0 = {k0:.2f}$' if k0 > 0 else ''))
+                ax.set_xlabel('k', fontsize=13)
+                ax.set_ylabel('p(k)', fontsize=13)
+                ax.set_title(f"Type '{node_type}' Power Law", fontsize=13, fontweight='bold')
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                ax.legend(fontsize=10, loc='best')
+                ax.grid(True, alpha=0.3, which='both')
+            legend_text = f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, theory={self.net.theory_type}"
+            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            fm.save_fig(fig, "power_law_params")
+            for node_type in ['a', 'b']:
+                if node_type not in self.net.power_law_params:
+                    self.net._compute_power_law_params(node_type)
+                params = self.net.power_law_params[node_type]
+                alpha, k0, norm = params['alpha'], params.get('k0', 0.0), params['norm']
+                k_values = np.arange(0 if k0 > 0 else 1, max_k + 1)
+                csv_data = [{'k': k, 'pmf': ((k + k0) ** (-alpha)) / norm, 'alpha': alpha, 'k0': k0, 'norm': norm} for k in k_values]
+                df = pd.DataFrame(csv_data)
+                filepath = fm.data_dir / f"power_law_type_{node_type}.csv"
+                with open(filepath, 'w') as f:
+                    f.write(f"# Power law PMF: p(k) ~ (k + k0)^(-alpha) / norm\n# Node type: {node_type}\n# alpha: {alpha:.6f}, k0: {k0:.6f}, norm: {norm:.6f}\n# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df.to_csv(f, index=False)
             return fig
+    
 class GoFDiagnostics:
 
-    def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None,):
+    def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None):
+        """Theoretical CDF (dispatches by theory_type)."""
         k = np.atleast_1d(k)
-
-        if beta is None:
-            beta = net.get_beta_for_type(node_type)
-
-        return net.cdf_from_beta_truncated(k, beta, kmin, kmax)
-
+        if net.theory_type == 'yule_simon':
+            if beta is None:
+                beta = net.get_beta_for_type(node_type)
+            return net.cdf_from_beta_truncated(k, beta, kmin, kmax)
+        elif net.theory_type in ['power_law_1', 'power_law_2']:
+            return self._cdf_power_law_truncated(net, k, node_type, kmin, kmax)
+        else:
+            raise ValueError(f"Unknown theory_type: {net.theory_type}")
+    
+    def _cdf_power_law_truncated(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int) -> np.ndarray:
+        """Truncated CDF for power laws."""
+        k = np.atleast_1d(k)
+        k_int = np.floor(k).astype(int)
+        support = np.arange(kmin, kmax + 1, dtype=int)
+        pmf = net.theoretical_distribution(support, node_type)
+        pmf = np.asarray(pmf, dtype=float)
+        Z = pmf.sum()
+        if Z <= 0:
+            cdf_support = np.ones_like(support, dtype=float)
+        else:
+            pmf /= Z
+            cdf_support = np.cumsum(pmf)
+        
+        F = np.zeros_like(k_int, dtype=float)
+        s_min, s_max = support[0], support[-1]
+        for i, ki in enumerate(k_int):
+            if ki < s_min:
+                F[i] = 0.0
+            elif ki >= s_max:
+                F[i] = 1.0
+            else:
+                F[i] = cdf_support[ki - s_min]
+        return F.item() if F.size == 1 else F
+    
     def _p_from_D_theory(self, d_e: float, N: int, j_max: int = 100) -> float:
         """
         Compute p(d_e, N) from the CSN-type approximation (Eq. 29 from paper).
@@ -1539,6 +1446,7 @@ class GoFDiagnostics:
         
         return {'m_values': m_values, 'n0_values': n0_values, 'frac_nodes_grid': frac_nodes_grid, 'frac_edges_grid': frac_edges_grid,
                 'b_star_grid': b_star_grid, 'p_value_grid': p_value_grid, 'p_c_list': p_c_list, 'z': z, 'a': a, 'node_type': node_type}
+    
     class CSN1DVis:
         """1D sweep visualization for m_edges and n0 sweeps."""
         
@@ -1689,6 +1597,7 @@ class GoFDiagnostics:
             ax.legend(loc='best', fontsize=9)
             plt.tight_layout()
             return fig        
+    
     class CSN2DVis:
         """
         2D visualization utilities for CSN-based windows.
@@ -1779,6 +1688,7 @@ class GoFDiagnostics:
             ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
             plt.tight_layout()
             return fig                    
+
 class NetworkStatistics:
     """
     Statistical reporting utilities for DirectedHomophilicNetwork.
@@ -1840,45 +1750,26 @@ class NetworkStatistics:
 if __name__ == "__main__":
     
     config = dict(
-        network=dict(
-            n0=5, n_nodes=2000, m_edges=3,
-            h=0.2, f_a=0.2, mu_a=1, mu_b=1, 
-            seed=3,
-        ),
-        sweep_m=dict(
-            m_min=1, m_max=34, m_step=1,
-            node_type='b', a=0,
-            p_c_list=[0.1,0.2, 0.4],
-            N_sims=50, b_grid_type='linear',
-            n_b=50, b_min=None, b_max=None,
-        ),
-        sweep_n0=dict(
-            n0_min=10, n0_max=150, n0_step=5,
-            node_type='b', a=0,
-            p_c_list=[0.1,0.2, 0.4],
-            N_sims=50, b_grid_type='linear',
-            n_b=50, b_min=None, b_max=None,
-        ),
-        grid_2d=dict(
-            m_min=1, m_max=34, m_step=2,
-            n0_min=10, n0_max=150, n0_step=10,
-            node_type='b', a=0,
-            p_c_list=[0.1,0.2, 0.4],
-            N_sims=50, b_grid_type='linear', n_b=50,
-            b_min=None, b_max=None, z=1.0,
-        ),
-        plots=dict(
-            network_basic=True, 
-            sweep_m_edges_csn=False, sweep_n0_csn=False,
-            csn_p_vs_b_m=5, csn_p_vs_b_n0=5,
-            grid_2d_sweep= False,
-        ))
+        theories_to_run=['yule_simon','power_law_1'],
+        network=dict(n0=35, n_nodes=2000, m_edges=3, h=0.2, f_a=0.2, mu_a=1, mu_b=1, 
+                     seed=3, theory_type='yule_simon', power_law_params=None),
+        sweep_m=dict(m_min=1, m_max=34, m_step=1, node_type='b', a=0, 
+                     p_c_list=[0.1, 0.2, 0.4], N_sims=5, 
+                     b_grid_type='linear', n_b=5, b_min=None, b_max=None),
+        sweep_n0=dict(n0_min=10, n0_max=150, n0_step=5, node_type='b', a=0, 
+                      p_c_list=[0.1, 0.2, 0.4], N_sims=5, 
+                      b_grid_type='linear', n_b=5, b_min=None, b_max=None),
+        grid_2d=dict(m_min=1, m_max=34, m_step=2, n0_min=10, n0_max=150, n0_step=10, node_type='b', a=0,
+                      p_c_list=[0.1, 0.2, 0.4], N_sims=5, 
+                      b_grid_type='linear', n_b=5, b_min=None, b_max=None, z=1.0),
+        plots=dict(network_basic=True, sweep_m_edges_csn=True, sweep_n0_csn=True,
+                    csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=True))
     
     fm = FileManager(config)
-    net = DirectedHomophilicNetwork(**config["network"])
     gof = GoFDiagnostics()
     stats = NetworkStatistics()
     
+    net = DirectedHomophilicNetwork(**config["network"])
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
@@ -1886,363 +1777,94 @@ if __name__ == "__main__":
     stats.print_statistics(net)
     
     plots = config["plots"]
-    
+
+    # --- Theory-agnostic plots (once) ---
     if plots["network_basic"]:
         vis = DirectedHomophilicNetwork.NetworkVis(net)
         vis.plot_network_graph(fm)
-        vis.plot_degree_distributions_log(fm)
-        vis.plot_degree_distributions_linear(fm)
-        vis.plot_asymptotes(fm)
-        vis.plot_A_normalization(fm)
+        vis.plot_degree_distributions_log(fm, theories=config["theories_to_run"])
+        vis.plot_degree_distributions_linear(fm, theories=config["theories_to_run"])
+
+    # --- Per-theory specific plots ---
+    for theory in config["theories_to_run"]:
+        print(f"\n{'='*60}\nFitting {theory}\n{'='*60}")
+        net.theory_type = theory
+        net._fit_asymptotes()
+
+        if plots["network_basic"]:
+            vis = DirectedHomophilicNetwork.NetworkVis(net)
+            vis.plot_asymptotes(fm)     # returns None silently if not yule_simon
+            vis.plot_normalization(fm)  # theory-specific
+
+    # --- GoF: first theory only ---
+    gof_theory = config["theories_to_run"][0]
+    net.theory_type = gof_theory
+    net._fit_asymptotes()
+    print(f"\n{'='*60}\nGoF analysis: {gof_theory}\n{'='*60}")
 
     if plots["sweep_m_edges_csn"]:
         results_m = gof.csn_sweep_m_edges(net, **config["sweep_m"])
-        fm.save_fig(results_m["fig"], "sweep_m_edges_csn")
-        
-        # Export frac sweep data
+        fm.save_fig_with_suffix(results_m["fig"], "sweep_m_edges_csn", gof_theory)
         frac_data = {}
         for p_c in config["sweep_m"]["p_c_list"]:
             frac_data[f'frac_nodes_pc{p_c}'] = results_m['frac_nodes_kept'][p_c]
             frac_data[f'frac_edges_pc{p_c}'] = results_m['frac_edges_kept'][p_c]
             frac_data[f'valid_pc{p_c}'] = [not x for x in results_m['no_window'][p_c]]
-        
-        fm.export_grid_to_csv(
-            frac_data, 'sweep_m_edges_frac',
-            metric_name='frac', x_values=results_m['m_values'], 
-            x_name='m_edges',
-            metadata_dict={
-                'Sweep': 'm_edges',
-                'Node type': config["sweep_m"]["node_type"],
-                'a': config["sweep_m"]["a"],
-            }
-        )
-        
-        # Plot frac sweep
+        fm.export_grid_to_csv(frac_data, f'sweep_m_edges_frac_{gof_theory}', metric_name='frac', x_values=results_m['m_values'], x_name='m_edges', metadata_dict={'Sweep': 'm_edges', 'Theory': gof_theory, 'Node type': config["sweep_m"]["node_type"], 'a': config["sweep_m"]["a"]})
         v1d = GoFDiagnostics.CSN1DVis(gof)
-        fig_nodes = v1d.plot_frac_sweep(
-            results_m['m_values'], results_m['frac_nodes_kept'],
-            results_m['frac_edges_kept'], results_m['no_window'],
-            config["sweep_m"]["p_c_list"], 'm_edges',
-            config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='nodes'
-        )
-        fm.save_fig(fig_nodes, "sweep_m_edges_frac_nodes")
-        
-        fig_edges = v1d.plot_frac_sweep(
-            results_m['m_values'], results_m['frac_nodes_kept'],
-            results_m['frac_edges_kept'], results_m['no_window'],
-            config["sweep_m"]["p_c_list"], 'm_edges',
-            config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='edges'
-        )
-        fm.save_fig(fig_edges, "sweep_m_edges_frac_edges")
-        
-        # P vs B and Beta MLE diagnostics
+        fig_nodes = v1d.plot_frac_sweep(results_m['m_values'], results_m['frac_nodes_kept'], results_m['frac_edges_kept'], results_m['no_window'], config["sweep_m"]["p_c_list"], 'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='nodes')
+        fm.save_fig_with_suffix(fig_nodes, "sweep_m_edges_frac_nodes", gof_theory)
+        fig_edges = v1d.plot_frac_sweep(results_m['m_values'], results_m['frac_nodes_kept'], results_m['frac_edges_kept'], results_m['no_window'], config["sweep_m"]["p_c_list"], 'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='edges')
+        fm.save_fig_with_suffix(fig_edges, "sweep_m_edges_frac_edges", gof_theory)
         num_p_vs_b_m = plots.get("csn_p_vs_b_m", 0)
         if num_p_vs_b_m > 0:
-            diag_indices = gof._select_indices_for_diagnostics(
-                len(results_m['m_values']), num_p_vs_b_m
-            )
-            
+            diag_indices = gof._select_indices_for_diagnostics(len(results_m['m_values']), num_p_vs_b_m)
             for idx in diag_indices:
                 x_val = int(results_m['m_values'][idx])
                 scan_res = results_m['windows_info'][idx]
                 windows = scan_res.get('windows', [])
-                
                 if not windows:
                     continue
-                
-                # P vs B plot
-                fig_p = v1d.plot_p_vs_b(
-                    scan_res, config["sweep_m"]["p_c_list"],
-                    x_val, 'm_edges', config["sweep_m"]["node_type"],
-                    config["sweep_m"]["a"], z=1.0
-                )
-                fm.save_fig(fig_p, f"p_vs_b_m_edges_{x_val}")
-                
-                # P vs B CSV
-                p_data = []
-                for w in windows:
-                    p_data.append({
-                        'b': int(w['b']),
-                        'p': float(w['p']),
-                        'sigma_p': float(w['sigma_p']),
-                        'p_lower_bound': float(w['p']) - 1.0 * float(w['sigma_p']),
-                        'D_theory_mean': float(np.mean(np.asarray(w['D_theory'], dtype=float))),
-                        'D_mle_mean': float(np.mean(np.asarray(w['D_mle'], dtype=float))),
-                    })
-                
-                df_p = pd.DataFrame(p_data)
-                filepath_p = fm.data_dir / f"p_vs_b_m_edges_{x_val}.csv"
-                with open(filepath_p, 'w') as f:
-                    f.write(f"# P-value vs truncation analysis\n")
-                    f.write(f"# Sweep: m_edges, value: {x_val}\n")
-                    f.write(f"# Node type: {config['sweep_m']['node_type']}, a: {config['sweep_m']['a']}\n")
-                    f.write(f"# Confidence interval: z = 1.0\n")
-                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
-                    df_p.to_csv(f, index=False)
-                
-                # Beta MLE plot
-                fig_beta = v1d.plot_beta_mle_pct_diff(
-                    windows, x_val, 'm_edges',
-                    config["sweep_m"]["node_type"], config["sweep_m"]["a"]
-                )
-                fm.save_fig(fig_beta, f"beta_mle_m_edges_{x_val}")
-                
-                # Beta MLE CSV
-                beta_data = []
-                for w in windows:
-                    b = int(w['b'])
-                    beta_mle_mean = w.get('beta_mle_mean')
-                    beta_mle_std = w.get('beta_mle_std')
-                    beta_theory = w.get('beta_theory')
-                    
-                    if beta_mle_mean is None or beta_theory is None:
-                        continue
-                    
-                    p0_m, alpha_m, gamma_m = beta_mle_mean
-                    p0_s, alpha_s, gamma_s = beta_mle_std if beta_mle_std is not None else (0, 0, 0)
-                    p0_t, alpha_t, gamma_t = beta_theory
-                    
-                    p0_pct = 100 * (p0_m - p0_t) / p0_t if p0_t != 0 else np.nan
-                    p0_pct_sigma = 100 * p0_s / p0_t if p0_t != 0 else np.nan
-                    alpha_pct = 100 * (alpha_m - alpha_t) / alpha_t if alpha_t != 0 else np.nan
-                    alpha_pct_sigma = 100 * alpha_s / alpha_t if alpha_t != 0 else np.nan
-                    gamma_pct = 100 * (gamma_m - gamma_t) / gamma_t if gamma_t != 0 else np.nan
-                    gamma_pct_sigma = 100 * gamma_s / gamma_t if gamma_t != 0 else np.nan
-                    
-                    beta_data.append({
-                        'b': b,
-                        'p0_mle_mean': p0_m, 'p0_mle_std': p0_s, 'p0_theory': p0_t,
-                        'p0_pct_diff': p0_pct, 'p0_pct_diff_lower': p0_pct - p0_pct_sigma,
-                        'p0_pct_diff_upper': p0_pct + p0_pct_sigma,
-                        'alpha_mle_mean': alpha_m, 'alpha_mle_std': alpha_s, 'alpha_theory': alpha_t,
-                        'alpha_pct_diff': alpha_pct, 'alpha_pct_diff_lower': alpha_pct - alpha_pct_sigma,
-                        'alpha_pct_diff_upper': alpha_pct + alpha_pct_sigma,
-                        'gamma_mle_mean': gamma_m, 'gamma_mle_std': gamma_s, 'gamma_theory': gamma_t,
-                        'gamma_pct_diff': gamma_pct, 'gamma_pct_diff_lower': gamma_pct - gamma_pct_sigma,
-                        'gamma_pct_diff_upper': gamma_pct + gamma_pct_sigma,
-                    })
-                
-                df_beta = pd.DataFrame(beta_data)
-                filepath_beta = fm.data_dir / f"beta_mle_m_edges_{x_val}.csv"
-                with open(filepath_beta, 'w') as f:
-                    f.write(f"# Beta MLE analysis\n")
-                    f.write(f"# Sweep: m_edges, value: {x_val}\n")
-                    f.write(f"# Node type: {config['sweep_m']['node_type']}, a: {config['sweep_m']['a']}\n")
-                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
-                    df_beta.to_csv(f, index=False)
+                fig_p = v1d.plot_p_vs_b(scan_res, config["sweep_m"]["p_c_list"], x_val, 'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], z=1.0)
+                fm.save_fig_with_suffix(fig_p, f"p_vs_b_m_edges_{x_val}", gof_theory)
 
     if plots["sweep_n0_csn"]:
-            results_n0 = gof.csn_sweep_n0(net, **config["sweep_n0"])
-            fm.save_fig(results_n0["fig"], "sweep_n0_csn")
-            
-            # Export frac sweep data
-            frac_data = {}
-            for p_c in config["sweep_n0"]["p_c_list"]:
-                frac_data[f'frac_nodes_pc{p_c}'] = results_n0['frac_nodes_kept'][p_c]
-                frac_data[f'frac_edges_pc{p_c}'] = results_n0['frac_edges_kept'][p_c]
-                frac_data[f'valid_pc{p_c}'] = [not x for x in results_n0['no_window'][p_c]]
-            
-            fm.export_grid_to_csv(
-                frac_data, 'sweep_n0_frac',
-                metric_name='frac', x_values=results_n0['n0_values'], 
-                x_name='n0',
-                metadata_dict={
-                    'Sweep': 'n0',
-                    'Node type': config["sweep_n0"]["node_type"],
-                    'a': config["sweep_n0"]["a"],
-                }
-            )
-            
-            # Plot frac sweep
-            v1d = GoFDiagnostics.CSN1DVis(gof)
-            fig_nodes = v1d.plot_frac_sweep(
-                results_n0['n0_values'], results_n0['frac_nodes_kept'],
-                results_n0['frac_edges_kept'], results_n0['no_window'],
-                config["sweep_n0"]["p_c_list"], 'n0',
-                config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='nodes'
-            )
-            fm.save_fig(fig_nodes, "sweep_n0_frac_nodes")
-            
-            fig_edges = v1d.plot_frac_sweep(
-                results_n0['n0_values'], results_n0['frac_nodes_kept'],
-                results_n0['frac_edges_kept'], results_n0['no_window'],
-                config["sweep_n0"]["p_c_list"], 'n0',
-                config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='edges'
-            )
-            fm.save_fig(fig_edges, "sweep_n0_frac_edges")
-            
-            # P vs B and Beta MLE diagnostics
-            num_p_vs_b_n0 = plots.get("csn_p_vs_b_n0", 0)
-            if num_p_vs_b_n0 > 0:
-                diag_indices = gof._select_indices_for_diagnostics(
-                    len(results_n0['n0_values']), num_p_vs_b_n0
-                )
-                
-                for idx in diag_indices:
-                    x_val = int(results_n0['n0_values'][idx])
-                    scan_res = results_n0['windows_info'][idx]
-                    windows = scan_res.get('windows', [])
-                    
-                    if not windows:
-                        continue
-                    
-                    # P vs B plot
-                    fig_p = v1d.plot_p_vs_b(
-                        scan_res, config["sweep_n0"]["p_c_list"],
-                        x_val, 'n0', config["sweep_n0"]["node_type"],
-                        config["sweep_n0"]["a"], z=1.0
-                    )
-                    fm.save_fig(fig_p, f"p_vs_b_n0_{x_val}")
-                    
-                    # P vs B CSV
-                    p_data = []
-                    for w in windows:
-                        p_data.append({
-                            'b': int(w['b']),
-                            'p': float(w['p']),
-                            'sigma_p': float(w['sigma_p']),
-                            'p_lower_bound': float(w['p']) - 1.0 * float(w['sigma_p']),
-                            'D_theory_mean': float(np.mean(np.asarray(w['D_theory'], dtype=float))),
-                            'D_mle_mean': float(np.mean(np.asarray(w['D_mle'], dtype=float))),
-                        })
-                    
-                    df_p = pd.DataFrame(p_data)
-                    filepath_p = fm.data_dir / f"p_vs_b_n0_{x_val}.csv"
-                    with open(filepath_p, 'w') as f:
-                        f.write(f"# P-value vs truncation analysis\n")
-                        f.write(f"# Sweep: n0, value: {x_val}\n")
-                        f.write(f"# Node type: {config['sweep_n0']['node_type']}, a: {config['sweep_n0']['a']}\n")
-                        f.write(f"# Confidence interval: z = 1.0\n")
-                        f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
-                        df_p.to_csv(f, index=False)
-                    
-                    # Beta MLE plot
-                    fig_beta = v1d.plot_beta_mle_pct_diff(
-                        windows, x_val, 'n0',
-                        config["sweep_n0"]["node_type"], config["sweep_n0"]["a"]
-                    )
-                    fm.save_fig(fig_beta, f"beta_mle_n0_{x_val}")
-                    
-                    # Beta MLE CSV
-                    beta_data = []
-                    for w in windows:
-                        b = int(w['b'])
-                        beta_mle_mean = w.get('beta_mle_mean')
-                        beta_mle_std = w.get('beta_mle_std')
-                        beta_theory = w.get('beta_theory')
-                        
-                        if beta_mle_mean is None or beta_theory is None:
-                            continue
-                        
-                        p0_m, alpha_m, gamma_m = beta_mle_mean
-                        p0_s, alpha_s, gamma_s = beta_mle_std if beta_mle_std is not None else (0, 0, 0)
-                        p0_t, alpha_t, gamma_t = beta_theory
-                        
-                        p0_pct = 100 * (p0_m - p0_t) / p0_t if p0_t != 0 else np.nan
-                        p0_pct_sigma = 100 * p0_s / p0_t if p0_t != 0 else np.nan
-                        alpha_pct = 100 * (alpha_m - alpha_t) / alpha_t if alpha_t != 0 else np.nan
-                        alpha_pct_sigma = 100 * alpha_s / alpha_t if alpha_t != 0 else np.nan
-                        gamma_pct = 100 * (gamma_m - gamma_t) / gamma_t if gamma_t != 0 else np.nan
-                        gamma_pct_sigma = 100 * gamma_s / gamma_t if gamma_t != 0 else np.nan
-                        
-                        beta_data.append({
-                            'b': b,
-                            'p0_mle_mean': p0_m, 'p0_mle_std': p0_s, 'p0_theory': p0_t,
-                            'p0_pct_diff': p0_pct, 'p0_pct_diff_lower': p0_pct - p0_pct_sigma,
-                            'p0_pct_diff_upper': p0_pct + p0_pct_sigma,
-                            'alpha_mle_mean': alpha_m, 'alpha_mle_std': alpha_s, 'alpha_theory': alpha_t,
-                            'alpha_pct_diff': alpha_pct, 'alpha_pct_diff_lower': alpha_pct - alpha_pct_sigma,
-                            'alpha_pct_diff_upper': alpha_pct + alpha_pct_sigma,
-                            'gamma_mle_mean': gamma_m, 'gamma_mle_std': gamma_s, 'gamma_theory': gamma_t,
-                            'gamma_pct_diff': gamma_pct, 'gamma_pct_diff_lower': gamma_pct - gamma_pct_sigma,
-                            'gamma_pct_diff_upper': gamma_pct + gamma_pct_sigma,
-                        })
-                    
-                    df_beta = pd.DataFrame(beta_data)
-                    filepath_beta = fm.data_dir / f"beta_mle_n0_{x_val}.csv"
-                    with open(filepath_beta, 'w') as f:
-                        f.write(f"# Beta MLE analysis\n")
-                        f.write(f"# Sweep: n0, value: {x_val}\n")
-                        f.write(f"# Node type: {config['sweep_n0']['node_type']}, a: {config['sweep_n0']['a']}\n")
-                        f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
-                        df_beta.to_csv(f, index=False)
-    
+        results_n0 = gof.csn_sweep_n0(net, **config["sweep_n0"])
+        fm.save_fig_with_suffix(results_n0["fig"], "sweep_n0_csn", gof_theory)
+        frac_data = {}
+        for p_c in config["sweep_n0"]["p_c_list"]:
+            frac_data[f'frac_nodes_pc{p_c}'] = results_n0['frac_nodes_kept'][p_c]
+            frac_data[f'frac_edges_pc{p_c}'] = results_n0['frac_edges_kept'][p_c]
+            frac_data[f'valid_pc{p_c}'] = [not x for x in results_n0['no_window'][p_c]]
+        fm.export_grid_to_csv(frac_data, f'sweep_n0_frac_{gof_theory}', metric_name='frac', x_values=results_n0['n0_values'], x_name='n0', metadata_dict={'Sweep': 'n0', 'Theory': gof_theory, 'Node type': config["sweep_n0"]["node_type"], 'a': config["sweep_n0"]["a"]})
+        v1d = GoFDiagnostics.CSN1DVis(gof)
+        fig_nodes = v1d.plot_frac_sweep(results_n0['n0_values'], results_n0['frac_nodes_kept'], results_n0['frac_edges_kept'], results_n0['no_window'], config["sweep_n0"]["p_c_list"], 'n0', config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='nodes')
+        fm.save_fig_with_suffix(fig_nodes, "sweep_n0_frac_nodes", gof_theory)
+        fig_edges = v1d.plot_frac_sweep(results_n0['n0_values'], results_n0['frac_nodes_kept'], results_n0['frac_edges_kept'], results_n0['no_window'], config["sweep_n0"]["p_c_list"], 'n0', config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='edges')
+        fm.save_fig_with_suffix(fig_edges, "sweep_n0_frac_edges", gof_theory)
+
     if plots["grid_2d_sweep"]:
-            _allowed_keys_grid2d = {
-                "m_min", "m_max", "m_step",
-                "n0_min", "n0_max", "n0_step",
-                "node_type", "a",
-                "p_c_list",
-                "N_sims", "b_grid_type", "n_b",
-                "b_min", "b_max",
-                "z",
-            }
-            _grid2d_args = {
-                k: v for k, v in config["grid_2d"].items()
-                if k in _allowed_keys_grid2d
-            }
-
-            grid_results = gof.csn_sweep_2d_grid(net, **_grid2d_args)
-            m_values = grid_results["m_values"]
-            n0_values = grid_results["n0_values"]
-            p_c_list = grid_results["p_c_list"]
-            frac_nodes_grid = grid_results["frac_nodes_grid"]
-            frac_edges_grid = grid_results["frac_edges_grid"]
-            p_value_grid = grid_results["p_value_grid"]
-
-            v2d = GoFDiagnostics.CSN2DVis(gof)
-
-            for p_c in p_c_list:
-                # Margin: M = p* - p_c
-                margin_data = p_value_grid[p_c] - p_c
-                fig = v2d.plot_contour_generic(
-                    m_values, n0_values, margin_data,
-                    metric_label=r'$M = p^* - p_c$',
-                    use_csn_cmap=False
-                )
-                fm.save_fig(fig, f"margin_pc{p_c}")
-                # FIXED: Use correct parameter names for 2D grid
-                fm.export_grid_to_csv(
-                    data_grid=margin_data,
-                    filename=f"margin_pc{p_c}",
-                    metric_name='margin',
-                    m_values=m_values,
-                    n0_values=n0_values,
-                    p_c=p_c
-                )
-
-                # Frac nodes
-                fig = v2d.plot_contour_generic(
-                    m_values, n0_values, frac_nodes_grid[p_c],
-                    metric_label=r'$F_{\mathrm{nodes}}^*$',
-                    use_csn_cmap=True
-                )
-                fm.save_fig(fig, f"frac_nodes_pc{p_c}")
-                fm.export_grid_to_csv(
-                    data_grid=frac_nodes_grid[p_c],
-                    filename=f"frac_nodes_pc{p_c}",
-                    metric_name='frac_nodes',
-                    m_values=m_values,
-                    n0_values=n0_values,
-                    p_c=p_c
-                )
-
-                # Frac edges
-                fig = v2d.plot_contour_generic(
-                    m_values, n0_values, frac_edges_grid[p_c],
-                    metric_label=r'$F_{\mathrm{edges}}^*$',
-                    use_csn_cmap=True
-                )
-                fm.save_fig(fig, f"frac_edges_pc{p_c}")
-                fm.export_grid_to_csv(
-                    data_grid=frac_edges_grid[p_c],
-                    filename=f"frac_edges_pc{p_c}",
-                    metric_name='frac_edges',
-                    m_values=m_values,
-                    n0_values=n0_values,
-                    p_c=p_c
-            )
+        _allowed_keys_grid2d = {"m_min", "m_max", "m_step", "n0_min", "n0_max", "n0_step", "node_type", "a", "p_c_list", "N_sims", "b_grid_type", "n_b", "b_min", "b_max", "z"}
+        _grid2d_args = {k: v for k, v in config["grid_2d"].items() if k in _allowed_keys_grid2d}
+        grid_results = gof.csn_sweep_2d_grid(net, **_grid2d_args)
+        m_values = grid_results["m_values"]
+        n0_values = grid_results["n0_values"]
+        p_c_list = grid_results["p_c_list"]
+        frac_nodes_grid = grid_results["frac_nodes_grid"]
+        frac_edges_grid = grid_results["frac_edges_grid"]
+        p_value_grid = grid_results["p_value_grid"]
+        v2d = GoFDiagnostics.CSN2DVis(gof)
+        for p_c in p_c_list:
+            margin_data = p_value_grid[p_c] - p_c
+            fig = v2d.plot_contour_generic(m_values, n0_values, margin_data, metric_label=r'$M = p^* - p_c$', use_csn_cmap=False)
+            fm.save_fig_with_suffix(fig, f"margin_pc{p_c}", gof_theory)
+            fm.export_grid_to_csv(data_grid=margin_data, filename=f"margin_pc{p_c}_{gof_theory}", metric_name='margin', m_values=m_values, n0_values=n0_values, p_c=p_c)
+            fig = v2d.plot_contour_generic(m_values, n0_values, frac_nodes_grid[p_c], metric_label=r'$F_{\mathrm{nodes}}^*$', use_csn_cmap=True)
+            fm.save_fig_with_suffix(fig, f"frac_nodes_pc{p_c}", gof_theory)
+            fm.export_grid_to_csv(data_grid=frac_nodes_grid[p_c], filename=f"frac_nodes_pc{p_c}_{gof_theory}", metric_name='frac_nodes', m_values=m_values, n0_values=n0_values, p_c=p_c)
+            fig = v2d.plot_contour_generic(m_values, n0_values, frac_edges_grid[p_c], metric_label=r'$F_{\mathrm{edges}}^*$', use_csn_cmap=True)
+            fm.save_fig_with_suffix(fig, f"frac_edges_pc{p_c}", gof_theory)
+            fm.export_grid_to_csv(data_grid=frac_edges_grid[p_c], filename=f"frac_edges_pc{p_c}_{gof_theory}", metric_name='frac_edges', m_values=m_values, n0_values=n0_values, p_c=p_c)
 
     fm.finalize_metadata()
     print(f"\nAll outputs saved to: {fm.path()}")
-

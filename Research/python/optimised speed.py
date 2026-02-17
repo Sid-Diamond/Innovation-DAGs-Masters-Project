@@ -1643,9 +1643,9 @@ if __name__ == "__main__":
 
     config = dict(
         network=dict(
-            n0=30, n_nodes=2000, m_edges=3,
-            h=0.2, f_a=0.2, mu_a=1, mu_b=5, 
-            seed=None,
+            n0=5, n_nodes=2000, m_edges=3,
+            h=0.2, f_a=0.2, mu_a=1, mu_b=1, 
+            seed=3,
         ),
         sweep_m=dict(
             m_min=2, m_max= 26, m_step=1,
