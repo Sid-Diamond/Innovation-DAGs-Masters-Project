@@ -100,7 +100,7 @@ class FileManager:
 class DirectedHomophilicNetwork:
     """Optimized directed network with homophilic preferential attachment."""
 
-    def __init__(self, n0: int, n_nodes: int, m_edges: int, h: float, f_a: float, mu_a: float, mu_b: float, seed: int = None, build_graph: bool = True, theory_type: str = 'yule_simon', power_law_params: dict = None):
+    def __init__(self, n0: int, n_nodes: int, m_edges: int, h: float, f_a: float, mu_a: float, mu_b: float, seed: int = None, build_graph: bool = True, theory_type: str = 'Diamond', power_law_params: dict = None):
         """Initialize network with configurable theory type."""
         self.n0, self.n_nodes, self.m_edges = n0, n_nodes, m_edges
         self.h, self.f_a, self.f_b = h, f_a, 1 - f_a
@@ -127,8 +127,8 @@ class DirectedHomophilicNetwork:
         self._cdf_cache: dict = {}
 
     def _fit_asymptotes(self, fraction: float = 0.05):
-        """Fit asymptotic g values (Yule-Simon only)."""
-        if self.theory_type != 'yule_simon':
+        """Fit asymptotic g values (Diamond only)."""
+        if self.theory_type != 'Diamond':
             return
         mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in self.edge_evolution])
         mean_deg_b = np.array([d['in_edges_b'] / d['t'] for d in self.edge_evolution])
@@ -279,8 +279,8 @@ class DirectedHomophilicNetwork:
         return result
 
     def cdf_from_beta_truncated(self, k, beta, kmin: int, kmax: int) -> np.ndarray:
-        """Conditional CDF F(k | beta, kmin <= K <= kmax) on integer support (Yule-Simon only)."""
-        if self.theory_type != 'yule_simon':
+        """Conditional CDF F(k | beta, kmin <= K <= kmax) on integer support (Diamond only)."""
+        if self.theory_type != 'Diamond':
             raise NotImplementedError(f"CDF truncation not implemented for {self.theory_type}")
         
         k = np.atleast_1d(k)
@@ -322,12 +322,12 @@ class DirectedHomophilicNetwork:
 
     def theoretical_distribution(self, k, node_type: str):
         """Theoretical in-degree distribution (dispatches by theory_type)."""
-        if self.theory_type == 'yule_simon':
+        if self.theory_type == 'Diamond':
             beta = self.get_beta_for_type(node_type)
             pmf = self.pmf_from_beta(k, beta)
             return pmf.item() if np.ndim(pmf) == 1 and pmf.size == 1 else pmf
-        elif self.theory_type == 'power_law_1':
-            return self._pmf_power_law_1(k, node_type)
+        elif self.theory_type == 'Sterling':
+            return self._pmf_Sterling(k, node_type)
         elif self.theory_type == 'power_law_2':
             return self._pmf_power_law_2(k, node_type)
         else:
@@ -335,11 +335,11 @@ class DirectedHomophilicNetwork:
 
     def _compute_power_law_params(self, node_type: str):
         """
-        For power_law_1 we reuse the Yule-Simon asymptotic parameters
+        For Sterling we reuse the Diamond asymptotic parameters
         (p0, alpha, gamma) and pre-compute the scalar prefactor A.
         For power_law_2 the original empirical-fit logic is unchanged.
         """
-        if self.theory_type == 'power_law_1':
+        if self.theory_type == 'Sterling':
             # Reuse the parameters already computed by _compute_theoretical_params
             params = self._get_params(node_type)          # needs Z_tilde to be set
             self.power_law_params[node_type] = {
@@ -368,13 +368,13 @@ class DirectedHomophilicNetwork:
                 'norm':  norm_est,
             }
 
-    def _pmf_power_law_1(self, k, node_type: str) -> np.ndarray:
+    def _pmf_Sterling(self, k, node_type: str) -> np.ndarray:
         """
         p(k) = A * (k + alpha)^{-gamma}
         where A = p0 * Γ(alpha + gamma) / Γ(alpha).
 
-        Parameters come from the Yule-Simon asymptotic fit so they are
-        on the same footing as the Yule-Simon curve.
+        Parameters come from the Diamond asymptotic fit so they are
+        on the same footing as the Diamond curve.
         """
         k = np.atleast_1d(np.asarray(k, dtype=float))
 
@@ -436,70 +436,197 @@ class DirectedHomophilicNetwork:
             return np.array(bin_centers), np.array(probabilities)
 
         _THEORY_STYLES = {
-            'yule_simon':  dict(linestyle='-',  linewidth=2.5, alpha=0.85, label='Yule-Simon'),
-            'power_law_1': dict(linestyle='--', linewidth=2.0, alpha=0.85, label='Power Law 1'),
+            'Diamond':  dict(linestyle='-',  linewidth=2.5, alpha=0.85, label='Diamond'),
+            'Sterling': dict(linestyle='--', linewidth=2.0, alpha=0.85, label='Sterling'),
             'power_law_2': dict(linestyle=':',  linewidth=2.0, alpha=0.85, label='Power Law 2'),
         }
 
         def plot_degree_distributions_log(self, fm, theories, discretisations=10**5, figsize=(15, 6)):
             """Log-binned empirical scatter + one curve per theory on the same axes."""
-            fig, axes = plt.subplots(1, 2, figsize=figsize)
-            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+
+            fig, axes = plt.subplots(1, 2, figsize=figsize, dpi=300)
+
+            plt.rcParams["font.family"] = "serif"
+            plt.rcParams["mathtext.fontset"] = "stix"
+
+            y_max_fixed = 1.0        # top of axis: 10^0
+            y_min_positive = None
+            all_data = {}
+
+            # ---------- FIRST PASS ----------
+            for node_type, color in [('a', 'red'), ('b', 'blue')]:
                 in_degrees = self.net._get_degrees(node_type)
                 if len(in_degrees) == 0:
                     continue
-                ax = axes[idx]
+
                 bin_centers, probs = self._logarithmic_binning(in_degrees)
-                ax.scatter(bin_centers, probs, s=50, alpha=0.7, color=color,
-                        edgecolors='black', linewidths=0.5, label='Simulation', zorder=3)
-                ax.axvline(x=0, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
+
+                positive_probs = probs[probs > 0]
+                if positive_probs.size > 0:
+                    local_y_min = positive_probs.min()
+                    y_min_positive = local_y_min if y_min_positive is None else min(y_min_positive, local_y_min)
+
+                all_data[node_type] = {
+                    "in_degrees": in_degrees,
+                    "bin_centers": bin_centers,
+                    "probs": probs,
+                }
+
+            if y_min_positive is not None:
+                y_bottom = y_min_positive * 0.8
+            else:
+                y_bottom = 1e-6
+
+            # ---------- SECOND PASS ----------
+            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+                if node_type not in all_data:
+                    continue
+
+                ax = axes[idx]
+                in_degrees = all_data[node_type]["in_degrees"]
+                bin_centers = all_data[node_type]["bin_centers"]
+                probs = all_data[node_type]["probs"]
+
+                csv_data = {
+                    'k_bin_center': bin_centers,
+                    'empirical_prob': probs
+                }
+
+                ax.scatter(
+                    bin_centers,
+                    probs,
+                    s=50,
+                    alpha=0.7,
+                    color=color,
+                    edgecolors='black',
+                    linewidths=0.5,
+                    label='Simulation',
+                    zorder=3
+                )
+
                 k_max = int(np.max(in_degrees))
-                k_range = (np.arange(0, k_max + 1) if discretisations == 0
-                        else np.concatenate([[0], np.linspace(0.01, k_max, discretisations)]))
+                if discretisations == 0:
+                    k_range = np.arange(0, k_max + 1)
+                else:
+                    k_range = np.concatenate([[0], np.linspace(0.01, k_max, discretisations)])
+
                 for theory in theories:
                     self.net.theory_type = theory
-                    if theory == 'yule_simon':
+                    if theory == 'Diamond':
                         self.net._fit_asymptotes()
                     else:
                         self.net._compute_power_law_params(node_type)
+
                     theo_probs = self.net.theoretical_distribution(k_range, node_type)
                     mask = theo_probs > 0
-                    style = self._THEORY_STYLES.get(
-                        theory, dict(linestyle='-.', linewidth=2.0, alpha=0.85, label=theory))
-                    ax.plot(k_range[mask], theo_probs[mask], color='dark' + color, zorder=2, **style)
+
+                    base_style = dict(linestyle='-.', linewidth=2.0, alpha=0.85)
+                    style = self._THEORY_STYLES.get(theory, base_style)
+
+                    if theory == 'Diamond':
+                        # node_type is 'a' or 'b', so use that in the subscript
+                        style['label'] = rf'$p_{{{node_type},\infty}}(k)$'
+                    else:
+                        style.setdefault('label', theory)
+
+                    ax.plot(
+                        k_range[mask],
+                        theo_probs[mask],
+                        color='dark' + color,
+                        zorder=2,
+                        **style
+                    )
+
+                    theo_at_bins = self.net.theoretical_distribution(bin_centers, node_type)
+                    csv_data[f'{theory}_prob'] = theo_at_bins
+
                 ax.set_xscale('symlog', linthresh=0.1)
                 ax.set_yscale('log')
                 ax.set_xlim(left=-0.05)
-                ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
-                ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
-                ax.set_title(f'Type "{node_type}" (n={len(in_degrees)})', fontsize=13, fontweight='bold')
-                ax.legend(fontsize=9, loc='best', framealpha=0.9)
-                ax.grid(True, alpha=0.3, which='both', linestyle='--', linewidth=0.5)
+                ax.set_ylim(bottom=y_bottom, top=y_max_fixed)
+
+                ax.set_xlabel(r'Citation count', fontsize=13)
+                ax.set_ylabel(r'Citation Count Probability', fontsize=13)
+
+                n_nodes_type = len(in_degrees)
+                n_nodes_str = f"{n_nodes_type:,}"
+                ax.set_title(
+                    rf'Type "{node_type}" paper citation distribution '
+                    rf'(n={n_nodes_str})',
+                    fontsize=13,
+                    fontweight='normal'
+                )
+
+                legend = ax.legend(fontsize=11, loc='best', framealpha=0.9)
+                for text in legend.get_texts():
+                    text.set_fontfamily('serif')
+
+                ax.grid(True, alpha=0.4, which='both', linestyle='--', linewidth=0.6)
+
+                df = pd.DataFrame(csv_data)
+                filepath = fm.data_dir / f"degree_dist_log_binned_type_{node_type}.csv"
+                with open(filepath, 'w') as f:
+                    f.write(f"# Log-binned degree distribution\n")
+                    f.write(f"# Node type: {node_type}, n={n_nodes_str}\n")
+                    f.write(f"# N: {self.net.n0 + self.net.n_nodes:,}, m: {self.net.m_edges:,}\n")
+                    f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                    f.write(f"# Theories: {', '.join(theories)}\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df.to_csv(f, index=False)
+
+                type_val = 0 if node_type == 'a' else 1
+                node_mask = self.net.node_types[:self.net.in_degrees.size] == type_val
+                node_ids = np.where(node_mask)[0]
+                node_degrees_data = pd.DataFrame({
+                    'node_id': node_ids,
+                    'in_degree': in_degrees
+                })
+                node_filepath = fm.data_dir / f"node_degrees_type_{node_type}.csv"
+                with open(node_filepath, 'w') as f:
+                    f.write(f"# Raw node-level degree data\n")
+                    f.write(f"# Node type: {node_type}, n={n_nodes_str}\n")
+                    f.write(f"# N: {self.net.n0 + self.net.n_nodes:,}, m: {self.net.m_edges:,}\n")
+                    f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    node_degrees_data.to_csv(f, index=False)
+
             fig.suptitle(
-                f'Directed Homophilic Network: N={self.net.n0 + self.net.n_nodes:,}, '
-                f'm={self.net.m_edges}, h={self.net.h}, f_a={self.net.f_a}',
-                fontsize=14, fontweight='bold')
-            plt.tight_layout()
+                r'Citation Count Distributions in a Directed Acyclic Homophilic Network',
+                fontsize=20,
+                fontweight='normal',
+                y=0.94
+            )
+
+            fig.tight_layout(rect=[0, 0, 1, 0.95])
+
             fm.save_fig(fig, "degree_dist_log_binned")
             return fig
 
         def plot_degree_distributions_linear(self, fm, theories, max_k_display=None, figsize=(15, 6)):
             """Discrete integer PMF scatter + one curve per theory on the same axes."""
             fig, axes = plt.subplots(1, 2, figsize=figsize)
+            
             for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
                 in_degrees = self.net._get_degrees(node_type)
                 if len(in_degrees) == 0:
                     continue
+                
                 ax = axes[idx]
                 unique_k, counts = np.unique(in_degrees, return_counts=True)
                 empirical_pmf = counts / len(in_degrees)
+                
+                # CSV: empirical PMF
+                csv_data = {'k': unique_k, 'empirical_pmf': empirical_pmf}
+                
                 ax.scatter(unique_k, empirical_pmf, s=1, alpha=0.7, color=color,
                         edgecolors='black', linewidths=1, label='Simulation', zorder=3)
+                
                 k_max = int(np.max(in_degrees)) if max_k_display is None else max_k_display
                 k_range = np.arange(0, k_max + 1)
+                
                 for theory in theories:
                     self.net.theory_type = theory
-                    if theory == 'yule_simon':
+                    if theory == 'Diamond':
                         self.net._fit_asymptotes()
                     else:
                         self.net._compute_power_law_params(node_type)
@@ -507,19 +634,70 @@ class DirectedHomophilicNetwork:
                     style = self._THEORY_STYLES.get(
                         theory, dict(linestyle='-.', linewidth=1.5, alpha=0.85, label=theory))
                     ax.plot(k_range, theo_probs, color='dark' + color, zorder=2, **style)
+                
                 ax.set_xlabel(r'In-degree $k^{\mathrm{(in)}}$', fontsize=13)
                 ax.set_ylabel(r'Probability $p(k^{\mathrm{(in)}})$', fontsize=13)
                 ax.set_title(f'Type "{node_type}" (n={len(in_degrees)}) - LINEAR SCALE',
                             fontsize=13, fontweight='bold')
                 ax.legend(fontsize=9, loc='best', framealpha=0.9)
                 ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+                
+                # CSV: add full theory curves
+                for theory in theories:
+                    self.net.theory_type = theory
+                    if theory == 'Diamond':
+                        self.net._fit_asymptotes()
+                    else:
+                        self.net._compute_power_law_params(node_type)
+                    theo_full = self.net.theoretical_distribution(k_range, node_type)
+                    
+                    # Merge with empirical (pad with NaN where empirical doesn't exist)
+                    if len(csv_data['k']) < len(k_range):
+                        k_full = k_range
+                        emp_full = np.full(len(k_range), np.nan)
+                        for i, k_val in enumerate(unique_k):
+                            emp_full[k_val] = empirical_pmf[i]
+                        csv_data = {'k': k_full, 'empirical_pmf': emp_full}
+                    csv_data[f'{theory}_pmf'] = theo_full
+                
+                # Export CSV
+                df = pd.DataFrame(csv_data)
+                filepath = fm.data_dir / f"degree_dist_linear_type_{node_type}.csv"
+                with open(filepath, 'w') as f:
+                    f.write(f"# Linear-scale discrete degree distribution\n")
+                    f.write(f"# Node type: {node_type}, n={len(in_degrees)}\n")
+                    f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                    f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                    f.write(f"# Theories: {', '.join(theories)}\n")
+                    f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                    df.to_csv(f, index=False)
+                
+                # Export raw node degrees with node IDs (same as log plot to avoid duplication)
+                if idx == 0:  # Only export once per run, not per plot type
+                    type_val = 0 if node_type == 'a' else 1
+                    node_mask = self.net.node_types[:self.net.in_degrees.size] == type_val
+                    node_ids = np.where(node_mask)[0]
+                    node_degrees_data = pd.DataFrame({
+                        'node_id': node_ids,
+                        'in_degree': in_degrees
+                    })
+                    node_filepath = fm.data_dir / f"node_degrees_type_{node_type}.csv"
+                    # Only write if file doesn't already exist (from log plot)
+                    if not node_filepath.exists():
+                        with open(node_filepath, 'w') as f:
+                            f.write(f"# Raw node-level degree data\n")
+                            f.write(f"# Node type: {node_type}, n={len(in_degrees)}\n")
+                            f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                            f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                            f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                            node_degrees_data.to_csv(f, index=False)
+            
             fig.suptitle(
                 f'Directed Homophilic Network: N={self.net.n0 + self.net.n_nodes:,}, '
                 f'm={self.net.m_edges}, h={self.net.h}, f_a={self.net.f_a}',
                 fontsize=14, fontweight='bold')
             plt.tight_layout()
             fm.save_fig(fig, "degree_dist_discrete_linear")
-            return fig
 
         def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), node_size: float = 100, layout: str = 'spring'):
             """Visualize network graph with node coloring by type."""
@@ -543,8 +721,8 @@ class DirectedHomophilicNetwork:
             return fig
 
         def plot_asymptotes(self, fm: "FileManager", figsize: Tuple = (10, 6)):
-            """Plot mean in-edge density with asymptotic fits (Yule-Simon only)."""
-            if self.net.theory_type != 'yule_simon':
+            """Plot mean in-edge density with asymptotic fits (Diamond only)."""
+            if self.net.theory_type != 'Diamond':
                 return None
             times = np.array([d['t'] for d in self.net.edge_evolution])
             mean_deg_a = np.array([d['in_edges_a'] / d['t'] for d in self.net.edge_evolution])
@@ -571,15 +749,15 @@ class DirectedHomophilicNetwork:
             return fig
 
         def plot_normalization(self, fm: "FileManager", max_k: int = 25, figsize: Tuple = (15, 6)):
-            """Plot theory-specific normalization. Yule-Simon: A(k), Power Law: exponent & norm."""
-            if self.net.theory_type == 'yule_simon':
-                return self._plot_normalization_yule_simon(fm, max_k, figsize)
-            elif self.net.theory_type in ['power_law_1', 'power_law_2']:
+            """Plot theory-specific normalization. Diamond: A(k), Power Law: exponent & norm."""
+            if self.net.theory_type == 'Diamond':
+                return self._plot_normalization_diamond(fm, max_k, figsize)
+            elif self.net.theory_type in ['Sterling', 'power_law_2']:
                 return self._plot_normalization_power_law(fm, max_k, figsize)
             return None
 
-        def _plot_normalization_yule_simon(self, fm: "FileManager", max_k: int, figsize: Tuple):
-            """Plot A(k) normalization constant for Yule-Simon."""
+        def _plot_normalization_diamond(self, fm: "FileManager", max_k: int, figsize: Tuple):
+            """Plot A(k) normalization constant for Diamond."""
             k_values = np.arange(0, max_k + 1)
             fig, axes = plt.subplots(1, 2, figsize=figsize)
             for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
@@ -610,7 +788,7 @@ class DirectedHomophilicNetwork:
 
         def _plot_normalization_power_law(self, fm: "FileManager", max_k: int, figsize: tuple):
                 """
-                For power_law_1: show the analytic curve A*(k+alpha)^{-gamma}
+                For Sterling: show the analytic curve A*(k+alpha)^{-gamma}
                                 together with the prefactor A as a horizontal line.
                 For power_law_2: unchanged original behaviour.
                 """
@@ -625,7 +803,7 @@ class DirectedHomophilicNetwork:
                     ax     = axes[idx]
                     k_vals = np.arange(0, max_k + 1)
 
-                    if self.net.theory_type == 'power_law_1':
+                    if self.net.theory_type == 'Sterling':
                         A, alpha, gamma = p['A'], p['alpha'], p['gamma']
                         pmf_vals = A * (k_vals + alpha) ** (-gamma)
 
@@ -638,7 +816,7 @@ class DirectedHomophilicNetwork:
 
                         ax.set_xlabel('k', fontsize=13)
                         ax.set_ylabel('p(k)', fontsize=13)
-                        ax.set_title(f"Type '{node_type}' Power Law 1", fontsize=13, fontweight='bold')
+                        ax.set_title(f"Type '{node_type}' Sterling's Approximation", fontsize=13, fontweight='bold')
                         ax.set_xscale('log')
                         ax.set_yscale('log')
                         ax.legend(fontsize=9, loc='best')
@@ -649,9 +827,9 @@ class DirectedHomophilicNetwork:
                                     'A': A, 'alpha': alpha, 'gamma': gamma}
                                     for k in k_vals]
                         df = pd.DataFrame(csv_data)
-                        filepath = fm.data_dir / f"power_law_1_type_{node_type}.csv"
+                        filepath = fm.data_dir / f"Sterling_type_{node_type}.csv"
                         with open(filepath, 'w') as f:
-                            f.write(f"# Power law 1 PMF: p(k) = A*(k+alpha)^(-gamma)\n"
+                            f.write(f"# Sterling PMF: p(k) = A*(k+alpha)^(-gamma)\n"
                                     f"# Node type: {node_type}\n"
                                     f"# A: {A:.6f}, alpha: {alpha:.6f}, gamma: {gamma:.6f}\n"
                                     f"# Generated: {datetime.datetime.now().isoformat()}\n")
@@ -698,11 +876,11 @@ class GoFDiagnostics:
     def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None):
         """Theoretical CDF (dispatches by theory_type)."""
         k = np.atleast_1d(k)
-        if net.theory_type == 'yule_simon':
+        if net.theory_type == 'Diamond':
             if beta is None:
                 beta = net.get_beta_for_type(node_type)
             return net.cdf_from_beta_truncated(k, beta, kmin, kmax)
-        elif net.theory_type in ['power_law_1', 'power_law_2']:
+        elif net.theory_type in ['Sterling', 'power_law_2']:
             return self._cdf_power_law_truncated(net, k, node_type, kmin, kmax)
         else:
             raise ValueError(f"Unknown theory_type: {net.theory_type}")
@@ -842,12 +1020,12 @@ class GoFDiagnostics:
         def _pmf_on_support(p0, alpha, gamma):
             """Evaluate the chosen PMF over k_support."""
             pmf = np.zeros_like(k_support, dtype=float)
-            if mle_type == 'yule_simon':
+            if mle_type == 'Diamond':
                 if np.any(zero_mask):
                     pmf[zero_mask] = p0
                 if np.any(pos_mask):
                     pmf[pos_mask] = p0 * np.exp(betaln(k_pos, alpha + gamma) - betaln(k_pos, alpha))
-            elif mle_type == 'power_law_1':
+            elif mle_type == 'Sterling':
                 A = p0 * gamma_func(alpha + gamma) / gamma_func(alpha)
                 pmf = A * (k_support + alpha) ** (-gamma)
             elif mle_type == 'power_law_2':
@@ -1169,7 +1347,7 @@ class GoFDiagnostics:
                 net_temp.generate_network()
 
                 # Bootstrap so _get_params() is always populated
-                net_temp.theory_type = 'yule_simon'
+                net_temp.theory_type = 'Diamond'
                 net_temp._fit_asymptotes()
                 net_temp._compute_power_law_params('a')
                 net_temp._compute_power_law_params('b')
@@ -1423,8 +1601,8 @@ class GoFDiagnostics:
                         h=net.h, f_a=net.f_a, mu_a=net.mu['a'], mu_b=net.mu['b'])
                     net_temp.generate_network()
 
-                    # Bootstrap Yule-Simon params so _get_params() works for any theory
-                    net_temp.theory_type = 'yule_simon'
+                    # Bootstrap Diamond params so _get_params() works for any theory
+                    net_temp.theory_type = 'Diamond'
                     net_temp._fit_asymptotes()
                     net_temp._compute_power_law_params('a')
                     net_temp._compute_power_law_params('b')
@@ -1592,26 +1770,26 @@ class GoFDiagnostics:
             ax.legend(fontsize=11, loc='best')
             plt.tight_layout()
             return fig
-        
+
         def plot_p_vs_b(self, scan_res, p_c_list, x_val, x_name, node_type, a, z=1.0, figsize=(10, 6)):
-            """Wrapper around parent's plot_p_vs_b_diagnostic_combined with no title."""
+            """Plot p(b) vs b with error bars and lower bounds."""
             windows = scan_res.get('windows', [])
             if not windows:
                 return None
             
-            bs = np.array([w['b'] for w in windows], dtype=int)
-            ps = np.array([w['p'] for w in windows], dtype=float)
-            sigmas = np.array([w['sigma_p'] for w in windows], dtype=float)
+            bs      = np.array([w['b'] for w in windows], dtype=int)
+            ps      = np.array([w['p'] for w in windows], dtype=float)
+            sigmas  = np.array([w['sigma_p'] for w in windows], dtype=float)
             p_lower = ps - z * sigmas
             
             fig, ax = plt.subplots(figsize=figsize)
             
-            ax.errorbar(bs, ps, yerr=sigmas, fmt='none', ecolor='0.6', 
+            ax.errorbar(bs, ps, yerr=sigmas, fmt='none', ecolor='0.6',
                     elinewidth=1.5, capsize=0, zorder=1)
             
             for b, p_val, s in zip(bs, ps, sigmas):
                 for y in (p_val + s, p_val, p_val - s):
-                    ax.plot([b - 0.1, b + 0.1], [y, y], color='orange', 
+                    ax.plot([b - 0.1, b + 0.1], [y, y], color='orange',
                         linewidth=1.5, zorder=2)
             
             ax.plot(bs, p_lower, '-s', color='C1', linewidth=2, markersize=5,
@@ -1633,7 +1811,32 @@ class GoFDiagnostics:
             ax.grid(True, alpha=0.3, linestyle='--')
             ax.legend(loc='best', fontsize=9)
             plt.tight_layout()
-            return fig        
+            
+            # CSV export
+            csv_data = {
+                'b': bs,
+                'p': ps,
+                'sigma_p': sigmas,
+                'p_lower': p_lower,
+            }
+            for p_c in p_c_list:
+                csv_data[f'p_c_{p_c}'] = np.full_like(bs, p_c, dtype=float)
+            
+            df = pd.DataFrame(csv_data)
+            # Use self.gof to access parent for file manager access
+            # Actually we need to return the dataframe and let __main__ handle export
+            # Store it in the figure's metadata for later retrieval
+            fig._csv_data = df
+            fig._csv_metadata = {
+                'x_name': x_name,
+                'x_val': x_val,
+                'node_type': node_type,
+                'a': a,
+                'z': z,
+            }
+            
+            return fig 
+        
     class CSN2DVis:
         """
         2D visualization utilities for CSN-based windows.
@@ -1785,12 +1988,11 @@ class NetworkStatistics:
 
 config = dict(
     theory=dict(
-        network_basic = ['yule_simon', 'power_law_1', 'power_law_2'], 
-        gof           = 'yule_simon', 
-        mle           = 'yule_simon',
-    ),
-    network=dict(n0=35, n_nodes=1000, m_edges=3, h=0.2, f_a=0.2, mu_a=1, mu_b=1,
-                 seed=3, power_law_params=None),
+    network_basic = ['Diamond', 'Sterling',], gof = 'Diamond', mle = 'Diamond',),
+    plots=dict(network_basic=True, sweep_m_edges_csn=False, sweep_n0_csn=False,
+               csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=False),
+    network=dict(n0=30, n_nodes=28000, m_edges=2, h=0.7, f_a=0.55, mu_a=1, mu_b=1,
+                 seed=5, power_law_params=None),
     sweep_m=dict(m_min=1, m_max=34, m_step=5, node_type='b', a=0,
                  p_c_list=[0.1, 0.2, 0.4], N_sims=30,
                  b_grid_type='linear', n_b=5, b_min=None, b_max=None),
@@ -1800,9 +2002,7 @@ config = dict(
     grid_2d=dict(m_min=1, m_max=34, m_step=6, n0_min=10, n0_max=150, n0_step=30,
                  node_type='b', a=0,
                  p_c_list=[0.1, 0.2, 0.4], N_sims=30,
-                 b_grid_type='linear', n_b=5, b_min=None, b_max=None, z=1.0),
-    plots=dict(network_basic=True, sweep_m_edges_csn=True, sweep_n0_csn=True,
-               csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=True))
+                 b_grid_type='linear', n_b=5, b_min=None, b_max=None, z=1.0))
 
 if __name__ == "__main__":
 
@@ -1821,7 +2021,7 @@ if __name__ == "__main__":
     print(f"Network generated in {time.time() - start:.2f}s")
 
     # Bootstrap: always needed so _get_params() is populated
-    net.theory_type = 'yule_simon'
+    net.theory_type = 'Diamond'
     net._fit_asymptotes()
     net._compute_power_law_params('a')
     net._compute_power_law_params('b')
@@ -1834,14 +2034,16 @@ if __name__ == "__main__":
     # --- Network basic plots: one curve per theory in network_basic list ---
     if plots["network_basic"]:
         vis = DirectedHomophilicNetwork.NetworkVis(net)
-        vis.plot_network_graph(fm)
+        plot_network = False
+        if plot_network:
+            vis.plot_network_graph(fm) 
         vis.plot_degree_distributions_log(fm,   theories=theory_cfg["network_basic"])
         vis.plot_degree_distributions_linear(fm, theories=theory_cfg["network_basic"])
 
         for theory in theory_cfg["network_basic"]:
             print(f"Fitting {theory}")
             net.theory_type = theory
-            if theory == 'yule_simon':
+            if theory == 'Diamond':
                 net._fit_asymptotes()
             else:
                 net._compute_power_law_params('a')
