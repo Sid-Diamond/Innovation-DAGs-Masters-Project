@@ -1842,7 +1842,7 @@ if __name__ == "__main__":
     config = dict(
         network=dict(
             n0=5, n_nodes=2000, m_edges=3,
-            h=0.2, f_a=0.2, mu_a=1, mu_b=1, 
+            h=0.2, f_a=0.2, mu_a=1, mu_b=0, 
             seed=3,
         ),
         sweep_m=dict(

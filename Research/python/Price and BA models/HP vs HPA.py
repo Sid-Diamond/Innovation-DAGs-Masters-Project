@@ -138,34 +138,6 @@ class DirectedHomophilicNetwork:
         g_b = self.m_edges - g_a
         self._compute_theoretical_params(g_a, g_b, g_b_empirical)
 
-    def _compute_power_law_params(self, node_type: str):
-        degrees = self._get_degrees(node_type)
-        if degrees.size == 0:
-            return
-        degrees_pos = degrees[degrees > 0]
-        if degrees_pos.size == 0:
-            return
-
-        if self.theory_type == 'power_law_1':
-            alpha_est = 2.0
-            k_max = int(degrees_pos.max())
-            zeta_est = np.sum(np.arange(1, k_max + 1) ** (-alpha_est))
-            self.power_law_params[node_type] = {
-                'alpha': alpha_est,
-                'k0': 0.0,          # no shift
-                'norm': zeta_est,   # renamed from zeta -> norm for consistency
-            }
-        elif self.theory_type == 'power_law_2':
-            alpha_est = 2.0
-            k0_est = 1.0
-            k_max = int(degrees_pos.max())
-            norm_est = np.sum((np.arange(0, k_max + 1) + k0_est) ** (-alpha_est))
-            self.power_law_params[node_type] = {
-                'alpha': alpha_est,
-                'k0': k0_est,
-                'norm': norm_est,
-            }
-
     def _get_params(self, node_type: str) -> Dict[str, float]:
         """Get all distribution parameters for a node type."""
         lambda_x = self.lambda_[node_type]
@@ -361,17 +333,58 @@ class DirectedHomophilicNetwork:
         else:
             raise ValueError(f"Unknown theory_type: {self.theory_type}")
 
+    def _compute_power_law_params(self, node_type: str):
+        """
+        For power_law_1 we reuse the Yule-Simon asymptotic parameters
+        (p0, alpha, gamma) and pre-compute the scalar prefactor A.
+        For power_law_2 the original empirical-fit logic is unchanged.
+        """
+        if self.theory_type == 'power_law_1':
+            # Reuse the parameters already computed by _compute_theoretical_params
+            params = self._get_params(node_type)          # needs Z_tilde to be set
+            self.power_law_params[node_type] = {
+                'alpha': params['alpha'],
+                'gamma': params['gamma'],
+                'p0':    params['p0'],
+                'A':     params['A'],   # p0 * Γ(α+γ) / Γ(α)
+            }
+
+        elif self.theory_type == 'power_law_2':
+            # ── original power_law_2 branch (unchanged) ──────────────────────
+            degrees = self._get_degrees(node_type)
+            if degrees.size == 0:
+                return
+            degrees_pos = degrees[degrees > 0]
+            if degrees_pos.size == 0:
+                return
+
+            alpha_est = 2.0
+            k0_est    = 1.0
+            k_max     = int(degrees_pos.max())
+            norm_est  = np.sum((np.arange(0, k_max + 1) + k0_est) ** (-alpha_est))
+            self.power_law_params[node_type] = {
+                'alpha': alpha_est,
+                'k0':    k0_est,
+                'norm':  norm_est,
+            }
+
     def _pmf_power_law_1(self, k, node_type: str) -> np.ndarray:
-        k = np.atleast_1d(k)
+        """
+        p(k) = A * (k + alpha)^{-gamma}
+        where A = p0 * Γ(alpha + gamma) / Γ(alpha).
+
+        Parameters come from the Yule-Simon asymptotic fit so they are
+        on the same footing as the Yule-Simon curve.
+        """
+        k = np.atleast_1d(np.asarray(k, dtype=float))
+
         if node_type not in self.power_law_params:
             self._compute_power_law_params(node_type)
-        params = self.power_law_params[node_type]
-        alpha = params['alpha']
-        norm = params['norm']        # was params['zeta']
-        result = np.zeros_like(k, dtype=float)
-        pos_mask = k > 0
-        result[pos_mask] = (k[pos_mask] ** (-alpha)) / norm
-        return result
+
+        p = self.power_law_params[node_type]
+        A, alpha, gamma = p['A'], p['alpha'], p['gamma']
+
+        return A * (k + alpha) ** (-gamma)
 
     def _pmf_power_law_2(self, k, node_type: str) -> np.ndarray:
         """Power law type 2: p(k) ~ (k + k0)^(-alpha) / normalization."""
@@ -595,43 +608,91 @@ class DirectedHomophilicNetwork:
                     df.to_csv(f, index=False)
             return fig
 
-        def _plot_normalization_power_law(self, fm: "FileManager", max_k: int, figsize: Tuple):
-            """Plot power law exponent and normalization."""
-            fig, axes = plt.subplots(1, 2, figsize=figsize)
-            for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
-                if node_type not in self.net.power_law_params:
-                    self.net._compute_power_law_params(node_type)
-                params = self.net.power_law_params[node_type]
-                alpha, k0, norm = params['alpha'], params.get('k0', 0.0), params['norm']
-                k_values = np.arange(0 if k0 > 0 else 1, max_k + 1)
-                pmf_vals = ((k_values + k0) ** (-alpha)) / norm
-                ax = axes[idx]
-                ax.plot(k_values, pmf_vals, 'o-', color=color, linewidth=2, markersize=4, alpha=0.7, label=f'$\\alpha = {alpha:.2f}$' + (f', $k_0 = {k0:.2f}$' if k0 > 0 else ''))
-                ax.set_xlabel('k', fontsize=13)
-                ax.set_ylabel('p(k)', fontsize=13)
-                ax.set_title(f"Type '{node_type}' Power Law", fontsize=13, fontweight='bold')
-                ax.set_xscale('log')
-                ax.set_yscale('log')
-                ax.legend(fontsize=10, loc='best')
-                ax.grid(True, alpha=0.3, which='both')
-            legend_text = f"N={self.net.n0 + self.net.n_nodes:,}, m={self.net.m_edges}, theory={self.net.theory_type}"
-            fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            plt.tight_layout(rect=[0, 0, 1, 0.96])
-            fm.save_fig(fig, "power_law_params")
-            for node_type in ['a', 'b']:
-                if node_type not in self.net.power_law_params:
-                    self.net._compute_power_law_params(node_type)
-                params = self.net.power_law_params[node_type]
-                alpha, k0, norm = params['alpha'], params.get('k0', 0.0), params['norm']
-                k_values = np.arange(0 if k0 > 0 else 1, max_k + 1)
-                csv_data = [{'k': k, 'pmf': ((k + k0) ** (-alpha)) / norm, 'alpha': alpha, 'k0': k0, 'norm': norm} for k in k_values]
-                df = pd.DataFrame(csv_data)
-                filepath = fm.data_dir / f"power_law_type_{node_type}.csv"
-                with open(filepath, 'w') as f:
-                    f.write(f"# Power law PMF: p(k) ~ (k + k0)^(-alpha) / norm\n# Node type: {node_type}\n# alpha: {alpha:.6f}, k0: {k0:.6f}, norm: {norm:.6f}\n# Generated: {datetime.datetime.now().isoformat()}\n")
-                    df.to_csv(f, index=False)
-            return fig
-    
+        def _plot_normalization_power_law(self, fm: "FileManager", max_k: int, figsize: tuple):
+                """
+                For power_law_1: show the analytic curve A*(k+alpha)^{-gamma}
+                                together with the prefactor A as a horizontal line.
+                For power_law_2: unchanged original behaviour.
+                """
+                fig, axes = plt.subplots(1, 2, figsize=figsize)
+
+                for idx, (node_type, color) in enumerate([('a', 'red'), ('b', 'blue')]):
+
+                    if node_type not in self.net.power_law_params:
+                        self.net._compute_power_law_params(node_type)
+
+                    p      = self.net.power_law_params[node_type]
+                    ax     = axes[idx]
+                    k_vals = np.arange(0, max_k + 1)
+
+                    if self.net.theory_type == 'power_law_1':
+                        A, alpha, gamma = p['A'], p['alpha'], p['gamma']
+                        pmf_vals = A * (k_vals + alpha) ** (-gamma)
+
+                        ax.plot(k_vals, pmf_vals, 'o-', color=color,
+                                linewidth=2, markersize=4, alpha=0.7,
+                                label=fr'$A\,(k+\alpha)^{{-\gamma}}$, '
+                                    fr'$\alpha={alpha:.2f}$, $\gamma={gamma:.2f}$')
+                        ax.axhline(A, linestyle='--', color='black', linewidth=2, alpha=0.7,
+                                label=fr'$A = p_0\,\Gamma(\alpha+\gamma)/\Gamma(\alpha) = {A:.4f}$')
+
+                        ax.set_xlabel('k', fontsize=13)
+                        ax.set_ylabel('p(k)', fontsize=13)
+                        ax.set_title(f"Type '{node_type}' Power Law 1", fontsize=13, fontweight='bold')
+                        ax.set_xscale('log')
+                        ax.set_yscale('log')
+                        ax.legend(fontsize=9, loc='best')
+                        ax.grid(True, alpha=0.3, which='both')
+
+                        # CSV
+                        csv_data = [{'k': int(k), 'pmf': A * (k + alpha) ** (-gamma),
+                                    'A': A, 'alpha': alpha, 'gamma': gamma}
+                                    for k in k_vals]
+                        df = pd.DataFrame(csv_data)
+                        filepath = fm.data_dir / f"power_law_1_type_{node_type}.csv"
+                        with open(filepath, 'w') as f:
+                            f.write(f"# Power law 1 PMF: p(k) = A*(k+alpha)^(-gamma)\n"
+                                    f"# Node type: {node_type}\n"
+                                    f"# A: {A:.6f}, alpha: {alpha:.6f}, gamma: {gamma:.6f}\n"
+                                    f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                            df.to_csv(f, index=False)
+
+                    else:  # power_law_2 — original behaviour
+                        alpha, k0, norm = p['alpha'], p.get('k0', 0.0), p['norm']
+                        pmf_vals = ((k_vals + k0) ** (-alpha)) / norm
+
+                        ax.plot(k_vals, pmf_vals, 'o-', color=color,
+                                linewidth=2, markersize=4, alpha=0.7,
+                                label=f'$\\alpha = {alpha:.2f}$'
+                                    + (f', $k_0 = {k0:.2f}$' if k0 > 0 else ''))
+                        ax.set_xlabel('k', fontsize=13)
+                        ax.set_ylabel('p(k)', fontsize=13)
+                        ax.set_title(f"Type '{node_type}' Power Law 2", fontsize=13, fontweight='bold')
+                        ax.set_xscale('log')
+                        ax.set_yscale('log')
+                        ax.legend(fontsize=10, loc='best')
+                        ax.grid(True, alpha=0.3, which='both')
+
+                        csv_data = [{'k': int(k), 'pmf': ((k + k0) ** (-alpha)) / norm,
+                                    'alpha': alpha, 'k0': k0, 'norm': norm}
+                                    for k in k_vals]
+                        df = pd.DataFrame(csv_data)
+                        filepath = fm.data_dir / f"power_law_2_type_{node_type}.csv"
+                        with open(filepath, 'w') as f:
+                            f.write(f"# Power law 2 PMF: p(k) ~ (k+k0)^(-alpha)/norm\n"
+                                    f"# Node type: {node_type}\n"
+                                    f"# alpha: {alpha:.6f}, k0: {k0:.6f}, norm: {norm:.6f}\n"
+                                    f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                            df.to_csv(f, index=False)
+
+                legend_text = (f"N={self.net.n0 + self.net.n_nodes:,}, "
+                            f"m={self.net.m_edges}, theory={self.net.theory_type}")
+                fig.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=11,
+                        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+                plt.tight_layout(rect=[0, 0, 1, 0.96])
+                fm.save_fig(fig, "power_law_params")
+                return fig
+
 class GoFDiagnostics:
 
     def theoretical_cdf_discrete(self, net: DirectedHomophilicNetwork, k, node_type: str, kmin: int, kmax: int, beta=None):
@@ -742,34 +803,31 @@ class GoFDiagnostics:
         D_vals = numer / denom[valid]
         D = float(np.max(D_vals))
         return D
-   
-    def _fit_beta_mle(self, net: DirectedHomophilicNetwork, data, a: int, b: int, node_type: str, beta_init):
+
+    def _fit_beta_mle(self, net: DirectedHomophilicNetwork, data, a: int, b: int,
+                    node_type: str, beta_init, mle_type: str = None):
         """
         MLE for beta = (p0, alpha, gamma) on truncated window [a, b].
-        Uses formal MLE with precomputed support and efficient likelihood computation.
+        mle_type controls which PMF is used inside the likelihood.
+        Defaults to net.theory_type if not specified.
         """
-        
-        data = np.asarray(data, dtype=int)
-        if data.size == 0:
-            params0 = net._get_params(node_type)
-            beta_mle = np.array([params0['p0'], params0['alpha'], params0['gamma']], dtype=float)
-            return beta_mle, True
+        mle_type = mle_type or net.theory_type
 
+        data = np.asarray(data, dtype=int)
         params0 = net._get_params(node_type)
 
+        if data.size == 0:
+            return np.array([params0['p0'], params0['alpha'], params0['gamma']], dtype=float), True
+
         if beta_init is None:
-            p0_0 = float(params0['p0'])
-            alpha0 = float(params0['alpha'])
-            gamma0 = float(params0['gamma'])
+            p0_0, alpha0, gamma0 = float(params0['p0']), float(params0['alpha']), float(params0['gamma'])
         else:
             p0_0, alpha0, gamma0 = np.asarray(beta_init, dtype=float)
 
         k_support = np.arange(a, b + 1, dtype=int)
         unique_k, counts = np.unique(data, return_counts=True)
-
         mask_window = (unique_k >= a) & (unique_k <= b)
-        unique_k = unique_k[mask_window]
-        counts = counts[mask_window]
+        unique_k, counts = unique_k[mask_window], counts[mask_window]
 
         if counts.size == 0:
             return np.array([p0_0, alpha0, gamma0], dtype=float), True
@@ -778,49 +836,43 @@ class GoFDiagnostics:
         idxs = np.array([k_to_idx[k] for k in unique_k], dtype=int)
 
         zero_mask = (k_support == 0)
-        pos_mask = (k_support > 0)
-        k_pos = k_support[pos_mask]
+        pos_mask  = (k_support > 0)
+        k_pos     = k_support[pos_mask]
 
-        def objective(theta: np.ndarray) -> float:
-            """Negative log-likelihood for truncated distribution."""
-            p0, alpha, gamma = theta
-
+        def _pmf_on_support(p0, alpha, gamma):
+            """Evaluate the chosen PMF over k_support."""
             pmf = np.zeros_like(k_support, dtype=float)
-            
-            if np.any(zero_mask):
-                pmf[zero_mask] = p0
-            
-            if np.any(pos_mask):
-                log_ratio = betaln(k_pos, alpha + gamma) - betaln(k_pos, alpha)
-                pmf[pos_mask] = p0 * np.exp(log_ratio)
+            if mle_type == 'yule_simon':
+                if np.any(zero_mask):
+                    pmf[zero_mask] = p0
+                if np.any(pos_mask):
+                    pmf[pos_mask] = p0 * np.exp(betaln(k_pos, alpha + gamma) - betaln(k_pos, alpha))
+            elif mle_type == 'power_law_1':
+                A = p0 * gamma_func(alpha + gamma) / gamma_func(alpha)
+                pmf = A * (k_support + alpha) ** (-gamma)
+            elif mle_type == 'power_law_2':
+                k0 = 1.0   # fixed shift as in original
+                pmf = (k_support + k0) ** (-alpha)   # alpha plays exponent role; p0/gamma unused
+            else:
+                raise ValueError(f"Unknown mle_type: '{mle_type}'")
+            return pmf
 
-            Z_trunc = pmf.sum()
-            if Z_trunc <= 0:
+        def objective(theta):
+            p0, alpha, gamma = theta
+            pmf = _pmf_on_support(p0, alpha, gamma)
+            Z = pmf.sum()
+            if Z <= 0:
                 return 1e10
+            pmf_norm = np.clip(pmf / Z, 1e-300, 1.0)
+            return -np.sum(counts * np.log(pmf_norm[idxs]))
 
-            pmf_norm = pmf / Z_trunc
-            pmf_norm = np.clip(pmf_norm, 1e-300, 1.0)
-
-            pmf_at_data = pmf_norm[idxs]
-            log_pmf_at_data = np.log(pmf_at_data)
-            
-            nll = -np.sum(counts * log_pmf_at_data)
-            return nll
-
-        theta0 = np.array([p0_0, alpha0, gamma0], dtype=float)
-        bounds = [(1e-6, 1.0 - 1e-6), (1e-4, None), (1e-4, None)]
-
-        res = minimize(objective, theta0, method='L-BFGS-B', bounds=bounds)
+        theta0  = np.array([p0_0, alpha0, gamma0], dtype=float)
+        bounds  = [(1e-6, 1.0 - 1e-6), (1e-4, None), (1e-4, None)]
+        res     = minimize(objective, theta0, method='L-BFGS-B', bounds=bounds)
 
         if not res.success:
-            p0_mle, alpha_mle, gamma_mle = p0_0, alpha0, gamma0
-            used_fallback = True
-        else:
-            p0_mle, alpha_mle, gamma_mle = res.x
-            used_fallback = False
-
-        beta_mle = np.array([p0_mle, alpha_mle, gamma_mle], dtype=float)
-        return beta_mle, used_fallback
+            return np.array([p0_0, alpha0, gamma0], dtype=float), True
+        return np.array(res.x, dtype=float), False
 
     def _build_b_grid(self,net: DirectedHomophilicNetwork,node_type: str,a: int,candidate_bs,b_min,b_max,n_b: int,b_grid_type: str,):
         if candidate_bs is not None:
@@ -850,160 +902,147 @@ class GoFDiagnostics:
 
         return bs
 
-    def mc_on_window(self,net: DirectedHomophilicNetwork,node_type: str,a: int,b: int,beta_theory,N_sims: int,data_cache=None,):
-        """
-        Monte Carlo on window [a, b].
-        """
-        D_theory_list = []
-        D_mle_list = []
-        beta_mle_list = []
-        fallback_flags = []
+    def mc_on_window(self, net: DirectedHomophilicNetwork, node_type: str, a: int, b: int,
+                        beta_theory, N_sims: int, data_cache=None, mle_type: str = None):
+            """
+            Monte Carlo on window [a, b].
+            mle_type controls which PMF is used in the MLE fitting step.
+            Defaults to net.theory_type if not specified.
+            """
+            mle_type = mle_type or net.theory_type
 
-        beta_theory_arr = np.asarray(beta_theory) if beta_theory is not None else None
+            D_theory_list = []
+            D_mle_list = []
+            beta_mle_list = []
+            fallback_flags = []
 
-        # Prepare data cache with proper validation
-        if data_cache is None:
-            # Generate fresh simulations only if cache not provided
-            print(f"  Generating {N_sims} network simulations for MC...")
-            cache_list = []
-            for sim_idx in range(N_sims):
-                net_sim = DirectedHomophilicNetwork(n0=net.n0,n_nodes=net.n_nodes,m_edges=net.m_edges,h=net.h,f_a=net.f_a,
-                    mu_a=net.mu['a'],  mu_b=net.mu['b'],seed=None, )
-                net_sim.generate_network()
-                degrees = np.asarray(net_sim._get_degrees(node_type), dtype=int)
-                cache_list.append(degrees)
-        else:
-            # Use provided cache with validation
-            if isinstance(data_cache, np.ndarray):
-                # Single array: wrap in list
-                cache_list = [np.asarray(data_cache, dtype=int)]
-            elif isinstance(data_cache, list):
-                # List of arrays: validate each
-                cache_list = [np.asarray(arr, dtype=int) for arr in data_cache]
+            beta_theory_arr = np.asarray(beta_theory) if beta_theory is not None else None
+
+            if data_cache is None:
+                print(f"  Generating {N_sims} network simulations for MC...")
+                cache_list = []
+                for sim_idx in range(N_sims):
+                    net_sim = DirectedHomophilicNetwork(
+                        n0=net.n0, n_nodes=net.n_nodes, m_edges=net.m_edges,
+                        h=net.h, f_a=net.f_a, mu_a=net.mu['a'], mu_b=net.mu['b'], seed=None)
+                    net_sim.generate_network()
+                    degrees = np.asarray(net_sim._get_degrees(node_type), dtype=int)
+                    cache_list.append(degrees)
             else:
-                raise TypeError(
-                    f"data_cache must be None, np.ndarray, or list of arrays. "
-                    f"Got {type(data_cache)}"
+                if isinstance(data_cache, np.ndarray):
+                    cache_list = [np.asarray(data_cache, dtype=int)]
+                elif isinstance(data_cache, list):
+                    cache_list = [np.asarray(arr, dtype=int) for arr in data_cache]
+                else:
+                    raise TypeError(
+                        f"data_cache must be None, np.ndarray, or list of arrays. "
+                        f"Got {type(data_cache)}"
+                    )
+                actual_sims = len(cache_list)
+                if actual_sims != N_sims:
+                    print(
+                        f"  ⚠️  data_cache has {actual_sims} samples but N_sims={N_sims}. "
+                        f"Using {actual_sims} samples from cache."
+                    )
+
+            for sim_idx, degrees in enumerate(cache_list):
+                data_s = degrees[(degrees >= a) & (degrees <= b)]
+
+                if data_s.size == 0:
+                    D_theory_list.append(0.0)
+                    D_mle_list.append(0.0)
+                    beta_mle_list.append(
+                        beta_theory_arr if beta_theory_arr is not None
+                        else np.array([np.nan, np.nan, np.nan])
+                    )
+                    fallback_flags.append(True)
+                    continue
+
+                D_theory_s = self.csn_distance(net, data_s, a, b, beta_theory, node_type)
+
+                beta_mle_s, used_fallback_s = self._fit_beta_mle(
+                    net, data_s, a, b, node_type, beta_init=None, mle_type=mle_type
                 )
-            
-            actual_sims = len(cache_list)
-            if actual_sims != N_sims:
-                print(
-                    f"  ⚠️  data_cache has {actual_sims} samples but N_sims={N_sims}. "
-                    f"Using {actual_sims} samples from cache."
-                )
+                D_mle_s = self.csn_distance(net, data_s, a, b, beta_mle_s, node_type)
 
-        # Evaluate MC statistics for each sample
-        for sim_idx, degrees in enumerate(cache_list):
-            # Filter to window [a, b]
-            data_s = degrees[(degrees >= a) & (degrees <= b)]
+                D_theory_list.append(D_theory_s)
+                D_mle_list.append(D_mle_s)
+                beta_mle_list.append(beta_mle_s)
+                fallback_flags.append(used_fallback_s)
 
-            if data_s.size == 0:
-                # No data in window
-                D_theory_list.append(0.0)
-                D_mle_list.append(0.0)
-                beta_mle_list.append(
-                    beta_theory_arr if beta_theory_arr is not None 
-                    else np.array([np.nan, np.nan, np.nan])
-                )
-                fallback_flags.append(True)
-                continue
+            D_theory_arr  = np.array(D_theory_list, dtype=float)
+            D_mle_arr     = np.array(D_mle_list, dtype=float)
+            fallback_flags = np.asarray(fallback_flags, dtype=bool)
 
-            # Compute D_theory using provided beta_theory
-            D_theory_s = self.csn_distance(net, data_s, a, b, beta_theory, node_type)
+            greater_mask = D_mle_arr > D_theory_arr
+            p       = float(np.mean(greater_mask.astype(float)))
+            sigma_p = float(np.sqrt(p * (1.0 - p) / max(len(D_theory_arr), 1)))
 
-            # Fit MLE and compute D_mle
-            beta_mle_s, used_fallback_s = self._fit_beta_mle(
-                net, data_s, a, b, node_type, beta_init=None
-            )
-            D_mle_s = self.csn_distance(net, data_s, a, b, beta_mle_s, node_type)
+            try:
+                beta_mle_arr = np.asarray(beta_mle_list, dtype=float)
+            except (ValueError, TypeError):
+                beta_mle_arr = np.array(beta_mle_list, dtype=object)
 
-            D_theory_list.append(D_theory_s)
-            D_mle_list.append(D_mle_s)
-            beta_mle_list.append(beta_mle_s)
-            fallback_flags.append(used_fallback_s)
+            frac_moved = float(np.mean(~fallback_flags)) if fallback_flags.size > 0 else np.nan
 
-        # Aggregate statistics
-        D_theory_arr = np.array(D_theory_list, dtype=float)
-        D_mle_arr = np.array(D_mle_list, dtype=float)
-        fallback_flags = np.asarray(fallback_flags, dtype=bool)
+            beta_mle_mean = None
+            beta_mle_std  = None
+            if (isinstance(beta_mle_arr, np.ndarray)
+                    and beta_mle_arr.ndim == 2
+                    and beta_mle_arr.shape[0] == fallback_flags.size):
+                mask_non_fallback = ~fallback_flags
+                if np.any(mask_non_fallback):
+                    beta_mle_non_fallback = beta_mle_arr[mask_non_fallback]
+                    beta_mle_mean = np.nanmean(beta_mle_non_fallback, axis=0)
+                    beta_mle_std  = np.nanstd(beta_mle_non_fallback, axis=0)
 
-        # Probability that D_mle > D_theory
-        greater_mask = D_mle_arr > D_theory_arr
-        p = float(np.mean(greater_mask.astype(float)))
-        sigma_p = float(np.sqrt(p * (1.0 - p) / max(len(D_theory_arr), 1)))
+            percent_diff_mean_vs_theory = None
+            if beta_theory_arr is not None and beta_mle_mean is not None:
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    percent_diff_mean_vs_theory = 100.0 * (
+                        (beta_mle_mean - beta_theory_arr) / beta_theory_arr
+                    )
+                    percent_diff_mean_vs_theory = np.where(
+                        beta_theory_arr == 0.0, np.nan, percent_diff_mean_vs_theory
+                    )
 
-        try:
-            beta_mle_arr = np.asarray(beta_mle_list, dtype=float)
-        except (ValueError, TypeError):
-            beta_mle_arr = np.array(beta_mle_list, dtype=object)
+            return {
+                'a': a, 'b': b,
+                'D_theory': D_theory_arr, 'D_mle': D_mle_arr,
+                'beta_mle': beta_mle_arr,
+                'p': p, 'sigma_p': sigma_p,
+                'beta_mle_mean': beta_mle_mean, 'beta_mle_std': beta_mle_std,
+                'beta_theory': beta_theory_arr,
+                'frac_moved': frac_moved,
+                'percent_diff_mean_vs_theory': percent_diff_mean_vs_theory,
+                'mle_type': mle_type,
+            }
 
-        frac_moved = float(np.mean(~fallback_flags)) if fallback_flags.size > 0 else np.nan
-
-        beta_mle_mean = None
-        beta_mle_std = None
-        if (
-            isinstance(beta_mle_arr, np.ndarray)
-            and beta_mle_arr.ndim == 2
-            and beta_mle_arr.shape[0] == fallback_flags.size
-        ):
-            mask_non_fallback = ~fallback_flags
-            if np.any(mask_non_fallback):
-                beta_mle_non_fallback = beta_mle_arr[mask_non_fallback]
-                beta_mle_mean = np.nanmean(beta_mle_non_fallback, axis=0)
-                beta_mle_std = np.nanstd(beta_mle_non_fallback, axis=0)
-
-        percent_diff_mean_vs_theory = None
-        if beta_theory_arr is not None and beta_mle_mean is not None:
-            with np.errstate(divide='ignore', invalid='ignore'):
-                percent_diff_mean_vs_theory = 100.0 * (
-                    (beta_mle_mean - beta_theory_arr) / beta_theory_arr
-                )
-                percent_diff_mean_vs_theory = np.where(
-                    beta_theory_arr == 0.0, np.nan, percent_diff_mean_vs_theory
-                )
-
-        result = {
-            'a': a,
-            'b': b,
-            'D_theory': D_theory_arr,
-            'D_mle': D_mle_arr,
-            'beta_mle': beta_mle_arr,
-            'p': p,
-            'sigma_p': sigma_p,
-            'beta_mle_mean': beta_mle_mean,
-            'beta_mle_std': beta_mle_std,
-            'beta_theory': beta_theory_arr,
-            'frac_moved': frac_moved,
-            'percent_diff_mean_vs_theory': percent_diff_mean_vs_theory,
-        }
-        return result
-
-    def scan_over_b(self,net: DirectedHomophilicNetwork,node_type: str,a: int,beta_theory,candidate_bs=None,
-        N_sims: int = 20,b_min: int = None,b_max: int = None,n_b: int = 20,b_grid_type: str = 'linear',data_cache: np.ndarray = None):
+    def scan_over_b(self, net: DirectedHomophilicNetwork, node_type: str, a: int,
+                    beta_theory, candidate_bs=None, N_sims: int = 20, b_min: int = None,
+                    b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear',
+                    data_cache: np.ndarray = None, mle_type: str = None):
         """
         Scan over b values. If data_cache is None, generate one set of N_sims
         non-truncated samples (degree arrays) and reuse across all b values.
+        mle_type controls which PMF is used in the MLE fitting step.
+        Defaults to net.theory_type if not specified.
         """
-        bs = self._build_b_grid(net=net,node_type=node_type,a=a,candidate_bs=candidate_bs,
-            b_min=b_min,b_max=b_max,n_b=n_b,b_grid_type=b_grid_type)
+        mle_type = mle_type or net.theory_type
 
-        windows_results = []
+        bs = self._build_b_grid(net=net, node_type=node_type, a=a,
+                                candidate_bs=candidate_bs, b_min=b_min,
+                                b_max=b_max, n_b=n_b, b_grid_type=b_grid_type)
 
         if bs is None or len(bs) == 0:
-            return {
-                'a': a,
-                'beta_theory': beta_theory,
-                'windows': [],
-                'b_grid': None,
-            }
-
+            return {'a': a, 'beta_theory': beta_theory, 'windows': [], 'b_grid': None}
 
         if data_cache is None:
             data_cache_list = []
             for _ in range(N_sims):
-                net_sim = DirectedHomophilicNetwork(n0=net.n0,n_nodes=net.n_nodes, m_edges=net.m_edges, h=net.h,
-                    f_a=net.f_a, mu_a=net.mu['a'],mu_b=net.mu['b'],seed=None)
+                net_sim = DirectedHomophilicNetwork(
+                    n0=net.n0, n_nodes=net.n_nodes, m_edges=net.m_edges,
+                    h=net.h, f_a=net.f_a, mu_a=net.mu['a'], mu_b=net.mu['b'], seed=None)
                 net_sim.generate_network()
                 degrees = np.array(net_sim._get_degrees(node_type), dtype=int)
                 data_cache_list.append(degrees)
@@ -1012,37 +1051,37 @@ class GoFDiagnostics:
             if not isinstance(data_cache, list):
                 data_cache = [np.asarray(data_cache, dtype=int)]
 
-        # Now evaluate each candidate b by delegating to mc_on_window
+        windows_results = []
         for b in bs:
             if b <= a:
                 raise ValueError(f"Each b_j must satisfy b_j > a. Got a={a}, b_j={b}.")
 
-            res_b = self.mc_on_window(net=net,node_type=node_type,a=a,
-                b=int(b),beta_theory=beta_theory,N_sims=len(data_cache), data_cache=data_cache)
+            res_b = self.mc_on_window(
+                net=net, node_type=node_type, a=a, b=int(b),
+                beta_theory=beta_theory, N_sims=len(data_cache),
+                data_cache=data_cache, mle_type=mle_type
+            )
 
-            window_result = {
-                'a': a,
-                'b': int(b),
-                'D_theory': res_b['D_theory'],
-                'D_mle': res_b['D_mle'],
+            windows_results.append({
+                'a': a, 'b': int(b),
+                'D_theory': res_b['D_theory'], 'D_mle': res_b['D_mle'],
                 'beta_mle': res_b['beta_mle'],
-                'p': res_b['p'],
-                'sigma_p': res_b['sigma_p'],
+                'p': res_b['p'], 'sigma_p': res_b['sigma_p'],
                 'beta_mle_mean': res_b['beta_mle_mean'],
-                'beta_mle_std': res_b['beta_mle_std'],
-                'beta_theory': res_b['beta_theory'],
-                'frac_moved': res_b['frac_moved'],
+                'beta_mle_std':  res_b['beta_mle_std'],
+                'beta_theory':   res_b['beta_theory'],
+                'frac_moved':    res_b['frac_moved'],
                 'percent_diff_mean_vs_theory': res_b['percent_diff_mean_vs_theory'],
-            }
-            windows_results.append(window_result)
+                'mle_type': mle_type,
+            })
 
-        result = {
+        return {
             'a': a,
             'beta_theory': beta_theory,
             'windows': windows_results,
             'b_grid': np.array(bs, dtype=int),
+            'mle_type': mle_type,
         }
-        return result
 
     def scan_until_threshold(self, windows, a: int,p_c: float,z: float = 1.0,):
         """
@@ -1097,236 +1136,205 @@ class GoFDiagnostics:
             results[p_c] = res
         return results
 
-    def _csn_sweep_core(self, base_net: DirectedHomophilicNetwork, sweep_param_values: np.ndarray, vary: str, node_type: str, a: int,
-        candidate_bs,b_min: int, b_max: int, n_b: int, b_grid_type: str, N_sims: int, p_c_list,figsize=(12, 6),):
-        
-        plt.rcParams['font.family'] = 'Times New Roman'
+    def _csn_sweep_core(self, base_net: DirectedHomophilicNetwork, sweep_param_values: np.ndarray,
+                            vary: str, node_type: str, a: int, candidate_bs, b_min: int, b_max: int,
+                            n_b: int, b_grid_type: str, N_sims: int, p_c_list, figsize=(12, 6),
+                            mle_type: str = None):
 
-        windows_info = []
-        frac_nodes_kept = {p_c: [] for p_c in p_c_list}
-        frac_edges_kept = {p_c: [] for p_c in p_c_list}
-        no_window = {p_c: [] for p_c in p_c_list}
+            mle_type = mle_type or base_net.theory_type
+            plt.rcParams['font.family'] = 'Times New Roman'
 
-        label = 'm_edges' if vary == 'm_edges' else 'n0'
-        print(f"\nCSN sweep over {label}: {sweep_param_values}")
+            windows_info    = []
+            frac_nodes_kept = {p_c: [] for p_c in p_c_list}
+            frac_edges_kept = {p_c: [] for p_c in p_c_list}
+            no_window       = {p_c: [] for p_c in p_c_list}
 
-        for val in sweep_param_values:
-            if vary == 'm_edges':
-                n0 = base_net.n0
-                n_nodes = base_net.n_nodes
-                m_edges = int(val)
-            elif vary == 'n0':
-                n0 = int(val)
-                n_nodes = base_net.n_nodes
-                m_edges = base_net.m_edges
-            else:
-                raise ValueError("vary must be 'm_edges' or 'n0'")
+            label = 'm_edges' if vary == 'm_edges' else 'n0'
+            print(f"\nCSN sweep over {label}: {sweep_param_values}, mle_type={mle_type}")
 
-            print(f"\n  {label} = {val}: generating network and scanning windows...")
+            for val in sweep_param_values:
+                if vary == 'm_edges':
+                    n0, n_nodes, m_edges = base_net.n0, base_net.n_nodes, int(val)
+                elif vary == 'n0':
+                    n0, n_nodes, m_edges = int(val), base_net.n_nodes, base_net.m_edges
+                else:
+                    raise ValueError("vary must be 'm_edges' or 'n0'")
 
-            net_temp = DirectedHomophilicNetwork(n0=n0, n_nodes=n_nodes, m_edges=m_edges, h=base_net.h, f_a=base_net.f_a, mu_a=base_net.mu['a'],
-                mu_b=base_net.mu['b'],)
-            
-            net_temp.generate_network()
-            degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-            beta_theory = net_temp.get_beta_for_type(node_type)
+                print(f"\n  {label} = {val}: generating network and scanning windows...")
 
-            scan_res = self.scan_over_b(net=net_temp, node_type=node_type, a=a, beta_theory=beta_theory, candidate_bs=candidate_bs,
-                N_sims=N_sims, b_min=b_min, b_max=b_max,n_b=n_b, b_grid_type=b_grid_type,)
+                net_temp = DirectedHomophilicNetwork(
+                    n0=n0, n_nodes=n_nodes, m_edges=m_edges,
+                    h=base_net.h, f_a=base_net.f_a,
+                    mu_a=base_net.mu['a'], mu_b=base_net.mu['b'])
+                net_temp.generate_network()
 
-            # store degrees so diagnostics can reconstruct N(b)
-            scan_res['degrees_for_node_type'] = degrees.copy()
-            windows_info.append(scan_res)
+                # Bootstrap so _get_params() is always populated
+                net_temp.theory_type = 'yule_simon'
+                net_temp._fit_asymptotes()
+                net_temp._compute_power_law_params('a')
+                net_temp._compute_power_law_params('b')
+                net_temp.theory_type = base_net.theory_type   # restore
 
-            windows = scan_res['windows']
-            bs = scan_res['b_grid']
+                degrees      = np.array(net_temp._get_degrees(node_type), dtype=int)
+                beta_theory  = net_temp.get_beta_for_type(node_type)
 
-            if bs is None or len(bs) == 0 or not windows:
-                print("    No valid b range; skipping.")
-                for p_c in p_c_list:
-                    frac_nodes_kept[p_c].append(0.0)
-                    frac_edges_kept[p_c].append(0.0)
-                    no_window[p_c].append(True)
-                continue
+                scan_res = self.scan_over_b(
+                    net=net_temp, node_type=node_type, a=a, beta_theory=beta_theory,
+                    candidate_bs=candidate_bs, N_sims=N_sims,
+                    b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type,
+                    mle_type=mle_type)
 
-            if len(bs) > 6:
-                grid_str = f"[{bs[0]}, {bs[1]},... {bs[-2]}, {bs[-1]}]"
-            else:
-                grid_str = str(bs.tolist())
-            print(f"    b-grid (candidate b_j): {grid_str}")
+                scan_res['degrees_for_node_type'] = degrees.copy()
+                windows_info.append(scan_res)
 
+                windows = scan_res['windows']
+                bs      = scan_res['b_grid']
 
-            full_w = max(windows, key=lambda w: w['b'])
-            print(f"    no-trunc p={full_w['p']:.4f} ± {full_w['sigma_p']:.4f}")
-
-            total_edges = degrees.sum() if degrees.size > 0 else 0
-
-            pcs_results = self.select_largest_window_for_pcs(
-                windows=windows, a=a, p_c_list=p_c_list,)
-
-            for p_c in p_c_list:
-                lw = pcs_results[p_c]['largest_window']
-
-                if lw is None:
-                    frac_nodes_kept[p_c].append(0.0)
-                    frac_edges_kept[p_c].append(0.0)
-                    no_window[p_c].append(True)
-                    print(f"    p_c={p_c}: no acceptable window")
+                if bs is None or len(bs) == 0 or not windows:
+                    print("    No valid b range; skipping.")
+                    for p_c in p_c_list:
+                        frac_nodes_kept[p_c].append(0.0)
+                        frac_edges_kept[p_c].append(0.0)
+                        no_window[p_c].append(True)
                     continue
 
-                b_star = lw['b']
-                p_val = lw['p']
-                sigma_p = lw['sigma_p']
+                grid_str = (f"[{bs[0]}, {bs[1]},... {bs[-2]}, {bs[-1]}]"
+                            if len(bs) > 6 else str(bs.tolist()))
+                print(f"    b-grid (candidate b_j): {grid_str}")
 
-                mask_keep = (degrees >= a) & (degrees <= b_star)
-                fn = mask_keep.mean()
-                fe = degrees[mask_keep].sum() / total_edges if total_edges > 0 else 0.0
+                full_w = max(windows, key=lambda w: w['b'])
+                print(f"    no-trunc p={full_w['p']:.4f} ± {full_w['sigma_p']:.4f}")
 
-                frac_nodes_kept[p_c].append(fn)
-                frac_edges_kept[p_c].append(fe)
-                no_window[p_c].append(False)
+                total_edges = degrees.sum() if degrees.size > 0 else 0
+                pcs_results = self.select_largest_window_for_pcs(
+                    windows=windows, a=a, p_c_list=p_c_list)
 
-                print(
-                    f"    p_c={p_c}: b*={b_star}, "
-                    f"p-z*σ={p_val - sigma_p:.4f}, "
-                    f"nodes={fn:.4f}, edges={fe:.4f}"
-                )
+                for p_c in p_c_list:
+                    lw = pcs_results[p_c]['largest_window']
+                    if lw is None:
+                        frac_nodes_kept[p_c].append(0.0)
+                        frac_edges_kept[p_c].append(0.0)
+                        no_window[p_c].append(True)
+                        print(f"    p_c={p_c}: no acceptable window")
+                        continue
 
+                    b_star  = lw['b']
+                    p_val   = lw['p']
+                    sigma_p = lw['sigma_p']
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+                    mask_keep = (degrees >= a) & (degrees <= b_star)
+                    fn = mask_keep.mean()
+                    fe = degrees[mask_keep].sum() / total_edges if total_edges > 0 else 0.0
 
-        if vary == 'm_edges':
+                    frac_nodes_kept[p_c].append(fn)
+                    frac_edges_kept[p_c].append(fe)
+                    no_window[p_c].append(False)
+
+                    print(f"    p_c={p_c}: b*={b_star}, "
+                        f"p-z*σ={p_val - sigma_p:.4f}, "
+                        f"nodes={fn:.4f}, edges={fe:.4f}")
+
+            # ── plots ─────────────────────────────────────────────────────────────
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
             x_values = sweep_param_values
-            x_label = 'm_edges'
-            frac_new_nodes = base_net.n_nodes / (base_net.n_nodes + base_net.n0)
-        else:
-            x_values = sweep_param_values
-            x_label = 'n0'
-            frac_new_nodes = base_net.n_nodes / (base_net.n_nodes + sweep_param_values)
+            x_label  = 'm_edges' if vary == 'm_edges' else 'n0'
+            frac_new_nodes = (base_net.n_nodes / (base_net.n_nodes + base_net.n0)
+                            if vary == 'm_edges'
+                            else base_net.n_nodes / (base_net.n_nodes + sweep_param_values))
 
-        colors = plt.cm.viridis(np.linspace(0, 1, len(p_c_list)))
+            colors = plt.cm.viridis(np.linspace(0, 1, len(p_c_list)))
 
-        for color, p_c in zip(colors, p_c_list):
-            fn_arr = np.array(frac_nodes_kept[p_c], dtype=float)
-            nw_arr = np.array(no_window[p_c], dtype=bool)
+            for color, p_c in zip(colors, p_c_list):
+                fn_arr = np.array(frac_nodes_kept[p_c], dtype=float)
+                nw_arr = np.array(no_window[p_c], dtype=bool)
+                ax1.plot(x_values[~nw_arr], fn_arr[~nw_arr],
+                        marker='o', linestyle='-', linewidth=2, markersize=5,
+                        color=color, label=f'p_c = {p_c}')
+                ax1.scatter(x_values[nw_arr], np.zeros_like(fn_arr[nw_arr]),
+                            marker='x', s=60, color=color, zorder=3)
 
-            ok_mask = ~nw_arr
-            fail_mask = nw_arr
+            if np.isscalar(frac_new_nodes):
+                ax1.axhline(frac_new_nodes, linestyle='--', color='black', linewidth=1.5)
 
-            ax1.plot(
-                x_values[ok_mask],
-                fn_arr[ok_mask],
-                marker='o',
-                linestyle='-',
-                linewidth=2,
-                markersize=5,
-                color=color,
-                label=f'p_c = {p_c}',
-            )
+            ax1.set_xlabel(x_label)
+            ax1.set_ylabel('Fraction of nodes kept')
+            ax1.set_ylim(-0.05, 1.05)
+            ax1.grid(True, alpha=0.3)
+            ax1.legend()
 
-            ax1.scatter(
-                x_values[fail_mask],
-                np.zeros_like(fn_arr[fail_mask]),
-                marker='x',
-                s=60,
-                color=color,
-                zorder=3,
-            )
+            for color, p_c in zip(colors, p_c_list):
+                fe_arr = np.array(frac_edges_kept[p_c], dtype=float)
+                nw_arr = np.array(no_window[p_c], dtype=bool)
+                ax2.plot(x_values[~nw_arr], fe_arr[~nw_arr],
+                        marker='o', linestyle='-', linewidth=2, markersize=5,
+                        color=color, label=f'p_c = {p_c}')
+                ax2.scatter(x_values[nw_arr], np.zeros_like(fe_arr[nw_arr]),
+                            marker='x', s=50, color=color, zorder=3)
 
-        if np.isscalar(frac_new_nodes):
-            ax1.axhline(
-                frac_new_nodes,
-                linestyle='--',
-                color='black',
-                linewidth=1.5,
-            )
+            ax2.set_xlabel(x_label)
+            ax2.set_ylabel('Fraction of edges kept')
+            ax2.set_ylim(-0.05, 1.05)
+            ax2.grid(True, alpha=0.3)
+            ax2.legend()
 
-        ax1.set_xlabel(x_label)
-        ax1.set_ylabel('Fraction of nodes kept')
-        ax1.set_ylim(-0.05, 1.05)
-        ax1.grid(True, alpha=0.3)
-        ax1.legend()
+            plt.tight_layout()
 
-        for color, p_c in zip(colors, p_c_list):
-            fe_arr = np.array(frac_edges_kept[p_c], dtype=float)
-            nw_arr = np.array(no_window[p_c], dtype=bool)
+            return {
+                'x_values': x_values,
+                'frac_nodes_kept': frac_nodes_kept,
+                'frac_edges_kept': frac_edges_kept,
+                'no_window': no_window,
+                'windows_info': windows_info,
+                'fig': fig,
+                'vary': vary,
+                'mle_type': mle_type,
+            }
 
-            ok_mask = ~nw_arr
-            fail_mask = nw_arr
-
-            ax2.plot(
-                x_values[ok_mask],
-                fe_arr[ok_mask],
-                marker='o',
-                linestyle='-',
-                linewidth=2,
-                markersize=5,
-                color=color,
-                label=f'p_c = {p_c}',
-            )
-
-            ax2.scatter(
-                x_values[fail_mask],
-                np.zeros_like(fe_arr[fail_mask]),
-                marker='x',
-                s=50,
-                color=color,
-                zorder=3,
-            )
-
-        ax2.set_xlabel(x_label)
-        ax2.set_ylabel('Fraction of edges kept')
-        ax2.set_ylim(-0.05, 1.05)
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-
-        plt.tight_layout()
-
-        return {
-            'x_values': x_values,
-            'frac_nodes_kept': frac_nodes_kept,
-            'frac_edges_kept': frac_edges_kept,
-            'no_window': no_window,
-            'windows_info': windows_info,
-            'fig': fig,
-            'vary': vary,
-        }
-
-    def csn_sweep_m_edges(self, net: DirectedHomophilicNetwork, m_min: int, m_max: int, m_step: int = 1, node_type: str = 'b', a: int = 0,
-        candidate_bs=None, b_min: int = None, b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,
-        p_c_list=(0.1, 0.2, 0.4, 0.6), figsize=(12, 6),):
+    def csn_sweep_m_edges(self, net: DirectedHomophilicNetwork, m_min: int, m_max: int,
+                        m_step: int = 1, node_type: str = 'b', a: int = 0,
+                        candidate_bs=None, b_min: int = None, b_max: int = None,
+                        n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,
+                        p_c_list=(0.1, 0.2, 0.4, 0.6), figsize=(12, 6),
+                        mle_type: str = None):
         m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
-
-        res = self._csn_sweep_core( base_net=net, sweep_param_values=m_values, vary='m_edges',node_type=node_type, a=a, candidate_bs=candidate_bs,
-            b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type, N_sims=N_sims, p_c_list=p_c_list, figsize=figsize,)
-
+        res = self._csn_sweep_core(
+            base_net=net, sweep_param_values=m_values, vary='m_edges',
+            node_type=node_type, a=a, candidate_bs=candidate_bs,
+            b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type,
+            N_sims=N_sims, p_c_list=p_c_list, figsize=figsize, mle_type=mle_type)
         return {
-            'm_values': res['x_values'],
+            'm_values':        res['x_values'],
             'frac_nodes_kept': res['frac_nodes_kept'],
             'frac_edges_kept': res['frac_edges_kept'],
-            'no_window': res['no_window'],
-            'windows_info': res['windows_info'],
-            'fig': res['fig'],
+            'no_window':       res['no_window'],
+            'windows_info':    res['windows_info'],
+            'fig':             res['fig'],
+            'mle_type':        res['mle_type'],
         }
 
-    def csn_sweep_n0(self, net: DirectedHomophilicNetwork, n0_min: int, n0_max: int, n0_step: int = 1, node_type: str = 'b', a: int = 0,
-        candidate_bs=None, b_min: int = None, b_max: int = None, n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,
-        p_c_list=(0.1, 0.2, 0.4, 0.6), figsize=(12, 6),):
+    def csn_sweep_n0(self, net: DirectedHomophilicNetwork, n0_min: int, n0_max: int,
+                    n0_step: int = 1, node_type: str = 'b', a: int = 0,
+                    candidate_bs=None, b_min: int = None, b_max: int = None,
+                    n_b: int = 20, b_grid_type: str = 'linear', N_sims: int = 20,
+                    p_c_list=(0.1, 0.2, 0.4, 0.6), figsize=(12, 6),
+                    mle_type: str = None):
         n0_values = np.arange(n0_min, n0_max + 1, n0_step, dtype=int)
-
-        res = self._csn_sweep_core(base_net=net, sweep_param_values=n0_values, vary='n0', node_type=node_type, a=a,
-            candidate_bs=candidate_bs, b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type,N_sims=N_sims, p_c_list=p_c_list,
-            figsize=figsize,)
-
+        res = self._csn_sweep_core(
+            base_net=net, sweep_param_values=n0_values, vary='n0',
+            node_type=node_type, a=a, candidate_bs=candidate_bs,
+            b_min=b_min, b_max=b_max, n_b=n_b, b_grid_type=b_grid_type,
+            N_sims=N_sims, p_c_list=p_c_list, figsize=figsize, mle_type=mle_type)
         return {
-            'n0_values': res['x_values'],
+            'n0_values':       res['x_values'],
             'frac_nodes_kept': res['frac_nodes_kept'],
             'frac_edges_kept': res['frac_edges_kept'],
-            'no_window': res['no_window'],
-            'windows_info': res['windows_info'],
-            'fig': res['fig'],
+            'no_window':       res['no_window'],
+            'windows_info':    res['windows_info'],
+            'fig':             res['fig'],
+            'mle_type':        res['mle_type'],
         }
-    
+
     def _select_indices_for_diagnostics(self, n: int, k: int):
 
         if k <= 0 or n <= 0:
@@ -1375,78 +1383,107 @@ class GoFDiagnostics:
 
         return np.asarray(bs, dtype=int), np.asarray(p_vals, dtype=float)
 
-    def csn_sweep_2d_grid(self, net: DirectedHomophilicNetwork, m_min: int, m_max: int, m_step: int, n0_min: int, n0_max: int, n0_step: int, 
-                          node_type: str = 'b', a: int = 0, candidate_bs=None, b_min: int = None, b_max: int = None, n_b: int = 20, 
-                          b_grid_type: str = 'linear', N_sims: int = 20, p_c_list=(0.1, 0.2, 0.4, 0.6), z: float = 1.0,):
-        """2D sweep over m_edges and n0. Skips invalid region where n0 <= m."""
-        m_values = np.arange(m_min, m_max + 1, m_step, dtype=int)
-        n0_values = np.arange(n0_min, n0_max + 1, n0_step, dtype=int)
-        
-        frac_nodes_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
-        frac_edges_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
-        b_star_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
-        p_value_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
-        
-        print(f"\n2D Grid: m ∈ [{m_min}, {m_max}], n0 ∈ [{n0_min}, {n0_max}]")
-        
-        total_points = len(n0_values) * len(m_values)
-        valid_points = 0
-        
-        for i, n0 in enumerate(n0_values):
-            for j, m in enumerate(m_values):
-                if n0 <= m:
-                    continue
-                
-                valid_points += 1
-                print(f"\n  Point {valid_points}/{total_points}: (m={m}, n0={n0})")
-                
-                net_temp = DirectedHomophilicNetwork(n0=n0, n_nodes=net.n_nodes, m_edges=m, h=net.h, f_a=net.f_a, mu_a=net.mu['a'], mu_b=net.mu['b'])
-                net_temp.generate_network()
-                
-                degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
-                if degrees.size == 0:
-                    continue
-                
-                beta_theory = net_temp.get_beta_for_type(node_type)
-                scan_res = self.scan_over_b(net=net_temp,node_type=node_type,a=a,beta_theory=beta_theory,
-                    candidate_bs=candidate_bs, N_sims=N_sims,b_min=b_min,b_max=b_max,n_b=n_b,b_grid_type=b_grid_type)
+    def csn_sweep_2d_grid(self, net: DirectedHomophilicNetwork, m_min: int, m_max: int,
+                            m_step: int, n0_min: int, n0_max: int, n0_step: int,
+                            node_type: str = 'b', a: int = 0, candidate_bs=None,
+                            b_min: int = None, b_max: int = None, n_b: int = 20,
+                            b_grid_type: str = 'linear', N_sims: int = 20,
+                            p_c_list=(0.1, 0.2, 0.4, 0.6), z: float = 1.0,
+                            mle_type: str = None):
+            """
+            2D sweep over m_edges and n0. Skips invalid region where n0 <= m.
+            mle_type controls which PMF is used in the MLE fitting step.
+            Defaults to net.theory_type if not specified.
+            """
+            mle_type = mle_type or net.theory_type
 
-                windows = scan_res['windows']
-                if not windows:
-                    continue
+            m_values  = np.arange(m_min,  m_max  + 1, m_step,  dtype=int)
+            n0_values = np.arange(n0_min, n0_max + 1, n0_step, dtype=int)
 
-                full_w = max(windows, key=lambda w: w['b'])
-                print(f"    no-trunc p={full_w['p']:.4f} ± {full_w['sigma_p']:.4f}")
+            frac_nodes_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
+            frac_edges_grid = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
+            b_star_grid     = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
+            p_value_grid    = {p_c: np.full((len(n0_values), len(m_values)), np.nan) for p_c in p_c_list}
 
-                pcs_results = self.select_largest_window_for_pcs(windows=windows, a=a, p_c_list=p_c_list)
-                total_edges = degrees.sum() if degrees.size > 0 else 0
-                
-                for p_c in p_c_list:
-                    lw = pcs_results[p_c]['largest_window']
-                    if lw is None:
-                        frac_nodes_grid[p_c][i, j] = 0.0
-                        frac_edges_grid[p_c][i, j] = 0.0
+            print(f"\n2D Grid: m ∈ [{m_min}, {m_max}], n0 ∈ [{n0_min}, {n0_max}], mle_type={mle_type}")
+
+            total_points = len(n0_values) * len(m_values)
+            valid_points = 0
+
+            for i, n0 in enumerate(n0_values):
+                for j, m in enumerate(m_values):
+                    if n0 <= m:
                         continue
-                    
-                    b_star = lw['b']
-                    p_val = lw['p']
-                    sigma_p = lw['sigma_p']
-                    lower_bound = p_val - z * sigma_p
-                    
-                    mask_keep = (degrees >= a) & (degrees <= b_star)
-                    fn = mask_keep.mean()
-                    fe = degrees[mask_keep].sum() / total_edges if total_edges > 0 else 0.0
-                    
-                    frac_nodes_grid[p_c][i, j] = fn
-                    frac_edges_grid[p_c][i, j] = fe
-                    b_star_grid[p_c][i, j] = b_star
-                    p_value_grid[p_c][i, j] = lower_bound
-                    
-                    print(f"    p_c={p_c}: b*={b_star}, p-z*σ={lower_bound:.4f}, nodes={fn:.4f}, edges={fe:.4f}")
-        
-        return {'m_values': m_values, 'n0_values': n0_values, 'frac_nodes_grid': frac_nodes_grid, 'frac_edges_grid': frac_edges_grid,
-                'b_star_grid': b_star_grid, 'p_value_grid': p_value_grid, 'p_c_list': p_c_list, 'z': z, 'a': a, 'node_type': node_type}
-    
+
+                    valid_points += 1
+                    print(f"\n  Point {valid_points}/{total_points}: (m={m}, n0={n0})")
+
+                    net_temp = DirectedHomophilicNetwork(
+                        n0=n0, n_nodes=net.n_nodes, m_edges=m,
+                        h=net.h, f_a=net.f_a, mu_a=net.mu['a'], mu_b=net.mu['b'])
+                    net_temp.generate_network()
+
+                    # Bootstrap Yule-Simon params so _get_params() works for any theory
+                    net_temp.theory_type = 'yule_simon'
+                    net_temp._fit_asymptotes()
+                    net_temp._compute_power_law_params('a')
+                    net_temp._compute_power_law_params('b')
+                    net_temp.theory_type = net.theory_type   # restore to caller's theory
+
+                    degrees = np.array(net_temp._get_degrees(node_type), dtype=int)
+                    if degrees.size == 0:
+                        continue
+
+                    beta_theory = net_temp.get_beta_for_type(node_type)
+                    scan_res = self.scan_over_b(
+                        net=net_temp, node_type=node_type, a=a,
+                        beta_theory=beta_theory, candidate_bs=candidate_bs,
+                        N_sims=N_sims, b_min=b_min, b_max=b_max,
+                        n_b=n_b, b_grid_type=b_grid_type, mle_type=mle_type
+                    )
+
+                    windows = scan_res['windows']
+                    if not windows:
+                        continue
+
+                    full_w = max(windows, key=lambda w: w['b'])
+                    print(f"    no-trunc p={full_w['p']:.4f} ± {full_w['sigma_p']:.4f}")
+
+                    pcs_results = self.select_largest_window_for_pcs(
+                        windows=windows, a=a, p_c_list=p_c_list)
+                    total_edges = degrees.sum() if degrees.size > 0 else 0
+
+                    for p_c in p_c_list:
+                        lw = pcs_results[p_c]['largest_window']
+                        if lw is None:
+                            frac_nodes_grid[p_c][i, j] = 0.0
+                            frac_edges_grid[p_c][i, j] = 0.0
+                            continue
+
+                        b_star      = lw['b']
+                        p_val       = lw['p']
+                        sigma_p     = lw['sigma_p']
+                        lower_bound = p_val - z * sigma_p
+
+                        mask_keep = (degrees >= a) & (degrees <= b_star)
+                        fn = mask_keep.mean()
+                        fe = degrees[mask_keep].sum() / total_edges if total_edges > 0 else 0.0
+
+                        frac_nodes_grid[p_c][i, j] = fn
+                        frac_edges_grid[p_c][i, j] = fe
+                        b_star_grid[p_c][i, j]     = b_star
+                        p_value_grid[p_c][i, j]    = lower_bound
+
+                        print(f"    p_c={p_c}: b*={b_star}, p-z*σ={lower_bound:.4f}, "
+                            f"nodes={fn:.4f}, edges={fe:.4f}")
+
+            return {
+                'm_values': m_values, 'n0_values': n0_values,
+                'frac_nodes_grid': frac_nodes_grid, 'frac_edges_grid': frac_edges_grid,
+                'b_star_grid': b_star_grid, 'p_value_grid': p_value_grid,
+                'p_c_list': p_c_list, 'z': z, 'a': a, 'node_type': node_type,
+                'mle_type': mle_type,
+            }
     class CSN1DVis:
         """1D sweep visualization for m_edges and n0 sweeps."""
         
@@ -1597,7 +1634,6 @@ class GoFDiagnostics:
             ax.legend(loc='best', fontsize=9)
             plt.tight_layout()
             return fig        
-    
     class CSN2DVis:
         """
         2D visualization utilities for CSN-based windows.
@@ -1747,124 +1783,163 @@ class NetworkStatistics:
             f"(m = {net.m_edges})"
         )
 
+config = dict(
+    theory=dict(
+        network_basic = ['yule_simon', 'power_law_1', 'power_law_2'], 
+        gof           = 'yule_simon', 
+        mle           = 'yule_simon',
+    ),
+    network=dict(n0=35, n_nodes=1000, m_edges=3, h=0.2, f_a=0.2, mu_a=1, mu_b=1,
+                 seed=3, power_law_params=None),
+    sweep_m=dict(m_min=1, m_max=34, m_step=5, node_type='b', a=0,
+                 p_c_list=[0.1, 0.2, 0.4], N_sims=30,
+                 b_grid_type='linear', n_b=5, b_min=None, b_max=None),
+    sweep_n0=dict(n0_min=10, n0_max=150, n0_step=30, node_type='b', a=0,
+                  p_c_list=[0.1, 0.2, 0.4], N_sims=30,
+                  b_grid_type='linear', n_b=5, b_min=None, b_max=None),
+    grid_2d=dict(m_min=1, m_max=34, m_step=6, n0_min=10, n0_max=150, n0_step=30,
+                 node_type='b', a=0,
+                 p_c_list=[0.1, 0.2, 0.4], N_sims=30,
+                 b_grid_type='linear', n_b=5, b_min=None, b_max=None, z=1.0),
+    plots=dict(network_basic=True, sweep_m_edges_csn=True, sweep_n0_csn=True,
+               csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=True))
+
 if __name__ == "__main__":
-    
-    config = dict(
-        theories_to_run=['yule_simon','power_law_1'],
-        network=dict(n0=35, n_nodes=2000, m_edges=3, h=0.2, f_a=0.2, mu_a=1, mu_b=1, 
-                     seed=3, theory_type='yule_simon', power_law_params=None),
-        sweep_m=dict(m_min=1, m_max=34, m_step=1, node_type='b', a=0, 
-                     p_c_list=[0.1, 0.2, 0.4], N_sims=5, 
-                     b_grid_type='linear', n_b=5, b_min=None, b_max=None),
-        sweep_n0=dict(n0_min=10, n0_max=150, n0_step=5, node_type='b', a=0, 
-                      p_c_list=[0.1, 0.2, 0.4], N_sims=5, 
-                      b_grid_type='linear', n_b=5, b_min=None, b_max=None),
-        grid_2d=dict(m_min=1, m_max=34, m_step=2, n0_min=10, n0_max=150, n0_step=10, node_type='b', a=0,
-                      p_c_list=[0.1, 0.2, 0.4], N_sims=5, 
-                      b_grid_type='linear', n_b=5, b_min=None, b_max=None, z=1.0),
-        plots=dict(network_basic=True, sweep_m_edges_csn=True, sweep_n0_csn=True,
-                    csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=True))
-    
-    fm = FileManager(config)
-    gof = GoFDiagnostics()
+
+    fm    = FileManager(config)
+    gof   = GoFDiagnostics()
     stats = NetworkStatistics()
-    
-    net = DirectedHomophilicNetwork(**config["network"])
+
+    theory_cfg = config["theory"]
+    gof_theory = theory_cfg["gof"]
+    mle_theory = theory_cfg["mle"]
+
+    # theory_type on the network drives CDF dispatch in GoF
+    net = DirectedHomophilicNetwork(**config["network"], theory_type=gof_theory)
     start = time.time()
     net.generate_network()
     print(f"Network generated in {time.time() - start:.2f}s")
-    
+
+    # Bootstrap: always needed so _get_params() is populated
+    net.theory_type = 'yule_simon'
+    net._fit_asymptotes()
+    net._compute_power_law_params('a')
+    net._compute_power_law_params('b')
+    net.theory_type = gof_theory   # restore
+
     stats.print_statistics(net)
-    
+
     plots = config["plots"]
 
-    # --- Theory-agnostic plots (once) ---
+    # --- Network basic plots: one curve per theory in network_basic list ---
     if plots["network_basic"]:
         vis = DirectedHomophilicNetwork.NetworkVis(net)
         vis.plot_network_graph(fm)
-        vis.plot_degree_distributions_log(fm, theories=config["theories_to_run"])
-        vis.plot_degree_distributions_linear(fm, theories=config["theories_to_run"])
+        vis.plot_degree_distributions_log(fm,   theories=theory_cfg["network_basic"])
+        vis.plot_degree_distributions_linear(fm, theories=theory_cfg["network_basic"])
 
-    # --- Per-theory specific plots ---
-    for theory in config["theories_to_run"]:
-        print(f"\n{'='*60}\nFitting {theory}\n{'='*60}")
-        net.theory_type = theory
-        net._fit_asymptotes()
-
-        if plots["network_basic"]:
+        for theory in theory_cfg["network_basic"]:
+            print(f"Fitting {theory}")
+            net.theory_type = theory
+            if theory == 'yule_simon':
+                net._fit_asymptotes()
+            else:
+                net._compute_power_law_params('a')
+                net._compute_power_law_params('b')
             vis = DirectedHomophilicNetwork.NetworkVis(net)
-            vis.plot_asymptotes(fm)     # returns None silently if not yule_simon
-            vis.plot_normalization(fm)  # theory-specific
+            vis.plot_asymptotes(fm)
+            vis.plot_normalization(fm)
 
-    # --- GoF: first theory only ---
-    gof_theory = config["theories_to_run"][0]
-    net.theory_type = gof_theory
-    net._fit_asymptotes()
-    print(f"\n{'='*60}\nGoF analysis: {gof_theory}\n{'='*60}")
+        net.theory_type = gof_theory   # restore after per-theory loop
+
+    # --- GoF sweeps: use gof_theory + mle_theory from config['theory'] ---
+    print(f"GoF analysis: gof={gof_theory}, mle={mle_theory}")
 
     if plots["sweep_m_edges_csn"]:
-        results_m = gof.csn_sweep_m_edges(net, **config["sweep_m"])
+        results_m = gof.csn_sweep_m_edges(net, **config["sweep_m"],
+                                           mle_type=mle_theory)
         fm.save_fig_with_suffix(results_m["fig"], "sweep_m_edges_csn", gof_theory)
         frac_data = {}
         for p_c in config["sweep_m"]["p_c_list"]:
             frac_data[f'frac_nodes_pc{p_c}'] = results_m['frac_nodes_kept'][p_c]
             frac_data[f'frac_edges_pc{p_c}'] = results_m['frac_edges_kept'][p_c]
-            frac_data[f'valid_pc{p_c}'] = [not x for x in results_m['no_window'][p_c]]
-        fm.export_grid_to_csv(frac_data, f'sweep_m_edges_frac_{gof_theory}', metric_name='frac', x_values=results_m['m_values'], x_name='m_edges', metadata_dict={'Sweep': 'm_edges', 'Theory': gof_theory, 'Node type': config["sweep_m"]["node_type"], 'a': config["sweep_m"]["a"]})
+            frac_data[f'valid_pc{p_c}']       = [not x for x in results_m['no_window'][p_c]]
+        fm.export_grid_to_csv(frac_data, f'sweep_m_edges_frac_{gof_theory}', metric_name='frac',
+            x_values=results_m['m_values'], x_name='m_edges',
+            metadata_dict={'Sweep': 'm_edges', 'GoF theory': gof_theory, 'MLE type': mle_theory,
+                           'Node type': config["sweep_m"]["node_type"], 'a': config["sweep_m"]["a"]})
         v1d = GoFDiagnostics.CSN1DVis(gof)
-        fig_nodes = v1d.plot_frac_sweep(results_m['m_values'], results_m['frac_nodes_kept'], results_m['frac_edges_kept'], results_m['no_window'], config["sweep_m"]["p_c_list"], 'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='nodes')
+        fig_nodes = v1d.plot_frac_sweep(results_m['m_values'], results_m['frac_nodes_kept'],
+            results_m['frac_edges_kept'], results_m['no_window'], config["sweep_m"]["p_c_list"],
+            'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='nodes')
         fm.save_fig_with_suffix(fig_nodes, "sweep_m_edges_frac_nodes", gof_theory)
-        fig_edges = v1d.plot_frac_sweep(results_m['m_values'], results_m['frac_nodes_kept'], results_m['frac_edges_kept'], results_m['no_window'], config["sweep_m"]["p_c_list"], 'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='edges')
+        fig_edges = v1d.plot_frac_sweep(results_m['m_values'], results_m['frac_nodes_kept'],
+            results_m['frac_edges_kept'], results_m['no_window'], config["sweep_m"]["p_c_list"],
+            'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], metric='edges')
         fm.save_fig_with_suffix(fig_edges, "sweep_m_edges_frac_edges", gof_theory)
         num_p_vs_b_m = plots.get("csn_p_vs_b_m", 0)
         if num_p_vs_b_m > 0:
             diag_indices = gof._select_indices_for_diagnostics(len(results_m['m_values']), num_p_vs_b_m)
             for idx in diag_indices:
-                x_val = int(results_m['m_values'][idx])
+                x_val    = int(results_m['m_values'][idx])
                 scan_res = results_m['windows_info'][idx]
-                windows = scan_res.get('windows', [])
-                if not windows:
+                if not scan_res.get('windows', []):
                     continue
-                fig_p = v1d.plot_p_vs_b(scan_res, config["sweep_m"]["p_c_list"], x_val, 'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], z=1.0)
+                fig_p = v1d.plot_p_vs_b(scan_res, config["sweep_m"]["p_c_list"], x_val,
+                    'm_edges', config["sweep_m"]["node_type"], config["sweep_m"]["a"], z=1.0)
                 fm.save_fig_with_suffix(fig_p, f"p_vs_b_m_edges_{x_val}", gof_theory)
 
     if plots["sweep_n0_csn"]:
-        results_n0 = gof.csn_sweep_n0(net, **config["sweep_n0"])
+        results_n0 = gof.csn_sweep_n0(net, **config["sweep_n0"],
+                                        mle_type=mle_theory)
         fm.save_fig_with_suffix(results_n0["fig"], "sweep_n0_csn", gof_theory)
         frac_data = {}
         for p_c in config["sweep_n0"]["p_c_list"]:
             frac_data[f'frac_nodes_pc{p_c}'] = results_n0['frac_nodes_kept'][p_c]
             frac_data[f'frac_edges_pc{p_c}'] = results_n0['frac_edges_kept'][p_c]
-            frac_data[f'valid_pc{p_c}'] = [not x for x in results_n0['no_window'][p_c]]
-        fm.export_grid_to_csv(frac_data, f'sweep_n0_frac_{gof_theory}', metric_name='frac', x_values=results_n0['n0_values'], x_name='n0', metadata_dict={'Sweep': 'n0', 'Theory': gof_theory, 'Node type': config["sweep_n0"]["node_type"], 'a': config["sweep_n0"]["a"]})
+            frac_data[f'valid_pc{p_c}']       = [not x for x in results_n0['no_window'][p_c]]
+        fm.export_grid_to_csv(frac_data, f'sweep_n0_frac_{gof_theory}', metric_name='frac',
+            x_values=results_n0['n0_values'], x_name='n0',
+            metadata_dict={'Sweep': 'n0', 'GoF theory': gof_theory, 'MLE type': mle_theory,
+                           'Node type': config["sweep_n0"]["node_type"], 'a': config["sweep_n0"]["a"]})
         v1d = GoFDiagnostics.CSN1DVis(gof)
-        fig_nodes = v1d.plot_frac_sweep(results_n0['n0_values'], results_n0['frac_nodes_kept'], results_n0['frac_edges_kept'], results_n0['no_window'], config["sweep_n0"]["p_c_list"], 'n0', config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='nodes')
+        fig_nodes = v1d.plot_frac_sweep(results_n0['n0_values'], results_n0['frac_nodes_kept'],
+            results_n0['frac_edges_kept'], results_n0['no_window'], config["sweep_n0"]["p_c_list"],
+            'n0', config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='nodes')
         fm.save_fig_with_suffix(fig_nodes, "sweep_n0_frac_nodes", gof_theory)
-        fig_edges = v1d.plot_frac_sweep(results_n0['n0_values'], results_n0['frac_nodes_kept'], results_n0['frac_edges_kept'], results_n0['no_window'], config["sweep_n0"]["p_c_list"], 'n0', config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='edges')
+        fig_edges = v1d.plot_frac_sweep(results_n0['n0_values'], results_n0['frac_nodes_kept'],
+            results_n0['frac_edges_kept'], results_n0['no_window'], config["sweep_n0"]["p_c_list"],
+            'n0', config["sweep_n0"]["node_type"], config["sweep_n0"]["a"], metric='edges')
         fm.save_fig_with_suffix(fig_edges, "sweep_n0_frac_edges", gof_theory)
 
     if plots["grid_2d_sweep"]:
-        _allowed_keys_grid2d = {"m_min", "m_max", "m_step", "n0_min", "n0_max", "n0_step", "node_type", "a", "p_c_list", "N_sims", "b_grid_type", "n_b", "b_min", "b_max", "z"}
-        _grid2d_args = {k: v for k, v in config["grid_2d"].items() if k in _allowed_keys_grid2d}
-        grid_results = gof.csn_sweep_2d_grid(net, **_grid2d_args)
-        m_values = grid_results["m_values"]
+        _allowed_keys = {"m_min","m_max","m_step","n0_min","n0_max","n0_step","node_type","a",
+                         "p_c_list","N_sims","b_grid_type","n_b","b_min","b_max","z"}
+        _grid2d_args = {k: v for k, v in config["grid_2d"].items() if k in _allowed_keys}
+        grid_results = gof.csn_sweep_2d_grid(net, **_grid2d_args, mle_type=mle_theory)
+        m_values  = grid_results["m_values"]
         n0_values = grid_results["n0_values"]
-        p_c_list = grid_results["p_c_list"]
-        frac_nodes_grid = grid_results["frac_nodes_grid"]
-        frac_edges_grid = grid_results["frac_edges_grid"]
-        p_value_grid = grid_results["p_value_grid"]
+        p_c_list  = grid_results["p_c_list"]
         v2d = GoFDiagnostics.CSN2DVis(gof)
         for p_c in p_c_list:
-            margin_data = p_value_grid[p_c] - p_c
-            fig = v2d.plot_contour_generic(m_values, n0_values, margin_data, metric_label=r'$M = p^* - p_c$', use_csn_cmap=False)
+            margin_data = grid_results["p_value_grid"][p_c] - p_c
+            fig = v2d.plot_contour_generic(m_values, n0_values, margin_data,
+                metric_label=r'$M = p^* - p_c$', use_csn_cmap=False)
             fm.save_fig_with_suffix(fig, f"margin_pc{p_c}", gof_theory)
-            fm.export_grid_to_csv(data_grid=margin_data, filename=f"margin_pc{p_c}_{gof_theory}", metric_name='margin', m_values=m_values, n0_values=n0_values, p_c=p_c)
-            fig = v2d.plot_contour_generic(m_values, n0_values, frac_nodes_grid[p_c], metric_label=r'$F_{\mathrm{nodes}}^*$', use_csn_cmap=True)
+            fm.export_grid_to_csv(margin_data, f"margin_pc{p_c}_{gof_theory}",
+                metric_name='margin', m_values=m_values, n0_values=n0_values, p_c=p_c)
+            fig = v2d.plot_contour_generic(m_values, n0_values, grid_results["frac_nodes_grid"][p_c],
+                metric_label=r'$F_{\mathrm{nodes}}^*$', use_csn_cmap=True)
             fm.save_fig_with_suffix(fig, f"frac_nodes_pc{p_c}", gof_theory)
-            fm.export_grid_to_csv(data_grid=frac_nodes_grid[p_c], filename=f"frac_nodes_pc{p_c}_{gof_theory}", metric_name='frac_nodes', m_values=m_values, n0_values=n0_values, p_c=p_c)
-            fig = v2d.plot_contour_generic(m_values, n0_values, frac_edges_grid[p_c], metric_label=r'$F_{\mathrm{edges}}^*$', use_csn_cmap=True)
+            fm.export_grid_to_csv(grid_results["frac_nodes_grid"][p_c],
+                f"frac_nodes_pc{p_c}_{gof_theory}", metric_name='frac_nodes',
+                m_values=m_values, n0_values=n0_values, p_c=p_c)
+            fig = v2d.plot_contour_generic(m_values, n0_values, grid_results["frac_edges_grid"][p_c],
+                metric_label=r'$F_{\mathrm{edges}}^*$', use_csn_cmap=True)
             fm.save_fig_with_suffix(fig, f"frac_edges_pc{p_c}", gof_theory)
-            fm.export_grid_to_csv(data_grid=frac_edges_grid[p_c], filename=f"frac_edges_pc{p_c}_{gof_theory}", metric_name='frac_edges', m_values=m_values, n0_values=n0_values, p_c=p_c)
+            fm.export_grid_to_csv(grid_results["frac_edges_grid"][p_c],
+                f"frac_edges_pc{p_c}_{gof_theory}", metric_name='frac_edges',
+                m_values=m_values, n0_values=n0_values, p_c=p_c)
 
     fm.finalize_metadata()
     print(f"\nAll outputs saved to: {fm.path()}")
