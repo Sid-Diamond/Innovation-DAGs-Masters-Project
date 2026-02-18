@@ -409,7 +409,7 @@ class DirectedHomophilicNetwork:
             plt.rcParams['xtick.major.width'] = 0.8
             plt.rcParams['ytick.major.width'] = 0.8
 
-        def _logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.01) -> Tuple[np.ndarray, np.ndarray]:
+        def _logarithmic_binning(self, degrees: np.ndarray, bin_factor: float = 1.05) -> Tuple[np.ndarray, np.ndarray]:
             """Logarithmic binning with k=0 separate."""
             if len(degrees) == 0:
                 return np.array([]), np.array([])
@@ -541,6 +541,7 @@ class DirectedHomophilicNetwork:
                     csv_data[f'{theory}_prob'] = theo_at_bins
 
                 ax.set_xscale('symlog', linthresh=0.1)
+                #ax.set_xscale('log')
                 ax.set_yscale('log')
                 ax.set_xlim(left=-0.05)
                 ax.set_ylim(bottom=y_bottom, top=y_max_fixed)
@@ -699,26 +700,108 @@ class DirectedHomophilicNetwork:
             plt.tight_layout()
             fm.save_fig(fig, "degree_dist_discrete_linear")
 
-        def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), node_size: float = 100, layout: str = 'spring'):
-            """Visualize network graph with node coloring by type."""
+        def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), node_size: float = 100, layout: str = 'spring', plot: bool = False):
+            """Visualize network graph with node coloring by type and save network data to CSV.
+            """
             if self.net.graph is None:
                 print("Warning: Network graph not built. Set build_graph=True when creating network.")
                 return None
-            fig, ax = plt.subplots(figsize=figsize)
+            
+            # Generate plot if requested
+            if plot:
+                fig, ax = plt.subplots(figsize=figsize)
+                node_types = self.net.node_types[:self.net.graph.number_of_nodes()]
+                node_colors = ['red' if nt == 0 else 'blue' for nt in node_types]
+                
+                pos = nx.spring_layout(self.net.graph, seed=42, k=1/np.sqrt(self.net.graph.number_of_nodes())) if layout == 'spring' else (nx.kamada_kawai_layout(self.net.graph) if layout == 'kamada_kawai' else nx.circular_layout(self.net.graph))
+                
+                nx.draw_networkx_nodes(self.net.graph, pos, node_color=node_colors, node_size=node_size, alpha=0.7, ax=ax)
+                nx.draw_networkx_edges(self.net.graph, pos, alpha=0.2, width=0.5, arrows=True, arrowsize=10, ax=ax)
+                
+                legend_elements = [Patch(facecolor='red', alpha=0.7, label='Type a'), Patch(facecolor='blue', alpha=0.7, label='Type b')]
+                ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
+                
+                legend_text = f"N={self.net.n0 + self.net.n_nodes}, m={self.net.m_edges}, h={self.net.h}, $f_a$={self.net.f_a}"
+                ax.text(0.5, 0.98, legend_text, transform=ax.transAxes, ha='center', va='top', fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+                
+                ax.set_title(f"Network Graph ({layout} layout)", fontsize=14, fontweight='bold', pad=20)
+                ax.axis('off')
+                plt.tight_layout()
+                
+                # Save figure
+                fm.save_fig(fig, f"network_graph_{layout}")
+            
+            # Save network data to CSV files in data folder
             node_types = self.net.node_types[:self.net.graph.number_of_nodes()]
-            node_colors = ['red' if nt == 0 else 'blue' for nt in node_types]
-            pos = nx.spring_layout(self.net.graph, seed=42, k=1/np.sqrt(self.net.graph.number_of_nodes())) if layout == 'spring' else (nx.kamada_kawai_layout(self.net.graph) if layout == 'kamada_kawai' else nx.circular_layout(self.net.graph))
-            nx.draw_networkx_nodes(self.net.graph, pos, node_color=node_colors, node_size=node_size, alpha=0.7, ax=ax)
-            nx.draw_networkx_edges(self.net.graph, pos, alpha=0.2, width=0.5, arrows=True, arrowsize=10, ax=ax)
-            legend_elements = [Patch(facecolor='red', alpha=0.7, label='Type a'), Patch(facecolor='blue', alpha=0.7, label='Type b')]
-            ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
-            legend_text = f"N={self.net.n0 + self.net.n_nodes}, m={self.net.m_edges}, h={self.net.h}, $f_a$={self.net.f_a}"
-            ax.text(0.5, 0.98, legend_text, transform=ax.transAxes, ha='center', va='top', fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            ax.set_title(f"Network Graph ({layout} layout)", fontsize=14, fontweight='bold', pad=20)
-            ax.axis('off')
-            plt.tight_layout()
-            fm.save_fig(fig, f"network_graph_{layout}")
-            return fig
+            
+            # Nodes data
+            nodes_data = []
+            for node_id in self.net.graph.nodes():
+                node_type = self.net.node_types[node_id]
+                nodes_data.append({
+                    'node_id': node_id,
+                    'node_type': 'Type a' if node_type == 0 else 'Type b',
+                    'in_degree': self.net.graph.in_degree(node_id),
+                    'out_degree': self.net.graph.out_degree(node_id)
+                })
+            
+            nodes_df = pd.DataFrame(nodes_data)
+            nodes_filepath = fm.data_dir / f"network_nodes_{layout}.csv"
+            with open(nodes_filepath, 'w') as f:
+                f.write(f"# Network nodes data\n")
+                f.write(f"# Layout: {layout}\n")
+                f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                nodes_df.to_csv(f, index=False)
+            
+            # Edges data
+            edges_data = []
+            for source, target in self.net.graph.edges():
+                source_type = self.net.node_types[source]
+                target_type = self.net.node_types[target]
+                edges_data.append({
+                    'source': source,
+                    'target': target,
+                    'source_type': 'Type a' if source_type == 0 else 'Type b',
+                    'target_type': 'Type a' if target_type == 0 else 'Type b'
+                })
+            
+            edges_df = pd.DataFrame(edges_data)
+            edges_filepath = fm.data_dir / f"network_edges_{layout}.csv"
+            with open(edges_filepath, 'w') as f:
+                f.write(f"# Network edges data\n")
+                f.write(f"# Layout: {layout}\n")
+                f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
+                f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                edges_df.to_csv(f, index=False)
+            
+            # Summary statistics
+            type_a_count = sum(1 for nt in node_types if nt == 0)
+            type_b_count = sum(1 for nt in node_types if nt == 1)
+            
+            summary_data = {
+                'metric': ['Total Nodes', 'Total Edges', 'Type a Nodes', 'Type b Nodes', 'Average In-Degree', 'Network Density'],
+                'value': [
+                    self.net.graph.number_of_nodes(),
+                    self.net.graph.number_of_edges(),
+                    type_a_count,
+                    type_b_count,
+                    2 * self.net.graph.number_of_edges() / self.net.graph.number_of_nodes() if self.net.graph.number_of_nodes() > 0 else 0,
+                    nx.density(self.net.graph)
+                ]
+            }
+            
+            summary_df = pd.DataFrame(summary_data)
+            summary_filepath = fm.data_dir / f"network_summary_{layout}.csv"
+            with open(summary_filepath, 'w') as f:
+                f.write(f"# Network summary statistics\n")
+                f.write(f"# Layout: {layout}\n")
+                f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
+                summary_df.to_csv(f, index=False)
+            
+            return fig if plot else None
 
         def plot_asymptotes(self, fm: "FileManager", figsize: Tuple = (10, 6)):
             """Plot mean in-edge density with asymptotic fits (Diamond only)."""
@@ -1989,9 +2072,9 @@ class NetworkStatistics:
 config = dict(
     theory=dict(
     network_basic = ['Diamond', 'Sterling',], gof = 'Diamond', mle = 'Diamond',),
-    plots=dict(network_basic=True, sweep_m_edges_csn=False, sweep_n0_csn=False,
+    plots=dict(network_basic= True, sweep_m_edges_csn=False, sweep_n0_csn=False,
                csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=False),
-    network=dict(n0=30, n_nodes=28000, m_edges=2, h=0.7, f_a=0.55, mu_a=1, mu_b=1,
+    network=dict(n0=4, n_nodes=28000, m_edges=3, h=0.7, f_a=0.55, mu_a=1, mu_b=1,
                  seed=5, power_law_params=None),
     sweep_m=dict(m_min=1, m_max=34, m_step=5, node_type='b', a=0,
                  p_c_list=[0.1, 0.2, 0.4], N_sims=30,
@@ -1999,10 +2082,10 @@ config = dict(
     sweep_n0=dict(n0_min=10, n0_max=150, n0_step=30, node_type='b', a=0,
                   p_c_list=[0.1, 0.2, 0.4], N_sims=30,
                   b_grid_type='linear', n_b=5, b_min=None, b_max=None),
-    grid_2d=dict(m_min=1, m_max=34, m_step=6, n0_min=10, n0_max=150, n0_step=30,
+    grid_2d=dict(m_min=1, m_max=11, m_step=2, n0_min=2, n0_max=10, n0_step=2,
                  node_type='b', a=0,
-                 p_c_list=[0.1, 0.2, 0.4], N_sims=30,
-                 b_grid_type='linear', n_b=5, b_min=None, b_max=None, z=1.0))
+                 p_c_list=[0.1, 0.2, 0.4], N_sims=50,
+                 b_grid_type='linear', n_b=50, b_min=None, b_max=None, z=1.0))
 
 if __name__ == "__main__":
 
@@ -2034,7 +2117,7 @@ if __name__ == "__main__":
     # --- Network basic plots: one curve per theory in network_basic list ---
     if plots["network_basic"]:
         vis = DirectedHomophilicNetwork.NetworkVis(net)
-        plot_network = False
+        plot_network = True
         if plot_network:
             vis.plot_network_graph(fm) 
         vis.plot_degree_distributions_log(fm,   theories=theory_cfg["network_basic"])

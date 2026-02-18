@@ -1,0 +1,10 @@
+# Network summary statistics
+# Layout: spring
+# Generated: 2026-02-18T18:29:24.107977
+metric,value
+Total Nodes,104.0
+Total Edges,312.0
+Type a Nodes,53.0
+Type b Nodes,51.0
+Average In-Degree,6.0
+Network Density,0.02912621359223301
