@@ -700,7 +700,7 @@ class DirectedHomophilicNetwork:
             plt.tight_layout()
             fm.save_fig(fig, "degree_dist_discrete_linear")
 
-        def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), node_size: float = 100, layout: str = 'spring', plot: bool = False):
+        def plot_network_graph(self, fm: "FileManager", figsize: Tuple = (12, 12), node_size: float = 100, layout: str = 'spring', plot: bool = True):
             """Visualize network graph with node coloring by type and save network data to CSV.
             """
             if self.net.graph is None:
