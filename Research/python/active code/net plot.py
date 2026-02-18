@@ -10,16 +10,16 @@ import time
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'cm'
 
-data_dir = Path("runs/run_20260218_191428/data")
+data_dir = Path("runs/run_20260218_182921/data")
 layout = 'spring'
 
-node_size = 0.5
+node_size = 2
 node_alpha = 0.7
-edge_width = 0.02
+edge_width = 0.2
 edge_alpha = 0.2
-title_size = 24
-legend_size = 14
-arrowsize = 0.1
+title_size = 20
+legend_size = 10
+arrowsize = 0.5
 
 print("Loading CSV files...")
 t0 = time.time()
@@ -55,15 +55,12 @@ print(f"Layout computation: {time.time() - t0:.2f}s")
 
 print("Rendering figure...")
 t0 = time.time()
-fig, ax = plt.subplots(figsize=(14, 10), dpi=100)  # Reduced DPI for speed
-
-# Draw edges FIRST (so they're behind nodes)
+fig, ax = plt.subplots(figsize=(14, 10), dpi=300)
 nx.draw_networkx_edges(G, pos, alpha=edge_alpha, width=edge_width, 
                        arrows=True, arrowsize=arrowsize,
                        connectionstyle='arc3,rad=0.05',  # Simpler curve
                        ax=ax, edge_color='gray')
 
-# Draw nodes
 nx.draw_networkx_nodes(G, pos, node_color=node_colors,
                        node_size=node_size, alpha=node_alpha, ax=ax)
 

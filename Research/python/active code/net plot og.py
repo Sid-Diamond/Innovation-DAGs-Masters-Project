@@ -9,16 +9,16 @@ from matplotlib.lines import Line2D
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'cm'
 
-data_dir = Path("runs/run_20260218_191428/data")
+data_dir = Path("runs/run_20260218_182921/data")
 layout = 'spring'
 
-node_size = 0.5
+node_size = 2
 node_alpha = 0.7
-edge_width = 0.02
+edge_width = 0.2
 edge_alpha = 0.2
 title_size = 24
 legend_size = 14
-arrowsize = 0.1
+arrowsize = 0.5
 
 nodes_df = pd.read_csv(data_dir / f"network_nodes_{layout}.csv", comment='#')
 edges_df = pd.read_csv(data_dir / f"network_edges_{layout}.csv", comment='#')
@@ -38,7 +38,7 @@ elif layout == 'kamada_kawai':
 else:
     pos = nx.circular_layout(G)
 
-fig, ax = plt.subplots(figsize=(9, 6))
+fig, ax = plt.subplots(figsize=(13, 6))
 
 nx.draw_networkx_nodes(G, pos, node_color=node_colors,
 node_size=node_size, alpha=node_alpha, ax=ax)
