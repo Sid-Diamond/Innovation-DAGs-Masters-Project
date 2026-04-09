@@ -1,0 +1,9 @@
+# Raw node-level degree data
+# Node type: b, n=3
+# N: 8, m: 2
+# h: 0.7, f_a: 0.55
+# Generated: 2026-03-12T18:12:54.473970
+node_id,in_degree
+1,6
+3,3
+7,0

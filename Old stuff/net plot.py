@@ -10,16 +10,16 @@ import time
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'cm'
 
-data_dir = Path("runs/run_20260218_182921/data")
+data_dir = Path("runs/run_20260312_183255/data")
 layout = 'spring'
 
-node_size = 2
-node_alpha = 0.7
-edge_width = 0.2
-edge_alpha = 0.2
+node_size = 5
+node_alpha = 0.8
+edge_width = 0.4
+edge_alpha = 0.7
 title_size = 20
 legend_size = 10
-arrowsize = 0.5
+arrowsize = 2
 
 print("Loading CSV files...")
 t0 = time.time()

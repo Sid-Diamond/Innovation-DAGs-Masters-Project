@@ -1,0 +1,24 @@
+# Network edges data
+# Layout: spring
+# N: 8, m: 2
+# h: 0.7, f_a: 0.55
+# Initial core size (n0): 5
+# Added nodes: 3
+# Generated: 2026-03-12T18:32:56.558123
+source,target,source_origin,target_origin,source_type,target_type
+0,1,initial_core,initial_core,Type a,Type b
+0,2,initial_core,initial_core,Type a,Type a
+1,2,initial_core,initial_core,Type b,Type a
+1,4,initial_core,initial_core,Type b,Type a
+2,3,initial_core,initial_core,Type a,Type b
+2,1,initial_core,initial_core,Type a,Type b
+3,0,initial_core,initial_core,Type b,Type a
+3,2,initial_core,initial_core,Type b,Type a
+4,2,initial_core,initial_core,Type a,Type a
+4,1,initial_core,initial_core,Type a,Type b
+5,4,added,initial_core,Type a,Type a
+5,1,added,initial_core,Type a,Type b
+6,1,added,initial_core,Type a,Type b
+6,3,added,initial_core,Type a,Type b
+7,3,added,initial_core,Type b,Type b
+7,1,added,initial_core,Type b,Type b
