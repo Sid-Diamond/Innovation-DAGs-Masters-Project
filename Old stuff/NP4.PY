@@ -11,7 +11,7 @@ plt.rcParams['font.serif'] = ['TeX Gyre Termes', 'Times New Roman']
 plt.rcParams['mathtext.fontset'] = 'cm'
 
 # CONFIG
-data_dir = Path("runs/run_20260312_193148/data")
+data_dir = Path("runs/run_20260410_100911/data")
 layout, time_steps_diagram, size_effects, save_as_pdf = 'spring', [7, 10, 15], False, True
 dpi_target, dpi_default = 400, 150
 scale_factor = dpi_default / dpi_target

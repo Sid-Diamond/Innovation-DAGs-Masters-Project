@@ -49,8 +49,21 @@ class FileManager:
         print(f"\nTotal runtime: {total_time:.2f}s ({total_time/60:.2f}m)")
 
     def _save_metadata(self):
+        metadata = self.config.copy()
+        metadata["g_a_empirical"] = None
+        metadata["g_b_empirical"] = None
         with open(self.run_dir / "metadata.json", "w") as f:
-            json.dump(self.config, f, indent=2)
+            json.dump(metadata, f, indent=2)
+
+    def update_empirical_g_values(self, g_a: float, g_b: float):
+        """Update metadata with empirical g_a and g_b after network generation."""
+        metadata_path = self.run_dir / "metadata.json"
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        metadata["g_a_empirical"] = float(g_a)
+        metadata["g_b_empirical"] = float(g_b)
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
 
     def save_fig(self, fig, name: str, dpi: int = 300):
         path = self.run_dir / f"{name}.png"
@@ -2074,7 +2087,7 @@ config = dict(
     network_basic = ['Diamond', 'Sterling',], gof = 'Diamond', mle = 'Diamond',),
     plots=dict(network_basic= True, sweep_m_edges_csn=False, sweep_n0_csn=False,
                csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=False),
-    network=dict(n0=4, n_nodes=500000, m_edges=3, h=0.8, f_a=0.1, mu_a=1, mu_b=5,
+    network=dict(n0=4, n_nodes=5000, m_edges=3, h=0.8, f_a=0.1, mu_a=1, mu_b=5,
                  seed=5, power_law_params=None),
     sweep_m=dict(m_min=1, m_max=34, m_step=5, node_type='b', a=0,
                  p_c_list=[0.1, 0.2, 0.4], N_sims=30,
@@ -2101,6 +2114,7 @@ if __name__ == "__main__":
     net = DirectedHomophilicNetwork(**config["network"], theory_type=gof_theory)
     start = time.time()
     net.generate_network()
+    fm.update_empirical_g_values(net.g_a, net.g_b)
     print(f"Network generated in {time.time() - start:.2f}s")
 
     # Bootstrap: always needed so _get_params() is populated
