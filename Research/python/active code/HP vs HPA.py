@@ -49,21 +49,8 @@ class FileManager:
         print(f"\nTotal runtime: {total_time:.2f}s ({total_time/60:.2f}m)")
 
     def _save_metadata(self):
-        metadata = self.config.copy()
-        metadata["g_a_empirical"] = None
-        metadata["g_b_empirical"] = None
         with open(self.run_dir / "metadata.json", "w") as f:
-            json.dump(metadata, f, indent=2)
-
-    def update_empirical_g_values(self, g_a: float, g_b: float):
-        """Update metadata with empirical g_a and g_b after network generation."""
-        metadata_path = self.run_dir / "metadata.json"
-        with open(metadata_path, "r") as f:
-            metadata = json.load(f)
-        metadata["g_a_empirical"] = float(g_a)
-        metadata["g_b_empirical"] = float(g_b)
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(self.config, f, indent=2)
 
     def save_fig(self, fig, name: str, dpi: int = 300):
         path = self.run_dir / f"{name}.png"
@@ -687,14 +674,18 @@ class DirectedHomophilicNetwork:
                     df.to_csv(f, index=False)
                 
                 # Export raw node degrees with node IDs (same as log plot to avoid duplication)
-                if idx == 0:  # Only export once per run, not per plot type
+                if idx == 0:  
                     type_val = 0 if node_type == 'a' else 1
                     node_mask = self.net.node_types[:self.net.in_degrees.size] == type_val
                     node_ids = np.where(node_mask)[0]
+                    node_origins = ['initial_core' if nid < self.net.n0 else 'added' for nid in node_ids]
+
                     node_degrees_data = pd.DataFrame({
                         'node_id': node_ids,
+                        'node_origin': node_origins,
                         'in_degree': in_degrees
                     })
+
                     node_filepath = fm.data_dir / f"node_degrees_type_{node_type}.csv"
                     # Only write if file doesn't already exist (from log plot)
                     if not node_filepath.exists():
@@ -703,9 +694,11 @@ class DirectedHomophilicNetwork:
                             f.write(f"# Node type: {node_type}, n={len(in_degrees)}\n")
                             f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
                             f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                            f.write(f"# Initial core size (n0): {self.net.n0}\n")
+                            f.write(f"# Added nodes: {self.net.n_nodes}\n")
                             f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
                             node_degrees_data.to_csv(f, index=False)
-            
+                                
             fig.suptitle(
                 f'Directed Homophilic Network: N={self.net.n0 + self.net.n_nodes:,}, '
                 f'm={self.net.m_edges}, h={self.net.h}, f_a={self.net.f_a}',
@@ -747,12 +740,15 @@ class DirectedHomophilicNetwork:
             # Save network data to CSV files in data folder
             node_types = self.net.node_types[:self.net.graph.number_of_nodes()]
             
-            # Nodes data
+            # Nodes data - NOW WITH node_origin COLUMN
             nodes_data = []
             for node_id in self.net.graph.nodes():
                 node_type = self.net.node_types[node_id]
+                node_origin = 'initial_core' if node_id < self.net.n0 else 'added'
+                
                 nodes_data.append({
                     'node_id': node_id,
+                    'node_origin': node_origin,
                     'node_type': 'Type a' if node_type == 0 else 'Type b',
                     'in_degree': self.net.graph.in_degree(node_id),
                     'out_degree': self.net.graph.out_degree(node_id)
@@ -765,6 +761,8 @@ class DirectedHomophilicNetwork:
                 f.write(f"# Layout: {layout}\n")
                 f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
                 f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                f.write(f"# Initial core size (n0): {self.net.n0}\n")
+                f.write(f"# Added nodes: {self.net.n_nodes}\n")
                 f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
                 nodes_df.to_csv(f, index=False)
             
@@ -773,9 +771,14 @@ class DirectedHomophilicNetwork:
             for source, target in self.net.graph.edges():
                 source_type = self.net.node_types[source]
                 target_type = self.net.node_types[target]
+                source_origin = 'initial_core' if source < self.net.n0 else 'added'
+                target_origin = 'initial_core' if target < self.net.n0 else 'added'
+                
                 edges_data.append({
                     'source': source,
                     'target': target,
+                    'source_origin': source_origin,
+                    'target_origin': target_origin,
                     'source_type': 'Type a' if source_type == 0 else 'Type b',
                     'target_type': 'Type a' if target_type == 0 else 'Type b'
                 })
@@ -787,17 +790,23 @@ class DirectedHomophilicNetwork:
                 f.write(f"# Layout: {layout}\n")
                 f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
                 f.write(f"# h: {self.net.h}, f_a: {self.net.f_a}\n")
+                f.write(f"# Initial core size (n0): {self.net.n0}\n")
+                f.write(f"# Added nodes: {self.net.n_nodes}\n")
                 f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
                 edges_df.to_csv(f, index=False)
             
             # Summary statistics
             type_a_count = sum(1 for nt in node_types if nt == 0)
             type_b_count = sum(1 for nt in node_types if nt == 1)
+            initial_core_count = sum(1 for nid in range(self.net.n0))
+            added_count = self.net.n_nodes
             
             summary_data = {
-                'metric': ['Total Nodes', 'Total Edges', 'Type a Nodes', 'Type b Nodes', 'Average In-Degree', 'Network Density'],
+                'metric': ['Total Nodes', 'Initial Core Nodes', 'Added Nodes', 'Total Edges', 'Type a Nodes', 'Type b Nodes', 'Average In-Degree', 'Network Density'],
                 'value': [
                     self.net.graph.number_of_nodes(),
+                    self.net.n0,
+                    self.net.n_nodes,
                     self.net.graph.number_of_edges(),
                     type_a_count,
                     type_b_count,
@@ -844,7 +853,7 @@ class DirectedHomophilicNetwork:
                 df.to_csv(f, index=False)
             return fig
 
-        def plot_normalization(self, fm: "FileManager", max_k: int = 25, figsize: Tuple = (15, 6)):
+        def plot_normalization(self, fm: "FileManager", max_k: int = 10, figsize: Tuple = (15, 6)):
             """Plot theory-specific normalization. Diamond: A(k), Power Law: exponent & norm."""
             if self.net.theory_type == 'Diamond':
                 return self._plot_normalization_diamond(fm, max_k, figsize)
@@ -1931,8 +1940,7 @@ class GoFDiagnostics:
                 'z': z,
             }
             
-            return fig 
-        
+            return fig     
     class CSN2DVis:
         """
         2D visualization utilities for CSN-based windows.
@@ -2087,7 +2095,7 @@ config = dict(
     network_basic = ['Diamond', 'Sterling',], gof = 'Diamond', mle = 'Diamond',),
     plots=dict(network_basic= True, sweep_m_edges_csn=False, sweep_n0_csn=False,
                csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=False),
-    network=dict(n0=4, n_nodes=5000, m_edges=3, h=0.8, f_a=0.1, mu_a=1, mu_b=5,
+    network=dict(n0=5, n_nodes=28000, m_edges=2, h=0.7, f_a=0.4, mu_a=2, mu_b=1,
                  seed=5, power_law_params=None),
     sweep_m=dict(m_min=1, m_max=34, m_step=5, node_type='b', a=0,
                  p_c_list=[0.1, 0.2, 0.4], N_sims=30,
@@ -2114,7 +2122,6 @@ if __name__ == "__main__":
     net = DirectedHomophilicNetwork(**config["network"], theory_type=gof_theory)
     start = time.time()
     net.generate_network()
-    fm.update_empirical_g_values(net.g_a, net.g_b)
     print(f"Network generated in {time.time() - start:.2f}s")
 
     # Bootstrap: always needed so _get_params() is populated
