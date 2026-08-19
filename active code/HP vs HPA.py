@@ -13,28 +13,35 @@ from pathlib import Path
 from matplotlib.patches import Patch
 import datetime
 import json
+import os
 import pandas as pd
 
 class FileManager:
 
     def __init__(self, config: dict, base: str = "runs"):
         self.config = config
+        self.save_outputs = config.get("display", {}).get("save_outputs", True)
         self.base = Path(base)
-        self.base.mkdir(exist_ok=True)
 
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.run_dir = self.base / f"run_{ts}"
-        self.run_dir.mkdir(parents=True, exist_ok=True)  
-        
         self.data_dir = self.run_dir / "data"
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+
+        if self.save_outputs:
+            self.base.mkdir(exist_ok=True)
+            self.run_dir.mkdir(parents=True, exist_ok=True)
+            self.data_dir.mkdir(parents=True, exist_ok=True)
         
         self.start_time = time.time()
-        self._save_metadata()
+        if self.save_outputs:
+            self._save_metadata()
 
     def finalize_metadata(self):
         """Update metadata with total runtime."""
         total_time = time.time() - self.start_time
+
+        if not self.save_outputs:
+            return
         
         metadata_path = self.run_dir / "metadata.json"
         with open(metadata_path, "r") as f:
@@ -53,18 +60,27 @@ class FileManager:
             json.dump(self.config, f, indent=2)
 
     def save_fig(self, fig, name: str, dpi: int = 300):
-        path = self.run_dir / f"{name}.png"
-        fig.savefig(path, dpi=dpi, bbox_inches="tight")
+        if self.save_outputs:
+            path = self.run_dir / f"{name}.png"
+            fig.savefig(path, dpi=dpi, bbox_inches="tight")
         plt.close(fig)
     
     def save_fig_with_suffix(self, fig, name: str, suffix: str, dpi: int = 300):
         """Save figure with theory-type or parameter suffix."""
-        path = self.run_dir / f"{name}_{suffix}.png"
-        fig.savefig(path, dpi=dpi, bbox_inches="tight")
+        if self.save_outputs:
+            path = self.run_dir / f"{name}_{suffix}.png"
+            fig.savefig(path, dpi=dpi, bbox_inches="tight")
         plt.close(fig)
+
+    def open_file(self, filepath):
+        """Open an output file, or discard output when saving is disabled."""
+        return open(filepath if self.save_outputs else os.devnull, "w")
    
     def export_grid_to_csv(self, data_grid, filename, metric_name, m_values=None, n0_values=None, x_values=None, x_name=None, p_c=None, metadata_dict=None):
         """Export grid data to CSV. Handles 1D (x_values) and 2D (m_values, n0_values) cases."""
+        if not self.save_outputs:
+            return
+
         filepath = self.data_dir / f"{filename}.csv"
         if x_values is not None:
             rows = []
@@ -566,7 +582,7 @@ class DirectedHomophilicNetwork:
 
                 df = pd.DataFrame(csv_data)
                 filepath = fm.data_dir / f"degree_dist_log_binned_type_{node_type}.csv"
-                with open(filepath, 'w') as f:
+                with fm.open_file(filepath) as f:
                     f.write(f"# Log-binned degree distribution\n")
                     f.write(f"# Node type: {node_type}, n={n_nodes_str}\n")
                     f.write(f"# N: {self.net.n0 + self.net.n_nodes:,}, m: {self.net.m_edges:,}\n")
@@ -583,7 +599,7 @@ class DirectedHomophilicNetwork:
                     'in_degree': in_degrees
                 })
                 node_filepath = fm.data_dir / f"node_degrees_type_{node_type}.csv"
-                with open(node_filepath, 'w') as f:
+                with fm.open_file(node_filepath) as f:
                     f.write(f"# Raw node-level degree data\n")
                     f.write(f"# Node type: {node_type}, n={n_nodes_str}\n")
                     f.write(f"# N: {self.net.n0 + self.net.n_nodes:,}, m: {self.net.m_edges:,}\n")
@@ -664,7 +680,7 @@ class DirectedHomophilicNetwork:
                 # Export CSV
                 df = pd.DataFrame(csv_data)
                 filepath = fm.data_dir / f"degree_dist_linear_type_{node_type}.csv"
-                with open(filepath, 'w') as f:
+                with fm.open_file(filepath) as f:
                     f.write(f"# Linear-scale discrete degree distribution\n")
                     f.write(f"# Node type: {node_type}, n={len(in_degrees)}\n")
                     f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
@@ -689,7 +705,7 @@ class DirectedHomophilicNetwork:
                     node_filepath = fm.data_dir / f"node_degrees_type_{node_type}.csv"
                     # Only write if file doesn't already exist (from log plot)
                     if not node_filepath.exists():
-                        with open(node_filepath, 'w') as f:
+                        with fm.open_file(node_filepath) as f:
                             f.write(f"# Raw node-level degree data\n")
                             f.write(f"# Node type: {node_type}, n={len(in_degrees)}\n")
                             f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
@@ -756,7 +772,7 @@ class DirectedHomophilicNetwork:
             
             nodes_df = pd.DataFrame(nodes_data)
             nodes_filepath = fm.data_dir / f"network_nodes_{layout}.csv"
-            with open(nodes_filepath, 'w') as f:
+            with fm.open_file(nodes_filepath) as f:
                 f.write(f"# Network nodes data\n")
                 f.write(f"# Layout: {layout}\n")
                 f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
@@ -785,7 +801,7 @@ class DirectedHomophilicNetwork:
             
             edges_df = pd.DataFrame(edges_data)
             edges_filepath = fm.data_dir / f"network_edges_{layout}.csv"
-            with open(edges_filepath, 'w') as f:
+            with fm.open_file(edges_filepath) as f:
                 f.write(f"# Network edges data\n")
                 f.write(f"# Layout: {layout}\n")
                 f.write(f"# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n")
@@ -817,7 +833,7 @@ class DirectedHomophilicNetwork:
             
             summary_df = pd.DataFrame(summary_data)
             summary_filepath = fm.data_dir / f"network_summary_{layout}.csv"
-            with open(summary_filepath, 'w') as f:
+            with fm.open_file(summary_filepath) as f:
                 f.write(f"# Network summary statistics\n")
                 f.write(f"# Layout: {layout}\n")
                 f.write(f"# Generated: {datetime.datetime.now().isoformat()}\n")
@@ -848,7 +864,7 @@ class DirectedHomophilicNetwork:
             csv_data = [{'t': t, 'mean_deg_a': ma, 'mean_deg_b': mb, 'asymptote_a': self.net.g_a, 'asymptote_b': self.net.g_b} for t, ma, mb in zip(times, mean_deg_a, mean_deg_b)]
             df = pd.DataFrame(csv_data)
             filepath = fm.data_dir / "asymptotes.csv"
-            with open(filepath, 'w') as f:
+            with fm.open_file(filepath) as f:
                 f.write(f"# Asymptotic in-edge density evolution\n# N: {self.net.n0 + self.net.n_nodes}, m: {self.net.m_edges}\n# h: {self.net.h}, f_a: {self.net.f_a}\n# g_a: {self.net.g_a:.6f}, g_b: {self.net.g_b:.6f}\n# Generated: {datetime.datetime.now().isoformat()}\n")
                 df.to_csv(f, index=False)
             return fig
@@ -886,7 +902,7 @@ class DirectedHomophilicNetwork:
                 csv_data = [{'k': k, 'A_k': params['p0'] * (np.prod([(params['alpha'] + i) / (params['alpha'] + params['gamma'] + i) for i in range(k)]) if k > 0 else 1.0) * gamma_func(k + params['alpha'] + params['gamma']) / gamma_func(k + params['alpha']), 'A_asymptotic': params['A']} for k in k_values]
                 df = pd.DataFrame(csv_data)
                 filepath = fm.data_dir / f"A_normalization_type_{node_type}.csv"
-                with open(filepath, 'w') as f:
+                with fm.open_file(filepath) as f:
                     f.write(f"# Normalization constant A(k)\n# Node type: {node_type}\n# p0: {params['p0']:.6f}, alpha: {params['alpha']:.6f}, gamma: {params['gamma']:.6f}\n# A_asymptotic: {params['A']:.6f}\n# Generated: {datetime.datetime.now().isoformat()}\n")
                     df.to_csv(f, index=False)
             return fig
@@ -933,7 +949,7 @@ class DirectedHomophilicNetwork:
                                     for k in k_vals]
                         df = pd.DataFrame(csv_data)
                         filepath = fm.data_dir / f"Sterling_type_{node_type}.csv"
-                        with open(filepath, 'w') as f:
+                        with fm.open_file(filepath) as f:
                             f.write(f"# Sterling PMF: p(k) = A*(k+alpha)^(-gamma)\n"
                                     f"# Node type: {node_type}\n"
                                     f"# A: {A:.6f}, alpha: {alpha:.6f}, gamma: {gamma:.6f}\n"
@@ -961,7 +977,7 @@ class DirectedHomophilicNetwork:
                                     for k in k_vals]
                         df = pd.DataFrame(csv_data)
                         filepath = fm.data_dir / f"power_law_2_type_{node_type}.csv"
-                        with open(filepath, 'w') as f:
+                        with fm.open_file(filepath) as f:
                             f.write(f"# Power law 2 PMF: p(k) ~ (k+k0)^(-alpha)/norm\n"
                                     f"# Node type: {node_type}\n"
                                     f"# alpha: {alpha:.6f}, k0: {k0:.6f}, norm: {norm:.6f}\n"
@@ -2093,6 +2109,7 @@ class NetworkStatistics:
 config = dict(
     theory=dict(
     network_basic = ['Diamond', 'Sterling',], gof = 'Diamond', mle = 'Diamond',),
+    display=dict(save_outputs=True),
     plots=dict(network_basic= True, sweep_m_edges_csn=False, sweep_n0_csn=False,
                csn_p_vs_b_m=5, csn_p_vs_b_n0=5, grid_2d_sweep=False),
     network=dict(n0=5, n_nodes=28000, m_edges=2, h=0.7, f_a=0.4, mu_a=2, mu_b=1,
@@ -2248,4 +2265,7 @@ if __name__ == "__main__":
                 m_values=m_values, n0_values=n0_values, p_c=p_c)
 
     fm.finalize_metadata()
-    print(f"\nAll outputs saved to: {fm.path()}")
+    if fm.save_outputs:
+        print(f"\nAll outputs saved to: {fm.path()}")
+    else:
+        print("\nNo data saved. To save, toggle save_outputs to True.")
