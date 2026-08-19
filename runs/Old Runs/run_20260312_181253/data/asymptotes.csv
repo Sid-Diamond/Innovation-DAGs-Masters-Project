@@ -1,8 +1,0 @@
-# Asymptotic in-edge density evolution
-# N: 8, m: 2
-# h: 0.7, f_a: 0.55
-# g_a: 1.000000, g_b: 1.000000
-# Generated: 2026-03-12T18:12:59.200139
-t,mean_deg_a,mean_deg_b,asymptote_a,asymptote_b
-5,1.4,1.0,1.0,1.0
-7,1.0,1.2857142857142858,1.0,1.0
