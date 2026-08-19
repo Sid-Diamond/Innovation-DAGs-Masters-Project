@@ -1,0 +1,86 @@
+{
+  "theory": {
+    "network_basic": [
+      "Diamond",
+      "Sterling"
+    ],
+    "gof": "Diamond",
+    "mle": "Diamond"
+  },
+  "plots": {
+    "network_basic": true,
+    "sweep_m_edges_csn": false,
+    "sweep_n0_csn": false,
+    "csn_p_vs_b_m": 5,
+    "csn_p_vs_b_n0": 5,
+    "grid_2d_sweep": false
+  },
+  "network": {
+    "n0": 5,
+    "n_nodes": 28000,
+    "m_edges": 2,
+    "h": 0.7,
+    "f_a": 0.4,
+    "mu_a": 2,
+    "mu_b": 1,
+    "seed": 5,
+    "power_law_params": null
+  },
+  "sweep_m": {
+    "m_min": 1,
+    "m_max": 34,
+    "m_step": 5,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.1,
+      0.2,
+      0.4
+    ],
+    "N_sims": 30,
+    "b_grid_type": "linear",
+    "n_b": 5,
+    "b_min": null,
+    "b_max": null
+  },
+  "sweep_n0": {
+    "n0_min": 10,
+    "n0_max": 150,
+    "n0_step": 30,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.1,
+      0.2,
+      0.4
+    ],
+    "N_sims": 30,
+    "b_grid_type": "linear",
+    "n_b": 5,
+    "b_min": null,
+    "b_max": null
+  },
+  "grid_2d": {
+    "m_min": 1,
+    "m_max": 11,
+    "m_step": 2,
+    "n0_min": 2,
+    "n0_max": 10,
+    "n0_step": 2,
+    "node_type": "b",
+    "a": 0,
+    "p_c_list": [
+      0.1,
+      0.2,
+      0.4
+    ],
+    "N_sims": 50,
+    "b_grid_type": "linear",
+    "n_b": 50,
+    "b_min": null,
+    "b_max": null,
+    "z": 1.0
+  },
+  "total_runtime_seconds": 39.85342574119568,
+  "total_runtime_formatted": "39.85s (0.66m)"
+}
